@@ -15,7 +15,7 @@ DECLARE
   request_id bigint;
 BEGIN
   IF OLD.status IS DISTINCT FROM NEW.status THEN
-    function_url := 'https://njytakdtmaudolpovvbg.supabase.co/functions/v1/notify-status-change';
+    function_url := 'https://wytbkueaymkpbwmbvkul.supabase.co/functions/v1/notify-status-change';
 
     SELECT net.http_post(
       url := function_url,
@@ -48,7 +48,7 @@ DECLARE
   function_url text;
   request_id bigint;
 BEGIN
-  function_url := 'https://njytakdtmaudolpovvbg.supabase.co/functions/v1/notify-staff-update';
+  function_url := 'https://wytbkueaymkpbwmbvkul.supabase.co/functions/v1/notify-staff-update';
 
   SELECT net.http_post(
     url := function_url,

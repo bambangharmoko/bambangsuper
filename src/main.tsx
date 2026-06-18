@@ -27,7 +27,7 @@ if ("serviceWorker" in navigator) {
       // 2. Firebase Messaging Service Worker (push notification)
       //    Selalu diregister di prod maupun dev
       await navigator.serviceWorker.register("/firebase-messaging-sw.js", {
-        scope: "/",
+        scope: "/firebase-cloud-messaging",
       });
     } catch (err) {
       console.warn("[SW] Registrasi service worker gagal:", err);

@@ -102,7 +102,7 @@ export const getMessagingRegistration = async (): Promise<ServiceWorkerRegistrat
   if (!registrationPromise) {
     registrationPromise = withTimeout(
       navigator.serviceWorker.register(buildSwUrl(config), {
-        scope: "/",
+        scope: "/firebase-cloud-messaging",
         updateViaCache: "none",
       }),
       12000,

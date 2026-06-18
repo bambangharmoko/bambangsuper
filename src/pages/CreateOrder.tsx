@@ -538,6 +538,16 @@ export default function CreateOrderPage() {
       } catch (e) {
         console.error("Failed to parse saved form", e);
       }
+      if (savedStep) {
+        try {
+          const parsedStep = Number(savedStep);
+          if (!isNaN(parsedStep)) {
+            setStep(parsedStep);
+          }
+        } catch (e) {
+          console.error("Failed to parse saved step", e);
+        }
+      }
     } else {
       // Jika tidak ada draft form yang disimpan, bersihkan state form ke default
       setForm({

@@ -1,0 +1,1 @@
+ALTER TABLE public.service_orders ADD COLUMN serial_number TEXT DEFAULT NULL;

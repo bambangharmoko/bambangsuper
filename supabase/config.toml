@@ -1,0 +1,8 @@
+project_id = "njytakdtmaudolpovvbg"
+
+[functions.notify-status-change]
+verify_jwt = false
+
+[functions.get-firebase-config]
+verify_jwt = false
+

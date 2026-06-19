@@ -167,6 +167,13 @@ export default function DashboardHome() {
       .eq("id", orderId);
     const order = allOrders.find((item) => item.id === orderId);
     if (!error && order && user) {
+      await supabase.from("internal_notes").insert({
+        order_id: orderId,
+        user_id: user.id,
+        content: `[Alasan Terlambat Update] ${reason}`,
+        is_read_by: [user.id],
+      } as any);
+
       await supabase.from("service_updates").insert({
         order_id: orderId,
         status: order.status as any,

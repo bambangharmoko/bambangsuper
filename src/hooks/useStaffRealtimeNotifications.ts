@@ -150,6 +150,11 @@ export function useStaffRealtimeNotifications() {
       const orders = await getOrders([update.order_id]);
       const order = orders[update.order_id];
       if (!order) return;
+
+      if (isTechnicianOnly && order.assigned_technician !== user.id) {
+        return;
+      }
+
       const profiles = await getProfiles([update.updated_by]);
       const actor = actorLabel(update.updated_by, profiles, user.id);
 
@@ -172,6 +177,11 @@ export function useStaffRealtimeNotifications() {
       const orders = await getOrders([note.order_id]);
       const order = orders[note.order_id];
       if (!order) return;
+
+      if (isTechnicianOnly && order.assigned_technician !== user.id) {
+        return;
+      }
+
       const profiles = await getProfiles([note.user_id]);
       const actor = actorLabel(note.user_id, profiles, user.id);
 

@@ -354,28 +354,60 @@ export default function OrderDetailPage() {
   };
 
   const submitNote = async () => {
-    if (!newNote.trim() || !user || !resolvedId) return;
-    await supabase.from("internal_notes").insert({
+    const content = newNote.trim();
+    if (!content || !user || !resolvedId) return;
+    const { error } = await supabase.from("internal_notes").insert({
       order_id: resolvedId,
       user_id: user.id,
-      content: newNote.trim(),
+      content: content,
       is_read_by: [user.id],
     } as any);
-    setNewNote("");
-    toast.success("Catatan ditambahkan");
-    fetchNotes();
+    if (!error) {
+      setNewNote("");
+      toast.success("Catatan ditambahkan");
+      fetchNotes();
+
+      if (!content.startsWith("[Diagnosa Internal]") && !content.startsWith("[Alasan Terlambat Update]")) {
+        supabase.functions.invoke("notify-staff-update", {
+          body: {
+            order_id: resolvedId,
+            updated_by: user.id,
+            action: "note_create",
+            note_content: content,
+          },
+        }).catch((err) => console.error("Failed to send notepad notification", err));
+      }
+    } else {
+      toast.error("Gagal menambahkan catatan");
+    }
   };
 
   const updateNote = async (noteId: string) => {
-    if (!editingNoteContent.trim()) return;
-    await supabase
+    const content = editingNoteContent.trim();
+    if (!content || !user || !resolvedId) return;
+    const { error } = await supabase
       .from("internal_notes")
-      .update({ content: editingNoteContent.trim(), is_read_by: [user!.id] } as any)
+      .update({ content: content, is_read_by: [user!.id] } as any)
       .eq("id", noteId);
-    setEditingNoteId(null);
-    setEditingNoteContent("");
-    toast.success("Catatan diperbarui");
-    fetchNotes();
+    if (!error) {
+      setEditingNoteId(null);
+      setEditingNoteContent("");
+      toast.success("Catatan diperbarui");
+      fetchNotes();
+
+      if (!content.startsWith("[Diagnosa Internal]") && !content.startsWith("[Alasan Terlambat Update]")) {
+        supabase.functions.invoke("notify-staff-update", {
+          body: {
+            order_id: resolvedId,
+            updated_by: user!.id,
+            action: "note_update",
+            note_content: content,
+          },
+        }).catch((err) => console.error("Failed to send notepad notification", err));
+      }
+    } else {
+      toast.error("Gagal memperbarui catatan");
+    }
   };
 
   const deleteNote = async (noteId: string) => {
@@ -1392,34 +1424,52 @@ export default function OrderDetailPage() {
         )}
 
         {/* Warranty Info */}
-        {(order as any).warranty_duration && order.status === "Close" && (
+        {typeof (order as any).warranty_duration === "number" && order.status === "Close" && (
           <Card className="border-primary/30">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">🛡️ Garansi Toko</CardTitle>
             </CardHeader>
             <CardContent className="space-y-1 text-sm">
               <p>
-                <span className="text-muted-foreground">Durasi:</span> {(order as any).warranty_duration}{" "}
-                {(order as any).warranty_unit}
+                <span className="text-muted-foreground">Durasi:</span>{" "}
+                {(order as any).warranty_duration === 0 ? (
+                  <span className="font-medium text-destructive">Tanpa Garansi (0 Hari)</span>
+                ) : (
+                  <span>
+                    {(order as any).warranty_duration} {(order as any).warranty_unit}
+                  </span>
+                )}
               </p>
               <p>
                 <span className="text-muted-foreground">Berlaku sampai:</span>{" "}
                 <span className="font-medium">
-                  {(order as any).warranty_expiry
-                    ? new Date((order as any).warranty_expiry).toLocaleDateString("id-ID", {
-                        day: "numeric",
-                        month: "long",
-                        year: "numeric",
-                      })
-                    : "-"}
+                  {(order as any).warranty_duration === 0 ? (
+                    "-"
+                  ) : (
+                    (order as any).warranty_expiry
+                      ? new Date((order as any).warranty_expiry).toLocaleDateString("id-ID", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })
+                      : "-"
+                  )}
                 </span>
-                {(order as any).warranty_expiry && new Date((order as any).warranty_expiry) < new Date() && (
-                  <Badge variant="destructive" className="ml-2 text-[10px]">
-                    Expired
-                  </Badge>
+                {(order as any).warranty_duration > 0 && (order as any).warranty_expiry && (
+                  <>
+                    {new Date((order as any).warranty_expiry) < new Date() ? (
+                      <Badge variant="destructive" className="ml-2 text-[10px]">
+                        Expired
+                      </Badge>
+                    ) : (
+                      <Badge className="ml-2 text-[10px] bg-success text-success-foreground">Aktif</Badge>
+                    )}
+                  </>
                 )}
-                {(order as any).warranty_expiry && new Date((order as any).warranty_expiry) >= new Date() && (
-                  <Badge className="ml-2 text-[10px] bg-success text-success-foreground">Aktif</Badge>
+                {(order as any).warranty_duration === 0 && (
+                  <Badge variant="secondary" className="ml-2 text-[10px]">
+                    Tidak Ada Garansi
+                  </Badge>
                 )}
               </p>
               {(order as any).warranty_notes && (

@@ -49,15 +49,24 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { order_id, status, updated_by } = await req.json();
-    if (!order_id || !status || !updated_by) {
-      return new Response(JSON.stringify({ error: "order_id, status and updated_by required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const {
+      update_id,
+      order_id,
+      status: bodyStatus,
+      updated_by,
+      action: bodyAction,
+      note_content,
+      delay_reason: bodyDelayReason
+    } = await req.json();
+
+    if (!order_id || !updated_by) {
+      return new Response(JSON.stringify({ error: "order_id and updated_by required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: order, error: orderError } = await supabase
       .from("service_orders")
-      .select("id, ticket_number, device_brand, device_model, assigned_technician")
+      .select("id, ticket_number, device_brand, device_model, assigned_technician, customer_name")
       .eq("id", order_id)
       .maybeSingle();
     if (orderError) throw orderError;
@@ -78,9 +87,32 @@ Deno.serve(async (req) => {
     const actorRole = roleNames.includes("owner") ? "owner" : roleNames.includes("admin") ? "admin" : roleNames.includes("technician") ? "technician" : null;
     const actorName = actorRole === "admin" ? "Admin" : actorRole === "owner" ? "Owner" : actorProfile?.full_name || "Teknisi";
 
-    let targetUserIds: string[] = [];
-    let title = "Update Status Tiket";
-    let body = `Status tiket ${order.ticket_number} menjadi ${status}.`;
+    let action = bodyAction;
+    let status = bodyStatus;
+    let delayReason = bodyDelayReason;
+
+    if (!action) {
+      if (update_id) {
+        const { data: updateData } = await supabase
+          .from("service_updates")
+          .select("description, status")
+          .eq("id", update_id)
+          .maybeSingle();
+        const description = updateData?.description || "";
+        status = updateData?.status || status;
+
+        if (description.startsWith("[ALASAN TERLAMBAT]")) {
+          action = "delay_reason";
+          delayReason = description.replace("[ALASAN TERLAMBAT]", "").trim();
+        } else {
+          action = "status_update";
+        }
+      } else if (status) {
+        action = "status_update";
+      } else {
+        action = "status_update";
+      }
+    }
 
     // Count status updates to detect if it's the initial ticket creation
     const { count, error: countError } = await supabase
@@ -89,17 +121,26 @@ Deno.serve(async (req) => {
       .eq("order_id", order_id);
     if (countError) throw countError;
 
-    if (count !== null && count <= 1) {
+    if (count !== null && count <= 1 && action === "status_update") {
       return new Response(JSON.stringify({ ok: true, sent: 0, message: "initial ticket creation, no notification" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Fetch all approved staff users except the one who updated
+    // Fetch all approved staff users and their roles
     const { data: staffRoles, error: staffError } = await supabase
       .from("user_roles")
-      .select("user_id")
+      .select("user_id, role")
       .in("role", ["admin", "owner", "technician"]);
     if (staffError) throw staffError;
-    const staffIds = [...new Set((staffRoles || []).map((row) => row.user_id).filter((id) => id !== updated_by))];
+
+    const userRolesMap: Record<string, string[]> = {};
+    for (const row of staffRoles || []) {
+      if (!userRolesMap[row.user_id]) {
+        userRolesMap[row.user_id] = [];
+      }
+      userRolesMap[row.user_id].push(row.role);
+    }
+
+    const staffIds = Object.keys(userRolesMap).filter((id) => id !== updated_by);
     
     const { data: approvedProfiles, error: approvedError } = await supabase
       .from("profiles")
@@ -107,9 +148,21 @@ Deno.serve(async (req) => {
       .in("id", staffIds)
       .eq("is_approved", true);
     if (approvedError) throw approvedError;
-    targetUserIds = (approvedProfiles || []).map((row) => row.id);
+    
+    const targetUserIds = (approvedProfiles || [])
+      .map((row) => row.id)
+      .filter((userId) => {
+        const roles = userRolesMap[userId] || [];
+        const isAdminOrOwner = roles.includes("admin") || roles.includes("owner");
+        const isTechnician = roles.includes("technician");
+        
+        if (isTechnician && !isAdminOrOwner) {
+          // Technician strictly: only receive if assigned to them
+          return order.assigned_technician === userId;
+        }
+        return true;
+      });
 
-    targetUserIds = [...new Set(targetUserIds)];
     if (targetUserIds.length === 0) return new Response(JSON.stringify({ ok: true, sent: 0, message: "no staff targets" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const { data: tokens, error: tokenError } = await supabase
@@ -120,6 +173,18 @@ Deno.serve(async (req) => {
     if (tokenError) throw tokenError;
     if (!tokens || tokens.length === 0) return new Response(JSON.stringify({ ok: true, sent: 0, message: "no active staff tokens" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+    let assigneeName = "Belum ditugaskan";
+    if (order.assigned_technician) {
+      const { data: assigneeProfile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", order.assigned_technician)
+        .maybeSingle();
+      if (assigneeProfile?.full_name) {
+        assigneeName = assigneeProfile.full_name;
+      }
+    }
+
     const sa: ServiceAccount = JSON.parse(Deno.env.get("FIREBASE_SERVICE_ACCOUNT") || "{}");
     const accessToken = await getAccessToken(sa);
     const projectId = sa.project_id || Deno.env.get("FIREBASE_PROJECT_ID")!;
@@ -128,16 +193,41 @@ Deno.serve(async (req) => {
 
     await Promise.all(tokens.map(async ({ id, fcm_token, user_id }) => {
       const isAssignedTech = user_id === order.assigned_technician;
-      const userTitle = isAssignedTech ? "Update Tugas Anda" : "Update Status Tiket";
-      const userBody = isAssignedTech
-        ? `${actorName} mengubah status tiket ${order.ticket_number} (Tugas Anda) menjadi ${status}.`
-        : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} mengubah status menjadi ${status}.`;
+      let userTitle = "Update Tiket";
+      let userBody = `Ada perubahan pada tiket ${order.ticket_number}.`;
+
+      if (action === "status_update") {
+        userTitle = isAssignedTech ? "Update Tugas Anda" : "Update Status Tiket";
+        userBody = isAssignedTech
+          ? `${actorName} mengubah status tiket ${order.ticket_number} (Tugas Anda) menjadi ${status}.`
+          : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} mengubah status menjadi ${status}.`;
+      } else if (action === "delay_reason") {
+        userTitle = "Alasan Keterlambatan Update";
+        userBody = isAssignedTech
+          ? `${actorName} menambahkan alasan keterlambatan pada tiket ${order.ticket_number} (Tugas Anda).`
+          : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} menambahkan alasan keterlambatan: ${delayReason}`;
+      } else if (action === "note_create") {
+        userTitle = "Memo Baru Tiket";
+        userBody = isAssignedTech
+          ? `${actorName} menambahkan memo pada tiket ${order.ticket_number} (Tugas Anda).`
+          : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} menambahkan memo.`;
+      } else if (action === "note_update") {
+        userTitle = "Update Memo Tiket";
+        userBody = isAssignedTech
+          ? `${actorName} memperbarui memo pada tiket ${order.ticket_number} (Tugas Anda).`
+          : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} memperbarui memo.`;
+      } else if (action === "stale_reminder") {
+        userTitle = "⚠️ Pengingat Tiket";
+        userBody = isAssignedTech
+          ? `Tiket ${order.ticket_number} (${order.customer_name}) belum diupdate lebih dari 24 jam. Mohon segera ditindaklanjuti.`
+          : `[Peringatan] Tiket ${order.ticket_number} (${order.customer_name}) belum diupdate oleh ${assigneeName} lebih dari 24 jam.`;
+      }
 
       const targetPath = `/dashboard/orders/${order.ticket_number}`;
       const res = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
         method: "POST",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ message: { token: fcm_token, data: { title: userTitle, body: userBody, order_id, status, url: targetPath }, webpush: { notification: { title: userTitle, body: userBody, icon: "/icon-192.png", badge: "/icon-192.png", tag: `staff-ticket-${order_id}`, requireInteraction: true, data: { order_id, status, url: targetPath } }, fcm_options: { link: `${APP_ORIGIN}${targetPath}` } } } }),
+        body: JSON.stringify({ message: { token: fcm_token, data: { title: userTitle, body: userBody, order_id, status: status || "", url: targetPath }, webpush: { notification: { title: userTitle, body: userBody, icon: "/icon-192.png", badge: "/icon-192.png", tag: `staff-ticket-${order_id}`, requireInteraction: true, data: { order_id, status: status || "", url: targetPath } }, fcm_options: { link: `${APP_ORIGIN}${targetPath}` } } } }),
       });
       if (res.ok) sent++;
       else if (res.status === 404 || res.status === 400) invalidTokenIds.push(id);

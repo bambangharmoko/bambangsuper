@@ -23,7 +23,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const SESSION_CHECK_TIMEOUT_MS = 10000;
-const STAFF_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const STAFF_SESSION_VALID_UNTIL_KEY = "sk-staff-session-valid-until";
 const SESSION_REFRESH_WINDOW_MS = 5 * 60 * 1000;
 
@@ -34,7 +33,7 @@ const redirectToLogin = () => {
 };
 
 const extendSessionHint = () => {
-  localStorage.setItem(STAFF_SESSION_VALID_UNTIL_KEY, String(Date.now() + STAFF_SESSION_TTL_MS));
+  localStorage.setItem(STAFF_SESSION_VALID_UNTIL_KEY, "true");
 };
 
 const clearSessionHint = () => {
@@ -42,8 +41,40 @@ const clearSessionHint = () => {
 };
 
 const hasRecentSessionHint = () => {
-  const validUntil = Number(localStorage.getItem(STAFF_SESSION_VALID_UNTIL_KEY) || 0);
-  return validUntil > Date.now();
+  return localStorage.getItem(STAFF_SESSION_VALID_UNTIL_KEY) === "true";
+};
+
+const PROFILE_CACHE_KEY = "sk-staff-profile-cache";
+const ROLES_CACHE_KEY = "sk-staff-roles-cache";
+
+const getCachedProfile = () => {
+  try {
+    return JSON.parse(localStorage.getItem(PROFILE_CACHE_KEY) || "null");
+  } catch {
+    return null;
+  }
+};
+
+const getCachedRoles = (): AppRole[] => {
+  try {
+    return JSON.parse(localStorage.getItem(ROLES_CACHE_KEY) || "[]");
+  } catch {
+    return [];
+  }
+};
+
+const cacheProfileAndRoles = (profile: any, roles: AppRole[]) => {
+  try {
+    if (profile) localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile));
+    if (roles) localStorage.setItem(ROLES_CACHE_KEY, JSON.stringify(roles));
+  } catch (err) {
+    console.error("Failed to cache profile/roles", err);
+  }
+};
+
+const clearCachedProfileAndRoles = () => {
+  localStorage.removeItem(PROFILE_CACHE_KEY);
+  localStorage.removeItem(ROLES_CACHE_KEY);
 };
 
 const getPersistedSession = (): Session | null => {
@@ -109,14 +140,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (profileRes.error) throw profileRes.error;
       if (rolesRes.error) throw rolesRes.error;
-      setProfile(profileRes.data as AuthContextType["profile"]);
-      setRoles((rolesRes.data || []).map((r) => r.role));
+      
+      const userProfile = profileRes.data as AuthContextType["profile"];
+      const userRoles = (rolesRes.data || []).map((r) => r.role) as AppRole[];
+      
+      setProfile(userProfile);
+      setRoles(userRoles);
+      cacheProfileAndRoles(userProfile, userRoles);
       return true;
     } catch (error) {
       console.error("Failed to load user profile", error);
       if (!profileRef.current) {
-        setProfile(null);
-        setRoles([]);
+        const cachedProfile = getCachedProfile();
+        const cachedRoles = getCachedRoles();
+        if (cachedProfile) {
+          setProfile(cachedProfile);
+          setRoles(cachedRoles);
+        } else {
+          setProfile(null);
+          setRoles([]);
+        }
       }
       return false;
     }
@@ -144,8 +187,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setProfile(null);
           setRoles([]);
           setLoading(false);
-          if (event === "SIGNED_OUT") clearSessionHint();
-          if (initializedRef.current && (event === "SIGNED_OUT" || !hasRecentSessionHint())) redirectToLogin();
+          if (initializedRef.current) {
+            if (event === "SIGNED_OUT") {
+              clearSessionHint();
+              clearCachedProfileAndRoles();
+            }
+            if (event === "SIGNED_OUT" || !hasRecentSessionHint()) redirectToLogin();
+          }
         }
       }
     );
@@ -174,6 +222,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else if (persistedSession?.user && hasRecentSessionHint()) {
           setSession(persistedSession);
           setUser(persistedSession.user);
+          
+          const cachedProfile = getCachedProfile();
+          const cachedRoles = getCachedRoles();
+          if (cachedProfile) {
+            setProfile(cachedProfile);
+            setRoles(cachedRoles);
+          }
           await fetchUserData(persistedSession.user.id);
         } else {
           setSession(null);
@@ -181,6 +236,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setProfile(null);
           setRoles([]);
           clearSessionHint();
+          clearCachedProfileAndRoles();
           redirectToLogin();
         }
       } catch (error) {
@@ -189,9 +245,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (mounted && fallbackSession?.user && hasRecentSessionHint()) {
           setSession(fallbackSession);
           setUser(fallbackSession.user);
+          
+          const cachedProfile = getCachedProfile();
+          const cachedRoles = getCachedRoles();
+          if (cachedProfile) {
+            setProfile(cachedProfile);
+            setRoles(cachedRoles);
+          }
           void fetchUserData(fallbackSession.user.id);
         } else if (mounted) {
           clearSessionHint();
+          clearCachedProfileAndRoles();
           redirectToLogin();
         }
       } finally {
@@ -224,6 +288,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     clearSessionHint();
+    clearCachedProfileAndRoles();
     setUser(null);
     setSession(null);
     setProfile(null);

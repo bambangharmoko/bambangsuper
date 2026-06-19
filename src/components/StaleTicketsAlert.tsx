@@ -102,6 +102,13 @@ export function StaleTicketsAlert() {
       toast.error("Gagal mengirim notifikasi");
     } else {
       toast.success(`Notifikasi terkirim ke ${order.technician_name}`);
+      supabase.functions.invoke("notify-staff-update", {
+        body: {
+          order_id: order.id,
+          updated_by: user.id,
+          action: "stale_reminder",
+        },
+      }).catch((err) => console.error("Failed to send push notification reminder", err));
     }
   };
 

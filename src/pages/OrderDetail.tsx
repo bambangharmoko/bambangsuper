@@ -1071,6 +1071,13 @@ export default function OrderDetailPage() {
         content: `[Alasan Terlambat Update] ${reason}`,
         is_read_by: [user!.id],
       } as any);
+
+      await supabase.from("service_updates").insert({
+        order_id: order.id,
+        status: order.status as any,
+        description: `[ALASAN TERLAMBAT] ${reason}`,
+        updated_by: user!.id,
+      });
     }
     setSavingDelayReason(false);
     if (error) {

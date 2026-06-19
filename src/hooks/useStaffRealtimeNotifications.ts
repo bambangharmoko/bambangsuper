@@ -15,7 +15,7 @@ type OrderRow = {
 
 type ProfileMap = Record<string, { full_name: string | null; role: string | null }>;
 type RealtimePayload<T> = { eventType: "INSERT" | "UPDATE" | "DELETE"; new: T };
-type ServiceUpdateRow = { id: string; order_id: string; status: string; updated_by: string };
+type ServiceUpdateRow = { id: string; order_id: string; status: string; updated_by: string; description?: string | null };
 type InternalNoteRow = { id: string; order_id: string; user_id: string; created_at: string; updated_at?: string | null };
 
 const STAFF_NOTIFICATION_PROMPT_KEY = "staff-notifications-permission-prompted";
@@ -128,6 +128,10 @@ export function useStaffRealtimeNotifications() {
 
       const update = payload.new;
       if (update.updated_by === user.id) return;
+      if (update.description && update.description.startsWith("[ALASAN TERLAMBAT]")) {
+        // Skip status update toast since it is already notified as a notepad memo
+        return;
+      }
 
       // Count status updates to detect if it's the initial ticket creation
       const { count, error: countError } = await supabase

@@ -505,7 +505,7 @@ export default function OrderDetailPage() {
     : isTechnician
       ? isMyTicket && canCancel
       : canCancel;
-  const canEdit = !isTechnician;
+  const canEdit = !isTechnician && order.status !== "Close";
   const canUpdateStatus = !isTechnician || isMyTicket;
   // Teknisi hanya bisa update sampai "Siap diAmbil" (tidak bisa Close)
   const techMaxStatus = "Siap diAmbil";
@@ -980,6 +980,10 @@ export default function OrderDetailPage() {
   };
 
   const saveEdit = async () => {
+    if (order.status === "Close") {
+      toast.error("Tiket yang berstatus Close tidak dapat di-edit!");
+      return;
+    }
     const editedInfo = `Di edit oleh ${profile?.full_name}, waktu ${new Date().toLocaleString("id-ID")}`;
     await supabase
       .from("service_orders")

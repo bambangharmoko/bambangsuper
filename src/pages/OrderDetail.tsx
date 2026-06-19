@@ -45,6 +45,7 @@ import {
   RefreshCw,
   AlertTriangle,
   Printer,
+  Trash2,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -274,7 +275,7 @@ export default function OrderDetailPage() {
       }
 
       const rawUpdates = updatesRes.data || [];
-      const userIds = [...new Set(rawUpdates.map((u: any) => u.updated_by))];
+      const userIds = [...new Set(rawUpdates.map((u: any) => u.updated_by as string))];
       if (userIds.length > 0) {
         const { profileMap, roleMap } = await fetchStaffIdentities(userIds);
 
@@ -397,7 +398,7 @@ export default function OrderDetailPage() {
   const [noteProfiles, setNoteProfiles] = useState<Record<string, any>>({});
   const [noteRoles, setNoteRoles] = useState<Record<string, string>>({});
   useEffect(() => {
-    const ids = [...new Set(internalNotes.map((n: any) => n.user_id))];
+    const ids = [...new Set(internalNotes.map((n: any) => n.user_id as string))];
     if (ids.length === 0) return;
 
     const fetchNoteIdentities = async () => {

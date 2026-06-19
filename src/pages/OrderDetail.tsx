@@ -1537,18 +1537,19 @@ export default function OrderDetailPage() {
           </Card>
         )}
 
-        {/* Owner: Reactivate Cancelled ticket */}
-        {canReactivate && (
+        {/* Owner/Admin: Reactivate/Close Cancelled ticket */}
+        {order.status === "Cancelled" && isAdminOrOwner && (
           <Card className="border-primary/30 print:hidden">
             <CardContent className="p-4 space-y-3">
               <p className="text-xs text-muted-foreground">
-                Tiket ini telah dibatalkan. Sebagai Owner, Anda dapat mengaktifkannya kembali,
-                atau menandai unit sebagai sudah diambil oleh pelanggan (Close).
+                Tiket ini telah dibatalkan. Sebagai {isOwner ? "Owner" : "Admin"}, Anda dapat {isOwner ? "mengaktifkannya kembali, atau " : ""}menandai unit sebagai sudah diambil oleh pelanggan (Close).
               </p>
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" className="gradient-primary" onClick={() => setReactivateOpen(true)}>
-                  🔄 Reaktivasi Tiket
-                </Button>
+                {canReactivate && (
+                  <Button size="sm" className="gradient-primary" onClick={() => setReactivateOpen(true)}>
+                    🔄 Reaktivasi Tiket
+                  </Button>
+                )}
                 {/* Close setelah Cancel: unit sudah tidak ada di toko (sudah diambil pelanggan) */}
                 <Button
                   size="sm"

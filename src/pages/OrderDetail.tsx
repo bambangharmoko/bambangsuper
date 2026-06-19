@@ -1065,12 +1065,12 @@ export default function OrderDetailPage() {
       .update({ update_delay_reason: reason } as any)
       .eq("id", order.id);
     if (!error) {
-      await supabase.from("service_updates").insert({
+      await supabase.from("internal_notes").insert({
         order_id: order.id,
-        status: order.status as any,
-        description: `[ALASAN TERLAMBAT] ${reason}`,
-        updated_by: user!.id,
-      });
+        user_id: user!.id,
+        content: `[Alasan Terlambat Update] ${reason}`,
+        is_read_by: [user!.id],
+      } as any);
     }
     setSavingDelayReason(false);
     if (error) {
@@ -1079,6 +1079,7 @@ export default function OrderDetailPage() {
     }
     toast.success("Alasan keterlambatan disimpan");
     fetchData();
+    fetchNotes();
   };
 
   const getRoleBadgeColor = (role: string) => {

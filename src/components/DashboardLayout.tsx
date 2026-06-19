@@ -55,7 +55,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
       <aside
         className={cn(
-          "fixed lg:static inset-y-0 left-0 z-50 w-64 bg-sidebar text-sidebar-foreground flex flex-col transition-transform duration-300 lg:translate-x-0 print:hidden",
+          "fixed lg:sticky lg:top-0 lg:h-screen inset-y-0 left-0 z-50 w-64 bg-sidebar text-sidebar-foreground flex flex-col transition-transform duration-300 lg:translate-x-0 print:hidden",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -66,7 +66,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           <p className="text-xs text-sidebar-foreground/60">Service Management</p>
         </div>
 
-        <nav className="flex-1 p-3 space-y-1">
+        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
           {filteredNav.map((item) => {
             const isActive = item.path === "/dashboard"
               ? location.pathname === "/dashboard"

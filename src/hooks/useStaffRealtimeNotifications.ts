@@ -102,12 +102,10 @@ export function useStaffRealtimeNotifications() {
     const getOrders = async (ids: string[]) => {
       const uniqueIds = [...new Set(ids.filter(Boolean))];
       if (uniqueIds.length === 0) return {} as Record<string, OrderRow>;
-      let query = supabase
+      const { data, error } = await supabase
         .from("service_orders")
         .select("id, ticket_number, device_brand, device_model, status, assigned_technician")
         .in("id", uniqueIds);
-      if (isTechnicianOnly) query = query.eq("assigned_technician", user.id);
-      const { data, error } = await query;
       if (error) throw error;
       return Object.fromEntries((data || []).map((order) => [order.id, order as OrderRow]));
     };
@@ -130,25 +128,34 @@ export function useStaffRealtimeNotifications() {
 
       const update = payload.new;
       if (update.updated_by === user.id) return;
+
+      // Count status updates to detect if it's the initial ticket creation
+      const { count, error: countError } = await supabase
+        .from("service_updates")
+        .select("id", { count: "exact", head: true })
+        .eq("order_id", update.order_id);
+      if (countError) {
+        console.error("Failed to count status updates", countError);
+        return;
+      }
+      if (count !== null && count <= 1) {
+        // Initial creation, do not notify
+        return;
+      }
+
       const orders = await getOrders([update.order_id]);
       const order = orders[update.order_id];
       if (!order) return;
       const profiles = await getProfiles([update.updated_by]);
       const actor = actorLabel(update.updated_by, profiles, user.id);
-      const actorRole = profiles[update.updated_by]?.role;
 
-      if (isAdminOrOwner) {
-        if (actorRole !== "technician") return;
-        const body = `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actor} mengubah status menjadi ${update.status}.`;
-        await notify("Update Status Tiket", body, order.id, order.ticket_number);
-        return;
-      }
+      const isMyAssignedTicket = order.assigned_technician === user.id;
+      const title = isMyAssignedTicket ? "Update Tugas Anda" : "Update Status Tiket";
+      const body = isMyAssignedTicket
+        ? `${actor} mengubah status tiket ${order.ticket_number} (Tugas Anda) menjadi ${update.status}.`
+        : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actor} mengubah status menjadi ${update.status}.`;
 
-      if (isTechnicianOnly) {
-        if (actorRole && actorRole !== "admin" && actorRole !== "owner") return;
-        const body = `${actor} mengubah status tiket ${order.ticket_number} (Tugas Anda) menjadi ${update.status}.`;
-        await notify("Update Tugas Anda", body, order.id, order.ticket_number);
-      }
+      await notify(title, body, order.id, order.ticket_number);
     };
 
     const handleInternalNote = async (payload: RealtimePayload<InternalNoteRow>) => {
@@ -163,13 +170,13 @@ export function useStaffRealtimeNotifications() {
       if (!order) return;
       const profiles = await getProfiles([note.user_id]);
       const actor = actorLabel(note.user_id, profiles, user.id);
-      const actorRole = profiles[note.user_id]?.role;
-      if (isAdminOrOwner && actorRole !== "technician") return;
-      if (isTechnicianOnly && actorRole !== "admin" && actorRole !== "owner") return;
+
       const action = payload.eventType === "UPDATE" ? "memperbarui memo" : "menambahkan memo";
-      const body = isAdminOrOwner
-        ? `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actor} ${action}.`
-        : `${actor} ${action} pada tiket ${order.ticket_number} (Tugas Anda).`;
+      const isMyAssignedTicket = order.assigned_technician === user.id;
+      const body = isMyAssignedTicket
+        ? `${actor} ${action} pada tiket ${order.ticket_number} (Tugas Anda).`
+        : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actor} ${action}.`;
+
       await notify("Update Memo Tiket", body, order.id, order.ticket_number);
     };
 

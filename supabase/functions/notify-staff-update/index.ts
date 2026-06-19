@@ -82,33 +82,39 @@ Deno.serve(async (req) => {
     let title = "Update Status Tiket";
     let body = `Status tiket ${order.ticket_number} menjadi ${status}.`;
 
-    if (actorRole === "technician") {
-      const { data: managerRoles, error: managersError } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .in("role", ["admin", "owner"]);
-      if (managersError) throw managersError;
-      const managerIds = [...new Set((managerRoles || []).map((row) => row.user_id).filter((id) => id !== updated_by))];
-      const { data: approvedProfiles, error: approvedError } = await supabase
-        .from("profiles")
-        .select("id")
-        .in("id", managerIds)
-        .eq("is_approved", true);
-      if (approvedError) throw approvedError;
-      targetUserIds = (approvedProfiles || []).map((row) => row.id);
-      body = `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} mengubah status menjadi ${status}.`;
-    } else if ((actorRole === "admin" || actorRole === "owner") && order.assigned_technician) {
-      targetUserIds = order.assigned_technician === updated_by ? [] : [order.assigned_technician];
-      title = "Update Tugas Anda";
-      body = `${actorName} mengubah status tiket ${order.ticket_number} (Tugas Anda) menjadi ${status}.`;
+    // Count status updates to detect if it's the initial ticket creation
+    const { count, error: countError } = await supabase
+      .from("service_updates")
+      .select("id", { count: "exact", head: true })
+      .eq("order_id", order_id);
+    if (countError) throw countError;
+
+    if (count !== null && count <= 1) {
+      return new Response(JSON.stringify({ ok: true, sent: 0, message: "initial ticket creation, no notification" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
+    // Fetch all approved staff users except the one who updated
+    const { data: staffRoles, error: staffError } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .in("role", ["admin", "owner", "technician"]);
+    if (staffError) throw staffError;
+    const staffIds = [...new Set((staffRoles || []).map((row) => row.user_id).filter((id) => id !== updated_by))];
+    
+    const { data: approvedProfiles, error: approvedError } = await supabase
+      .from("profiles")
+      .select("id")
+      .in("id", staffIds)
+      .eq("is_approved", true);
+    if (approvedError) throw approvedError;
+    targetUserIds = (approvedProfiles || []).map((row) => row.id);
 
     targetUserIds = [...new Set(targetUserIds)];
     if (targetUserIds.length === 0) return new Response(JSON.stringify({ ok: true, sent: 0, message: "no staff targets" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const { data: tokens, error: tokenError } = await supabase
       .from("staff_push_tokens")
-      .select("id, fcm_token")
+      .select("id, fcm_token, user_id")
       .in("user_id", targetUserIds)
       .eq("is_active", true);
     if (tokenError) throw tokenError;
@@ -120,12 +126,18 @@ Deno.serve(async (req) => {
     const invalidTokenIds: string[] = [];
     let sent = 0;
 
-    await Promise.all(tokens.map(async ({ id, fcm_token }) => {
+    await Promise.all(tokens.map(async ({ id, fcm_token, user_id }) => {
+      const isAssignedTech = user_id === order.assigned_technician;
+      const userTitle = isAssignedTech ? "Update Tugas Anda" : "Update Status Tiket";
+      const userBody = isAssignedTech
+        ? `${actorName} mengubah status tiket ${order.ticket_number} (Tugas Anda) menjadi ${status}.`
+        : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} mengubah status menjadi ${status}.`;
+
       const targetPath = `/dashboard/orders/${order.ticket_number}`;
       const res = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
         method: "POST",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ message: { token: fcm_token, data: { title, body, order_id, status, url: targetPath }, webpush: { notification: { title, body, icon: "/icon-192.png", badge: "/icon-192.png", tag: `staff-ticket-${order_id}`, requireInteraction: true, data: { order_id, status, url: targetPath } }, fcm_options: { link: `${APP_ORIGIN}${targetPath}` } } } }),
+        body: JSON.stringify({ message: { token: fcm_token, data: { title: userTitle, body: userBody, order_id, status, url: targetPath }, webpush: { notification: { title: userTitle, body: userBody, icon: "/icon-192.png", badge: "/icon-192.png", tag: `staff-ticket-${order_id}`, requireInteraction: true, data: { order_id, status, url: targetPath } }, fcm_options: { link: `${APP_ORIGIN}${targetPath}` } } } }),
       });
       if (res.ok) sent++;
       else if (res.status === 404 || res.status === 400) invalidTokenIds.push(id);

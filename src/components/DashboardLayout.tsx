@@ -33,7 +33,12 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   const { profile, hasRole, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth >= 1024;
+    }
+    return false;
+  });
 
   const handleSignOut = async () => {
     await signOut();
@@ -55,7 +60,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-sidebar text-sidebar-foreground flex flex-col transition-transform duration-300 lg:translate-x-0 print:hidden",
+          "fixed inset-y-0 left-0 z-50 w-64 bg-sidebar text-sidebar-foreground flex flex-col transition-transform duration-300 print:hidden",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -75,7 +80,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
               <Link
                 key={item.path}
                 to={item.path}
-                onClick={() => setSidebarOpen(false)}
+                onClick={() => setSidebarOpen(window.innerWidth >= 1024 ? sidebarOpen : false)}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                   isActive
@@ -106,13 +111,20 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-h-screen min-w-0 lg:pl-64">
-        <header className="sticky top-0 z-30 flex items-center justify-between p-3 sm:p-4 border-b border-border bg-card/95 backdrop-blur print:hidden">
-          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
+      <div
+        className={cn(
+          "flex-1 flex flex-col min-h-screen min-w-0 transition-all duration-300",
+          sidebarOpen ? "lg:pl-64" : "lg:pl-0"
+        )}
+      >
+        <header className="sticky top-0 z-30 flex items-center gap-3 p-3 sm:p-4 border-b border-border bg-card/95 backdrop-blur print:hidden">
+          <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)}>
             <Menu className="h-5 w-5" />
           </Button>
-          <h1 className="text-sm font-bold lg:hidden">Super Computer</h1>
-          <div className="hidden lg:block" />
+          {!sidebarOpen && (
+            <h1 className="text-sm font-bold transition-all duration-300">Super Computer</h1>
+          )}
+          <div className="flex-1" />
           <NotificationBell />
         </header>
 

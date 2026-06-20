@@ -179,10 +179,13 @@ export function NotificationBell() {
                             await deleteNotification(n.id);
                           }
                         }}
-                        className={`relative z-10 w-full p-3 cursor-pointer bg-background hover:bg-muted/50 transition-colors ${!n.is_read ? "bg-primary/5" : ""}`}
+                        className="relative z-10 w-full p-3 cursor-pointer bg-background hover:bg-muted/50 transition-colors"
                         onClick={() => handleClick(n)}
                       >
-                        <div className="flex justify-between items-start gap-2">
+                        {!n.is_read && (
+                          <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
+                        )}
+                        <div className="relative flex justify-between items-start gap-2">
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">{n.title}</p>
                             <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{n.message}</p>

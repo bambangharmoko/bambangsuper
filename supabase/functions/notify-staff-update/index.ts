@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
       userRolesMap[row.user_id].push(row.role);
     }
 
-    const staffIds = Object.keys(userRolesMap).filter((id) => id !== updated_by);
+    const staffIds = Object.keys(userRolesMap).filter((id) => action === "stale_reminder" || id !== updated_by);
     
     const { data: approvedProfiles, error: approvedError } = await supabase
       .from("profiles")
@@ -153,6 +153,10 @@ Deno.serve(async (req) => {
     const targetUserIds = (approvedProfiles || [])
       .map((row) => row.id)
       .filter((userId) => {
+        if (action === "stale_reminder") {
+          return userId === order.assigned_technician;
+        }
+
         const roles = userRolesMap[userId] || [];
         const isAdminOrOwner = roles.includes("admin") || roles.includes("owner");
         const isTechnician = roles.includes("technician");

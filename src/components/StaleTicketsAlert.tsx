@@ -85,11 +85,12 @@ export function StaleTicketsAlert() {
 
     setSending(prev => new Set(prev).add(order.id));
 
-    const { error } = await supabase.from("notifications").insert({
-      user_id: order.assigned_technician,
-      title: "⚠️ Pengingat Tiket",
-      message: `Tiket ${order.ticket_number} (${order.customer_name}) belum diupdate lebih dari 24 jam. Mohon segera ditindaklanjuti.`,
-      order_id: order.id,
+    const { error } = await supabase.functions.invoke("notify-staff-update", {
+      body: {
+        order_id: order.id,
+        updated_by: user.id,
+        action: "stale_reminder",
+      },
     });
 
     setSending(prev => {
@@ -99,16 +100,10 @@ export function StaleTicketsAlert() {
     });
 
     if (error) {
+      console.error("Failed to send push notification reminder", error);
       toast.error("Gagal mengirim notifikasi");
     } else {
       toast.success(`Notifikasi terkirim ke ${order.technician_name}`);
-      supabase.functions.invoke("notify-staff-update", {
-        body: {
-          order_id: order.id,
-          updated_by: user.id,
-          action: "stale_reminder",
-        },
-      }).catch((err) => console.error("Failed to send push notification reminder", err));
     }
   };
 

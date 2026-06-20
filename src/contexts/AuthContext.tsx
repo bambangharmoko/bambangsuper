@@ -184,15 +184,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (mounted) setLoading(false);
           });
         } else {
-          setProfile(null);
-          setRoles([]);
-          setLoading(false);
-          if (initializedRef.current) {
-            if (event === "SIGNED_OUT") {
-              clearSessionHint();
-              clearCachedProfileAndRoles();
-            }
-            if (event === "SIGNED_OUT" || !hasRecentSessionHint()) redirectToLogin();
+          // Do not clear session hints here, only do it on explicit signOut
+          if (!hasRecentSessionHint() && initializedRef.current) {
+            setProfile(null);
+            setRoles([]);
+            setLoading(false);
+            redirectToLogin();
           }
         }
       }
@@ -235,9 +232,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
           setProfile(null);
           setRoles([]);
-          clearSessionHint();
-          clearCachedProfileAndRoles();
-          redirectToLogin();
+          if (!hasRecentSessionHint()) {
+            clearSessionHint();
+            clearCachedProfileAndRoles();
+            redirectToLogin();
+          }
         }
       } catch (error) {
         console.error("Session validation failed", error);
@@ -253,7 +252,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setRoles(cachedRoles);
           }
           void fetchUserData(fallbackSession.user.id);
-        } else if (mounted) {
+        } else if (mounted && !hasRecentSessionHint()) {
           clearSessionHint();
           clearCachedProfileAndRoles();
           redirectToLogin();

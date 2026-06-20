@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -165,14 +166,6 @@ Deno.serve(async (req) => {
 
     if (targetUserIds.length === 0) return new Response(JSON.stringify({ ok: true, sent: 0, message: "no staff targets" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    const { data: tokens, error: tokenError } = await supabase
-      .from("staff_push_tokens")
-      .select("id, fcm_token, user_id")
-      .in("user_id", targetUserIds)
-      .eq("is_active", true);
-    if (tokenError) throw tokenError;
-    if (!tokens || tokens.length === 0) return new Response(JSON.stringify({ ok: true, sent: 0, message: "no active staff tokens" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-
     let assigneeName = "Belum ditugaskan";
     if (order.assigned_technician) {
       const { data: assigneeProfile } = await supabase
@@ -183,6 +176,69 @@ Deno.serve(async (req) => {
       if (assigneeProfile?.full_name) {
         assigneeName = assigneeProfile.full_name;
       }
+    }
+
+    // Insert database notification logs for history
+    if (targetUserIds.length > 0) {
+      const notificationsToInsert = targetUserIds.map((userId) => {
+        const isAssignedTech = userId === order.assigned_technician;
+        let userTitle = "Update Tiket";
+        let userBody = `Ada perubahan pada tiket ${order.ticket_number}.`;
+
+        if (action === "status_update") {
+          userTitle = isAssignedTech ? "Update Tugas Anda" : "Update Status Tiket";
+          userBody = isAssignedTech
+            ? `${actorName} mengubah status tiket ${order.ticket_number} (Tugas Anda) menjadi ${status}.`
+            : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} mengubah status menjadi ${status}.`;
+        } else if (action === "delay_reason") {
+          userTitle = "Alasan Keterlambatan Update";
+          userBody = isAssignedTech
+            ? `${actorName} menambahkan alasan keterlambatan pada tiket ${order.ticket_number} (Tugas Anda).`
+            : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} menambahkan alasan keterlambatan: ${delayReason}`;
+        } else if (action === "note_create") {
+          userTitle = "Memo Baru Tiket";
+          userBody = isAssignedTech
+            ? `${actorName} menambahkan memo pada tiket ${order.ticket_number} (Tugas Anda).`
+            : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} menambahkan memo.`;
+        } else if (action === "note_update") {
+          userTitle = "Update Memo Tiket";
+          userBody = isAssignedTech
+            ? `${actorName} memperbarui memo pada tiket ${order.ticket_number} (Tugas Anda).`
+            : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} memperbarui memo.`;
+        } else if (action === "stale_reminder") {
+          userTitle = "⚠️ Pengingat Tiket";
+          userBody = isAssignedTech
+            ? `Tiket ${order.ticket_number} (${order.customer_name}) belum diupdate lebih dari 24 jam. Mohon segera ditindaklanjuti.`
+            : `[Peringatan] Tiket ${order.ticket_number} (${order.customer_name}) belum diupdate oleh ${assigneeName} lebih dari 24 jam.`;
+        }
+
+        return {
+          user_id: userId,
+          title: userTitle,
+          message: userBody,
+          order_id: order_id,
+          is_read: false
+        };
+      });
+
+      const { error: insertError } = await supabase
+        .from("notifications")
+        .insert(notificationsToInsert);
+      
+      if (insertError) {
+        console.error("Failed to insert notification history logs:", insertError);
+      }
+    }
+
+    const { data: tokens, error: tokenError } = await supabase
+      .from("staff_push_tokens")
+      .select("id, fcm_token, user_id")
+      .in("user_id", targetUserIds)
+      .eq("is_active", true);
+    if (tokenError) throw tokenError;
+
+    if (!tokens || tokens.length === 0) {
+      return new Response(JSON.stringify({ ok: true, sent: 0, message: "no active staff tokens, but DB notification history logged" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const sa: ServiceAccount = JSON.parse(Deno.env.get("FIREBASE_SERVICE_ACCOUNT") || "{}");

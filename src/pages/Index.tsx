@@ -28,6 +28,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
 
 interface OrderResult {
   id: string;
@@ -95,11 +96,17 @@ export default function IndexPage() {
 
     setSearching(true);
     setSearched(true);
-    const { data } = await supabase
-      .from("service_orders")
-      .select("id, ticket_number, customer_name, status, device_type, device_brand, service_type, created_at")
-      .eq("customer_phone", val);
-    setResults(data || []);
+
+    const { data, error } = await (supabase.rpc as any)(
+      "get_public_orders_by_phone",
+      { _phone: val }
+    );
+
+    if (error) {
+      console.error("Failed to query service orders by phone number:", error);
+      toast.error("Gagal mencari tiket: " + error.message);
+    }
+    setResults((data as OrderResult[]) || []);
     setSearching(false);
   };
 

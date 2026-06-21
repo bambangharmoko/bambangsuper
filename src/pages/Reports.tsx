@@ -174,7 +174,7 @@ export default function Reports() {
     a.click();
   };
 
-  
+
 
   const exportExcel = () => {
     const rows = filtered.map(o => ({
@@ -186,13 +186,16 @@ export default function Reports() {
       "Jenis Perangkat": o.device_type,
       "Merek": o.device_brand,
       "Model": o.device_model,
-      "Problematika": [o.unit_condition, o.damage_description].filter(Boolean).join(" — "),
+      "Problem": [o.unit_condition, o.damage_description].filter(Boolean).join(" — "),
       "Tanggal Dibuat": format(new Date(o.created_at), "dd/MM/yyyy"),
       "Status": o.status,
       "Tanggal Ditutup": o.status === "Close" && closeTimestamps[o.id]
         ? format(new Date(closeTimestamps[o.id]), "dd/MM/yyyy")
         : "",
-      "Catatan Garansi": o.warranty_notes || "",
+      "Catatan Garansi": [
+        o.warranty_duration ? `Durasi: ${o.warranty_duration} ${o.warranty_unit || 'hari'}` : "",
+        o.warranty_notes ? `(${o.warranty_notes})` : ""
+      ].filter(Boolean).join(" "),
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     const colWidths = Object.keys(rows[0] || {}).map(key => ({
@@ -370,7 +373,7 @@ export default function Reports() {
                     ))}
                   </tbody>
                 </table>
-                
+
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between p-4 border-t border-border">
                     <Button

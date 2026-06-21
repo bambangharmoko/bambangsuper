@@ -69,6 +69,7 @@ export default function CustomerManagementPage() {
   const [retentionValue, setRetentionValue] = useState<number>(6);
   const [retentionUnit, setRetentionUnit] = useState<string>("bulan");
   const [filteredInactive, setFilteredInactive] = useState<SavedCustomer[]>([]);
+  const [retentionFilterActive, setRetentionFilterActive] = useState(false);
   const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set());
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
   const [warrantyBlockedIds, setWarrantyBlockedIds] = useState<Set<string>>(new Set());
@@ -208,6 +209,7 @@ export default function CustomerManagementPage() {
     setFilteredInactive(inactive);
     setWarrantyBlockedIds(blockedIds);
     setSelectedForDelete(new Set());
+    setRetentionFilterActive(true);
     setRetentionFilterOpen(false);
   };
 
@@ -268,7 +270,7 @@ export default function CustomerManagementPage() {
         </div>
 
         {/* Inactive customers from retention filter */}
-        {filteredInactive.length > 0 && (
+        {retentionFilterActive && (
           <Card className="border-warning/30">
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center justify-between">
@@ -285,42 +287,47 @@ export default function CustomerManagementPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {filteredInactive.map((c) => {
-                const isBlocked = warrantyBlockedIds.has(c.id);
-                return (
-                  <div
-                    key={c.id}
-                    className={`flex items-center gap-3 p-3 rounded-lg border ${isBlocked ? "border-primary/30 bg-primary/5" : "border-border"}`}
-                  >
-                    <Checkbox
-                      checked={selectedForDelete.has(c.id)}
-                      onCheckedChange={() => toggleSelectInactive(c.id)}
-                      disabled={isBlocked}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium truncate">{c.customer_name}</p>
-                        {isBlocked && (
-                          <Badge className="text-[9px] px-1 py-0 bg-success text-success-foreground">
-                            <ShieldCheck className="h-2.5 w-2.5 mr-0.5" /> Garansi Aktif
-                          </Badge>
-                        )}
+              {filteredInactive.length === 0 ? (
+                <p className="text-center text-sm text-muted-foreground py-4">Tidak ada pelanggan pasif ditemukan untuk kriteria filter tersebut.</p>
+              ) : (
+                filteredInactive.map((c) => {
+                  const isBlocked = warrantyBlockedIds.has(c.id);
+                  return (
+                    <div
+                      key={c.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg border ${isBlocked ? "border-primary/30 bg-primary/5" : "border-border"}`}
+                    >
+                      <Checkbox
+                        checked={selectedForDelete.has(c.id)}
+                        onCheckedChange={() => toggleSelectInactive(c.id)}
+                        disabled={isBlocked}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium truncate">{c.customer_name}</p>
+                          {isBlocked && (
+                            <Badge className="text-[9px] px-1 py-0 bg-success text-success-foreground">
+                              <ShieldCheck className="h-2.5 w-2.5 mr-0.5" /> Garansi Aktif
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{c.customer_phone}</p>
                       </div>
-                      <p className="text-xs text-muted-foreground">{c.customer_phone}</p>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full"
+                className="w-full mt-2"
                 onClick={() => {
                   setFilteredInactive([]);
                   setSelectedForDelete(new Set());
+                  setRetentionFilterActive(false);
                 }}
               >
-                Tutup Filter
+                Tutup & Bersihkan Filter
               </Button>
             </CardContent>
           </Card>

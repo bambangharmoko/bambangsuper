@@ -51,6 +51,8 @@ export default function CustomerManagementPage() {
   const [customers, setCustomers] = useState<SavedCustomer[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Edit
   const [editOpen, setEditOpen] = useState(false);
@@ -97,6 +99,13 @@ export default function CustomerManagementPage() {
       (c.customer_email || "").toLowerCase().includes(q)
     );
   });
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginatedData = filtered.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
   const openEdit = (c: SavedCustomer) => {
     setEditCustomer(c);
@@ -341,7 +350,7 @@ export default function CustomerManagementPage() {
         ) : (
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">{filtered.length} pelanggan</p>
-            {filtered.map((c) => (
+            {paginatedData.map((c) => (
               <Card key={c.id}>
                 <CardContent className="p-4 flex items-center justify-between">
                   <div className="min-w-0">
@@ -372,6 +381,30 @@ export default function CustomerManagementPage() {
                 </CardContent>
               </Card>
             ))}
+            
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-4 pb-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                >
+                  Sebelumnya
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Hal {page} dari {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                >
+                  Selanjutnya
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>

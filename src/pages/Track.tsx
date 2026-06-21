@@ -27,6 +27,10 @@ interface Order {
   created_at: string;
   invoice_items: any[] | null;
   final_cost: number | null;
+  warranty_duration?: number | null;
+  warranty_unit?: string | null;
+  warranty_expiry?: string | null;
+  warranty_notes?: string | null;
 }
 
 interface Update {
@@ -225,6 +229,15 @@ export default function TrackPage() {
                 <span className="text-muted-foreground">Tanggal Masuk</span>
                 <p className="font-medium">{new Date(order.created_at).toLocaleDateString("id-ID")}</p>
               </div>
+              {order.warranty_duration && (
+                <div>
+                  <span className="text-muted-foreground">Masa Garansi</span>
+                  <p className="font-medium">
+                    {order.warranty_duration} {order.warranty_unit || 'hari'}
+                    {order.warranty_notes ? ` (${order.warranty_notes})` : ""}
+                  </p>
+                </div>
+              )}
             </div>
             {order.notes && (
               <div>

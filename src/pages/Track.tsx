@@ -229,15 +229,17 @@ export default function TrackPage() {
                 <span className="text-muted-foreground">Tanggal Masuk</span>
                 <p className="font-medium">{new Date(order.created_at).toLocaleDateString("id-ID")}</p>
               </div>
-              {order.warranty_duration && (
+              {(order.warranty_duration || order.warranty_notes || order.warranty_expiry) ? (
                 <div>
                   <span className="text-muted-foreground">Masa Garansi</span>
                   <p className="font-medium">
-                    {order.warranty_duration} {order.warranty_unit || 'hari'}
-                    {order.warranty_notes ? ` (${order.warranty_notes})` : ""}
+                    {[
+                      order.warranty_duration ? `${order.warranty_duration} ${order.warranty_unit || 'hari'}` : "",
+                      order.warranty_notes ? `(${order.warranty_notes})` : ""
+                    ].filter(Boolean).join(" ") || "Aktif"}
                   </p>
                 </div>
-              )}
+              ) : null}
             </div>
             {order.notes && (
               <div>

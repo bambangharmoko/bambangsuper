@@ -349,7 +349,7 @@ export default function CustomerManagementPage() {
           <p className="text-center text-muted-foreground py-8">Tidak ada data pelanggan.</p>
         ) : (
           <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">{filtered.length} pelanggan</p>
+            <p className="text-xs text-muted-foreground">Menampilkan {paginatedData.length} dari total {filtered.length} pelanggan</p>
             {paginatedData.map((c) => (
               <Card key={c.id}>
                 <CardContent className="p-4 flex items-center justify-between">

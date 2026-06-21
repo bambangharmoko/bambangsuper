@@ -47,6 +47,9 @@ export default function Reports() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 10;
+
   const [techProfiles, setTechProfiles] = useState<Record<string, string>>({});
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
@@ -144,6 +147,13 @@ export default function Reports() {
     cancelled: filtered.filter(o => o.status === "Cancelled").length,
     totalRevenue: filtered.filter(o => o.status !== "Cancelled").reduce((sum, o) => sum + (o.final_cost || 0), 0),
   };
+
+  useEffect(() => {
+    setPage(1);
+  }, [filtered]);
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginatedData = filtered.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
   const exportCSV = () => {
     const headers = ["Tiket", "Pelanggan", "Telepon", "Perangkat", "Merek", "Model", "Layanan", "Status", "Estimasi", "Biaya Akhir", "Tanggal Masuk", "Update Terakhir"];
@@ -322,6 +332,11 @@ export default function Reports() {
               <p className="p-6 text-center text-muted-foreground text-sm">Tidak ada data ditemukan.</p>
             ) : (
               <div className="overflow-x-auto">
+                <div className="p-4 flex justify-between items-center border-b border-border">
+                  <p className="text-sm text-muted-foreground">
+                    Menampilkan {paginatedData.length} dari total {filtered.length} tiket
+                  </p>
+                </div>
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/50">
@@ -335,7 +350,7 @@ export default function Reports() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((o) => (
+                    {paginatedData.map((o) => (
                       <tr key={o.id} className="border-b border-border hover:bg-muted/30">
                         <td className="p-3 font-mono text-xs">{o.ticket_number}</td>
                         <td className="p-3">
@@ -355,6 +370,30 @@ export default function Reports() {
                     ))}
                   </tbody>
                 </table>
+                
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between p-4 border-t border-border">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                    >
+                      Sebelumnya
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      Hal {page} dari {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                    >
+                      Selanjutnya
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>

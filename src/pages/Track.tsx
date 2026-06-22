@@ -351,10 +351,10 @@ export default function TrackPage() {
           <CardContent className="p-4 text-center space-y-2">
             <p className="text-sm font-medium">Butuh Bantuan?</p>
             <div className="flex justify-center gap-4 text-sm">
-              <a href="tel:+6281234567890" className="flex items-center gap-1 text-primary hover:underline">
+              <a href="tel:+628115404999" className="flex items-center gap-1 text-primary hover:underline">
                 <Phone className="h-3 w-3" /> Telepon
               </a>
-              <a href="mailto:support@supercomputer.com" className="flex items-center gap-1 text-primary hover:underline">
+              <a href="mailto:marketing@superkomputer.net" className="flex items-center gap-1 text-primary hover:underline">
                 <Mail className="h-3 w-3" /> Email
               </a>
             </div>

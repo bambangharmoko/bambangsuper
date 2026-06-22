@@ -239,14 +239,14 @@ export default function TrackPage() {
                         const expiryDate = new Date(order.warranty_expiry);
                         const diffTime = expiryDate.getTime() - now.getTime();
                         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                        
+
                         if (diffDays > 0) {
                           return `Aktif - Sisa ${diffDays} Hari${order.warranty_notes ? ` (${order.warranty_notes})` : ""}`;
                         } else {
-                          return <span className="text-destructive">Habis{order.warranty_notes ? ` (${order.warranty_notes})` : ""}</span>;
+                          return <span className="text-destructive">Tidak Garansi{order.warranty_notes ? ` (${order.warranty_notes})` : ""}</span>;
                         }
                       }
-                      
+
                       return [
                         order.warranty_duration ? `${order.warranty_duration} ${order.warranty_unit || 'hari'}` : "",
                         order.warranty_notes ? `(${order.warranty_notes})` : ""

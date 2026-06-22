@@ -233,10 +233,25 @@ export default function TrackPage() {
                 <div>
                   <span className="text-muted-foreground">Masa Garansi</span>
                   <p className="font-medium">
-                    {[
-                      order.warranty_duration ? `${order.warranty_duration} ${order.warranty_unit || 'hari'}` : "",
-                      order.warranty_notes ? `(${order.warranty_notes})` : ""
-                    ].filter(Boolean).join(" ") || "Aktif"}
+                    {(() => {
+                      if (order.warranty_expiry) {
+                        const now = new Date();
+                        const expiryDate = new Date(order.warranty_expiry);
+                        const diffTime = expiryDate.getTime() - now.getTime();
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        
+                        if (diffDays > 0) {
+                          return `Aktif - Sisa ${diffDays} Hari${order.warranty_notes ? ` (${order.warranty_notes})` : ""}`;
+                        } else {
+                          return <span className="text-destructive">Habis{order.warranty_notes ? ` (${order.warranty_notes})` : ""}</span>;
+                        }
+                      }
+                      
+                      return [
+                        order.warranty_duration ? `${order.warranty_duration} ${order.warranty_unit || 'hari'}` : "",
+                        order.warranty_notes ? `(${order.warranty_notes})` : ""
+                      ].filter(Boolean).join(" ") || "Aktif";
+                    })()}
                   </p>
                 </div>
               ) : null}

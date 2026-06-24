@@ -243,7 +243,7 @@ export default function TrackPage() {
                         if (diffDays > 0) {
                           return `Aktif - Sisa ${diffDays} Hari${order.warranty_notes ? ` (${order.warranty_notes})` : ""}`;
                         } else {
-                          return <span className="text-destructive">Tidak Garansi{order.warranty_notes ? ` (${order.warranty_notes})` : ""}</span>;
+                          return <span className="text-destructive">Tidak Aktif{order.warranty_notes ? ` (${order.warranty_notes})` : ""}</span>;
                         }
                       }
 

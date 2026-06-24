@@ -150,7 +150,7 @@ export default function IndexPage() {
             </p>
             <div className="flex gap-2 max-w-md mx-auto">
               <Input
-                placeholder="Nomor tiket (D26001) atau No. HP"
+                placeholder="Nomor tiket atau Nomor HP"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}

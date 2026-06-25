@@ -71,12 +71,12 @@ const initFirebase = async (): Promise<{ app: FirebaseApp; config: FirebaseConfi
     app = getApps().length
       ? getApps()[0]
       : initializeApp({
-          apiKey: config.apiKey,
-          authDomain: config.authDomain,
-          projectId: config.projectId,
-          messagingSenderId: config.messagingSenderId,
-          appId: config.appId,
-        });
+        apiKey: config.apiKey,
+        authDomain: config.authDomain,
+        projectId: config.projectId,
+        messagingSenderId: config.messagingSenderId,
+        appId: config.appId,
+      });
   }
   return { app, config };
 };
@@ -151,8 +151,8 @@ export const showForegroundNotification = async (title: string, body: string, da
 
   await registration.showNotification(title, {
     body,
-    icon: "/icon-192.png",
-    badge: "/icon-192.png",
+    icon: "/superkomputer.png",
+    badge: "/superkomputer.png",
     tag: data.order_id ? `staff-ticket-${data.order_id}` : data.ticket_number || "service-update",
     data,
     requireInteraction: true,

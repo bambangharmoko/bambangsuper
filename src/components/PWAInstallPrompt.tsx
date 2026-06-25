@@ -85,7 +85,7 @@ export function PWAInstallPrompt() {
         </button>
 
         <div className="flex items-start gap-3">
-          <img src="/icon-192.png" alt="App icon" className="w-12 h-12 rounded-xl shrink-0" />
+          <img src="/superkomputer.png" alt="App icon" className="w-12 h-12 rounded-xl shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm text-foreground">Install Super Komputer</p>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -124,7 +124,7 @@ export function PWAInstallPrompt() {
         </button>
 
         <div className="flex items-start gap-3 mb-3">
-          <img src="/icon-192.png" alt="App icon" className="w-12 h-12 rounded-xl shrink-0" />
+          <img src="/superkomputer.png" alt="App icon" className="w-12 h-12 rounded-xl shrink-0" />
           <div>
             <p className="font-semibold text-sm text-foreground">Install di iPhone / iPad</p>
             <p className="text-xs text-muted-foreground mt-0.5">Tambahkan ke Home Screen:</p>

@@ -208,8 +208,8 @@ Deno.serve(async (req) => {
                     notification: {
                       title,
                       body: bodyText,
-                      icon: "/icon-192.png",
-                      badge: "/icon-192.png",
+                      icon: "/superkomputer.png",
+                      badge: "/superkomputer.png",
                       tag: ticket_number,
                       requireInteraction: true,
                       data: {

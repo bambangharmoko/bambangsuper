@@ -142,14 +142,14 @@ Deno.serve(async (req) => {
     }
 
     const staffIds = Object.keys(userRolesMap).filter((id) => action === "stale_reminder" || id !== updated_by);
-    
+
     const { data: approvedProfiles, error: approvedError } = await supabase
       .from("profiles")
       .select("id")
       .in("id", staffIds)
       .eq("is_approved", true);
     if (approvedError) throw approvedError;
-    
+
     const targetUserIds = (approvedProfiles || [])
       .map((row) => row.id)
       .filter((userId) => {
@@ -160,7 +160,7 @@ Deno.serve(async (req) => {
         const roles = userRolesMap[userId] || [];
         const isAdminOrOwner = roles.includes("admin") || roles.includes("owner");
         const isTechnician = roles.includes("technician");
-        
+
         if (isTechnician && !isAdminOrOwner) {
           // Technician strictly: only receive if assigned to them
           return order.assigned_technician === userId;
@@ -228,7 +228,7 @@ Deno.serve(async (req) => {
       const { error: insertError } = await supabase
         .from("notifications")
         .insert(notificationsToInsert);
-      
+
       if (insertError) {
         console.error("Failed to insert notification history logs:", insertError);
       }
@@ -287,7 +287,7 @@ Deno.serve(async (req) => {
       const res = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
         method: "POST",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ message: { token: fcm_token, data: { title: userTitle, body: userBody, order_id, status: status || "", url: targetPath }, webpush: { notification: { title: userTitle, body: userBody, icon: "/icon-192.png", badge: "/icon-192.png", tag: `staff-ticket-${order_id}`, requireInteraction: true, data: { order_id, status: status || "", url: targetPath } }, fcm_options: { link: `${APP_ORIGIN}${targetPath}` } } } }),
+        body: JSON.stringify({ message: { token: fcm_token, data: { title: userTitle, body: userBody, order_id, status: status || "", url: targetPath }, webpush: { notification: { title: userTitle, body: userBody, icon: "/superkomputer.png", badge: "/superkomputer.png", tag: `staff-ticket-${order_id}`, requireInteraction: true, data: { order_id, status: status || "", url: targetPath } }, fcm_options: { link: `${APP_ORIGIN}${targetPath}` } } } }),
       });
       if (res.ok) sent++;
       else if (res.status === 404 || res.status === 400) invalidTokenIds.push(id);

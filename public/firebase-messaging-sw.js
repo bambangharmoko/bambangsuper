@@ -51,8 +51,8 @@ const showMessageNotification = (payload) => {
 
   self.registration.showNotification(title, {
     body: payload.notification?.body || payload.data?.body || "",
-    icon: "/icon-192.png",
-    badge: "/icon-192.png",
+    icon: "/superkomputer.png",
+    badge: "/superkomputer.png",
     tag: data.order_id ? `staff-ticket-${data.order_id}` : data.ticket_number || "service-update",
     data,
     requireInteraction: true,

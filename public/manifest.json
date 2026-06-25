@@ -1,18 +1,26 @@
 {
   "name": "Super Komputer",
-  "short_name": "SuperKomp",
+  "short_name": "Super Komputer",
   "description": "Sistem manajemen servis dan perbaikan perangkat — Toko Super Komputer Balikpapan",
   "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
   "background_color": "#020617",
   "theme_color": "#2563eb",
   "orientation": "portrait-primary",
   "lang": "id",
   "dir": "ltr",
-  "categories": ["business", "productivity", "utilities"],
+  "categories": [
+    "business",
+    "productivity",
+    "utilities"
+  ],
   "icons": [
     {
       "src": "/icon-192.png",
@@ -45,14 +53,24 @@
       "short_name": "Pesanan",
       "description": "Lihat semua tiket service",
       "url": "/dashboard/orders",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Lacak Tiket",
       "short_name": "Lacak",
       "description": "Lacak status servis perangkat",
       "url": "/track",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ],
   "prefer_related_applications": false

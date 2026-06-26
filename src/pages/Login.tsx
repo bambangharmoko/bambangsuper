@@ -62,7 +62,7 @@ export default function LoginPage() {
       navigate("/dashboard");
     } catch (error) {
       console.error("login error:", error);
-      toast.error(error instanceof Error ? error.message : "Login gagal");
+      toast.error("Username/Password salah");
     } finally {
       setLoading(false);
     }

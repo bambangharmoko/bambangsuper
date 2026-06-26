@@ -42,7 +42,7 @@ export default function LoginPage() {
         { _identifier: identifier.trim() },
       );
 
-      if (lookupErr || !emailLookup) throw new Error("User tidak ditemukan.");
+      if (lookupErr || !emailLookup) throw new Error("Username/Password salah");
 
       const { data, error } = await signIn(emailLookup as string);
       if (error) throw error;
@@ -62,7 +62,11 @@ export default function LoginPage() {
       navigate("/dashboard");
     } catch (error) {
       console.error("login error:", error);
-      toast.error("Username/Password salah");
+      let errorMessage = error instanceof Error ? error.message : "Login gagal";
+      if (errorMessage.includes("Invalid login credentials") || errorMessage.includes("Invalid credentials")) {
+        errorMessage = "Username/Password salah";
+      }
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -83,7 +87,7 @@ export default function LoginPage() {
                 id="identifier"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="email@contoh.com atau username"
+                placeholder="Masukkan Email atau username"
                 required
               />
             </div>

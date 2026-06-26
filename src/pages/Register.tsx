@@ -55,7 +55,7 @@ export default function RegisterPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!fullName.trim() || !username.trim() || !email.trim() || !password) {
       toast.error("Semua kolom wajib diisi (Nama Lengkap, Username, Email, Password)!");
       return;
@@ -134,7 +134,6 @@ export default function RegisterPage() {
                 id="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Username untuk login alternatif"
                 required
               />
             </div>
@@ -150,6 +149,7 @@ export default function RegisterPage() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Masukkan Minimal 6 Karakter"
                   required
                   minLength={6}
                 />

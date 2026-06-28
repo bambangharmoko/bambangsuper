@@ -149,6 +149,9 @@ export default function Reports() {
     active: filtered.filter(o => statusGroups["Dalam Pengerjaan"].includes(o.status)).length,
     completed: filtered.filter(o => statusGroups["Selesai"].includes(o.status)).length,
     cancelled: filtered.filter(o => o.status === "Cancelled").length,
+    underWarranty: filtered.filter(
+      (o) => o.status === "Close" && o.warranty_expiry && new Date(o.warranty_expiry) >= new Date()
+    ).length,
     totalRevenue: filtered.filter(o => o.status !== "Cancelled").reduce((sum, o) => sum + (o.final_cost || 0), 0),
   };
 
@@ -316,12 +319,13 @@ export default function Reports() {
         </Card>
 
         {/* Summary */}
-        <div className={`grid grid-cols-2 ${hasRole("owner") ? "lg:grid-cols-5" : "lg:grid-cols-4"} gap-3`}>
+        <div className={`grid grid-cols-2 ${hasRole("owner") ? "lg:grid-cols-6" : hasRole("admin") ? "lg:grid-cols-5" : "lg:grid-cols-4"} gap-3`}>
           {[
             { label: "Total", value: summaryStats.total, color: "text-primary" },
             { label: "Dalam Proses", value: summaryStats.active, color: "text-warning" },
             { label: "Selesai", value: summaryStats.completed, color: "text-success" },
             { label: "Cancel", value: summaryStats.cancelled, color: "text-destructive" },
+            ...((hasRole("owner") || hasRole("admin")) ? [{ label: "Dalam Garansi", value: summaryStats.underWarranty, color: "text-success" }] : []),
             ...(hasRole("owner") ? [{ label: "Total Pendapatan", value: `Rp ${summaryStats.totalRevenue.toLocaleString("id-ID")}`, color: "text-primary" }] : []),
           ].map((s, i) => (
             <Card key={i}>

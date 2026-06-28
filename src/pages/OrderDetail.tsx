@@ -1761,30 +1761,6 @@ export default function OrderDetailPage() {
                     Unggah foto bukti kerusakan dari kamera atau galeri perangkat.
                   </p>
                   <div className="flex gap-2">
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      capture="environment" 
-                      id="camera-input"
-                      className="sr-only"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) setDiagnosisPhotos((prev) => [...prev, file]);
-                        e.target.value = "";
-                      }}
-                    />
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      multiple 
-                      id="gallery-input"
-                      className="sr-only"
-                      onChange={(e) => {
-                        const files = Array.from(e.target.files || []);
-                        if (files.length > 0) setDiagnosisPhotos((prev) => [...prev, ...files]);
-                        e.target.value = "";
-                      }}
-                    />
                     <Button
                       type="button"
                       variant="outline"
@@ -2484,6 +2460,31 @@ export default function OrderDetailPage() {
           )}
         </DialogContent>
       </Dialog>
+      {/* Hidden Global Inputs for Android OOM Tab Recovery (Must be outside Dialog portals) */}
+      <input 
+        type="file" 
+        accept="image/*" 
+        capture="environment" 
+        id="camera-input"
+        className="sr-only"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) setDiagnosisPhotos((prev) => [...prev, file]);
+          e.target.value = "";
+        }}
+      />
+      <input 
+        type="file" 
+        accept="image/*" 
+        multiple 
+        id="gallery-input"
+        className="sr-only"
+        onChange={(e) => {
+          const files = Array.from(e.target.files || []);
+          if (files.length > 0) setDiagnosisPhotos((prev) => [...prev, ...files]);
+          e.target.value = "";
+        }}
+      />
     </DashboardLayout>
   );
 }

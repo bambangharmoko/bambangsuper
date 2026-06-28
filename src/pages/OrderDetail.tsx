@@ -111,12 +111,12 @@ export default function OrderDetailPage() {
   const [assigneeName, setAssigneeName] = useState<string>("-");
 
   // Status update
-  const [statusNote, setStatusNote] = useState("");
-  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [statusNote, setStatusNote] = useState(() => sessionStorage.getItem("draft_statusNote") || "");
+  const [statusDialogOpen, setStatusDialogOpen] = useState(() => sessionStorage.getItem("draft_statusDialogOpen") === "true");
 
   // Split notes for Diagnosa → Menunggu Konfirmasi
-  const [publicNote, setPublicNote] = useState("");
-  const [internalDiagNote, setInternalDiagNote] = useState("");
+  const [publicNote, setPublicNote] = useState(() => sessionStorage.getItem("draft_publicNote") || "");
+  const [internalDiagNote, setInternalDiagNote] = useState(() => sessionStorage.getItem("draft_internalDiagNote") || "");
 
   // Rollback dialogs
   const [rollbackToPerbaikanOpen, setRollbackToPerbaikanOpen] = useState(false);
@@ -127,7 +127,7 @@ export default function OrderDetailPage() {
   const [warrantyPreset, setWarrantyPreset] = useState<string>("manual");
   const [warrantyUnit, setWarrantyUnit] = useState<string>("hari");
   const [warrantyNotes, setWarrantyNotes] = useState("");
-  const [pendingStatus, setPendingStatus] = useState("");
+  const [pendingStatus, setPendingStatus] = useState(() => sessionStorage.getItem("draft_pendingStatus") || "");
 
   // Cancel
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -418,8 +418,37 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     fetchData();
-    fetchTechnicians();
+    fetchNotes();
   }, [ticketId]);
+
+  useEffect(() => {
+    sessionStorage.setItem("draft_statusNote", statusNote);
+    sessionStorage.setItem("draft_statusDialogOpen", statusDialogOpen.toString());
+    sessionStorage.setItem("draft_publicNote", publicNote);
+    sessionStorage.setItem("draft_internalDiagNote", internalDiagNote);
+    sessionStorage.setItem("draft_pendingStatus", pendingStatus);
+  }, [statusNote, statusDialogOpen, publicNote, internalDiagNote, pendingStatus]);
+
+  // Handle Chrome OOM tab recovery file extraction
+  useEffect(() => {
+    const checkRecoveredFiles = () => {
+      const cameraInput = document.getElementById("camera-input") as HTMLInputElement;
+      if (cameraInput && cameraInput.files && cameraInput.files.length > 0) {
+        setDiagnosisPhotos((prev) => [...prev, cameraInput.files![0]]);
+      }
+    };
+    // Slight delay to allow DOM to settle
+    const t = setTimeout(checkRecoveredFiles, 500);
+    return () => clearTimeout(t);
+  }, []);
+
+  const clearDrafts = () => {
+    sessionStorage.removeItem("draft_statusNote");
+    sessionStorage.removeItem("draft_statusDialogOpen");
+    sessionStorage.removeItem("draft_publicNote");
+    sessionStorage.removeItem("draft_internalDiagNote");
+    sessionStorage.removeItem("draft_pendingStatus");
+  };
 
   // Re-fetch notes when resolvedId becomes available
   useEffect(() => {
@@ -848,6 +877,7 @@ export default function OrderDetailPage() {
       setPublicNote("");
       setInternalDiagNote("");
       setDiagnosisPhotos([]);
+      clearDrafts();
       fetchData();
       fetchNotes();
       return;
@@ -882,6 +912,7 @@ export default function OrderDetailPage() {
       setWarrantyPreset("manual");
       setWarrantyUnit("hari");
       setWarrantyNotes("");
+      clearDrafts();
       fetchData();
       return;
     }
@@ -906,6 +937,7 @@ export default function OrderDetailPage() {
     toast.success(`Status diupdate ke ${pendingStatus}`);
     setStatusDialogOpen(false);
     setStatusNote("");
+    clearDrafts();
     fetchData();
   };
 
@@ -1690,7 +1722,13 @@ export default function OrderDetailPage() {
       </div>
 
       {/* Status Update Dialog */}
-      <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
+      <Dialog 
+        open={statusDialogOpen} 
+        onOpenChange={(open) => {
+          setStatusDialogOpen(open);
+          if (!open) clearDrafts();
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Update Status ke "{pendingStatus}"</DialogTitle>
@@ -1723,32 +1761,6 @@ export default function OrderDetailPage() {
                     Unggah foto bukti kerusakan dari kamera atau galeri perangkat.
                   </p>
                   <div className="flex gap-2">
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      capture="environment" 
-                      id="camera-input"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) setDiagnosisPhotos((prev) => [...prev, file]);
-                        // Reset input so the same file can be selected again if needed
-                        e.target.value = "";
-                      }}
-                    />
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      multiple 
-                      id="gallery-input"
-                      className="hidden"
-                      onChange={(e) => {
-                        const files = Array.from(e.target.files || []);
-                        if (files.length > 0) setDiagnosisPhotos((prev) => [...prev, ...files]);
-                        // Reset input
-                        e.target.value = "";
-                      }}
-                    />
                     <Button
                       type="button"
                       variant="outline"

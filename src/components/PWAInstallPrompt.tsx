@@ -54,8 +54,8 @@ export function PWAInstallPrompt() {
     if (isDismissed()) return;
 
     // Android / Chrome Desktop: tangkap event beforeinstallprompt
-    // Jangan panggil e.preventDefault() agar popup bawaan Chrome (mini-infobar) tetap muncul
     const handler = (e: Event) => {
+      e.preventDefault(); // Mencegah popup mini-infobar bawaan Chrome agar custom popup kita yang muncul
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       setShowPrompt(true);
     };

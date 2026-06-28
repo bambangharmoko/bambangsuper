@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -84,6 +84,15 @@ export default function IndexPage() {
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
   const navigate = useNavigate();
+
+  // Auto-redirect: jika pengguna sudah login, langsung ke dashboard
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        navigate("/dashboard", { replace: true });
+      }
+    });
+  }, [navigate]);
 
   const handleSearch = async () => {
     const val = searchInput.trim();

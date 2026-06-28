@@ -172,8 +172,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (event, session) => {
         if (!mounted) return;
 
-        if (event === "INITIAL_SESSION") return;
-
         setSession(session);
         setUser(session?.user ?? null);
 
@@ -183,8 +181,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           void fetchUserData(session.user.id).finally(() => {
             if (mounted) setLoading(false);
           });
+        } else if (event === "SIGNED_OUT") {
+          // Explicit sign-out: hapus semua cache
+          setProfile(null);
+          setRoles([]);
+          setLoading(false);
+          redirectToLogin();
         } else {
-          // Do not clear session hints here, only do it on explicit signOut
+          // INITIAL_SESSION tanpa session atau event lain tanpa session
+          // Jangan langsung logout — checkSession() di bawah akan memverifikasi
           if (!hasRecentSessionHint() && initializedRef.current) {
             setProfile(null);
             setRoles([]);

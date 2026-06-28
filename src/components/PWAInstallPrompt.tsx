@@ -8,6 +8,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const DISMISSED_KEY = "pwa-install-dismissed";
+const DISMISS_EXPIRY_DAYS = 7;
 
 function isIOS() {
   return /iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -20,6 +21,28 @@ function isInStandaloneMode() {
   );
 }
 
+function isDismissed(): boolean {
+  try {
+    const raw = localStorage.getItem(DISMISSED_KEY);
+    if (!raw) return false;
+    const expiry = parseInt(raw, 10);
+    if (isNaN(expiry) || Date.now() > expiry) {
+      localStorage.removeItem(DISMISSED_KEY);
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function setDismissed() {
+  localStorage.setItem(
+    DISMISSED_KEY,
+    String(Date.now() + DISMISS_EXPIRY_DAYS * 24 * 60 * 60 * 1000)
+  );
+}
+
 export function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
@@ -28,11 +51,11 @@ export function PWAInstallPrompt() {
   useEffect(() => {
     // Jangan tampilkan jika sudah diinstall atau sudah dismiss
     if (isInStandaloneMode()) return;
-    if (sessionStorage.getItem(DISMISSED_KEY)) return;
+    if (isDismissed()) return;
 
     // Android / Chrome Desktop: tangkap event beforeinstallprompt
+    // Jangan panggil e.preventDefault() agar popup bawaan Chrome (mini-infobar) tetap muncul
     const handler = (e: Event) => {
-      e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       setShowPrompt(true);
     };
@@ -64,7 +87,7 @@ export function PWAInstallPrompt() {
   const handleDismiss = () => {
     setShowPrompt(false);
     setShowIOSGuide(false);
-    sessionStorage.setItem(DISMISSED_KEY, "1");
+    setDismissed();
   };
 
   // ── Android / Chrome / Desktop ─────────────────────────────────────────

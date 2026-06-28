@@ -75,7 +75,11 @@ export default function Reports() {
         query = query.lt("created_at", format(nextDay, "yyyy-MM-dd"));
       }
       if (statusFilter && statusFilter !== "all") {
-        query = query.eq("status", statusFilter as any);
+        if (statusFilter === "under_warranty") {
+          query = query.eq("status", "Close" as any).gte("warranty_expiry", new Date().toISOString());
+        } else {
+          query = query.eq("status", statusFilter as any);
+        }
       }
 
       const { data, error } = await query;
@@ -291,6 +295,9 @@ export default function Reports() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Semua Status</SelectItem>
+                    {(hasRole("owner") || hasRole("admin")) && (
+                      <SelectItem value="under_warranty">Dalam Garansi</SelectItem>
+                    )}
                     {ALL_STATUSES.map((s) => (
                       <SelectItem key={s} value={s}>{s}</SelectItem>
                     ))}

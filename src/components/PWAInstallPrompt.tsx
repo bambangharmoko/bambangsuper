@@ -7,9 +7,6 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-const DISMISSED_KEY = "pwa-install-dismissed";
-const DISMISS_EXPIRY_DAYS = 7;
-
 function isIOS() {
   return /iphone|ipad|ipod/i.test(navigator.userAgent);
 }
@@ -21,35 +18,22 @@ function isInStandaloneMode() {
   );
 }
 
-function isDismissed(): boolean {
-  try {
-    const raw = localStorage.getItem(DISMISSED_KEY);
-    if (!raw) return false;
-    const expiry = parseInt(raw, 10);
-    if (isNaN(expiry) || Date.now() > expiry) {
-      localStorage.removeItem(DISMISSED_KEY);
-      return false;
-    }
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function setDismissed() {
-  localStorage.setItem(
-    DISMISSED_KEY,
-    String(Date.now() + DISMISS_EXPIRY_DAYS * 24 * 60 * 60 * 1000)
-  );
-}
-
 export function PWAInstallPrompt() {
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [showPrompt, setShowPrompt] = useState(false);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
 
   useEffect(() => {
-    // Jangan tampilkan panduan iOS jika sudah diinstall atau sudah dismiss
+    // Jangan tampilkan jika sudah diinstall
     if (isInStandaloneMode()) return;
-    if (isDismissed()) return;
+
+    // Android / Chrome Desktop: tangkap event beforeinstallprompt
+    const handler = (e: Event) => {
+      e.preventDefault(); // Mencegah popup mini-infobar bawaan Chrome agar custom popup kita yang muncul
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      setShowPrompt(true);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
 
     // iOS: tampilkan guide manual karena Safari tidak punya prompt install otomatis
     if (isIOS() && !isInStandaloneMode()) {
@@ -57,12 +41,65 @@ export function PWAInstallPrompt() {
       const t = setTimeout(() => setShowIOSGuide(true), 3000);
       return () => clearTimeout(t);
     }
+
+    return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
-  const handleDismiss = () => {
-    setShowIOSGuide(false);
-    setDismissed();
+  const handleInstall = async () => {
+    if (!deferredPrompt) return;
+    await deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === "accepted") {
+      setShowPrompt(false);
+    }
+    setDeferredPrompt(null);
   };
+
+  const handleDismiss = () => {
+    // Hanya menyembunyikan untuk sesi ini saja, tidak disimpan ke localStorage
+    // sehingga saat direfresh akan muncul lagi jika belum diinstall
+    setShowPrompt(false);
+    setShowIOSGuide(false);
+  };
+
+  // ── Android / Chrome / Desktop ─────────────────────────────────────────
+  if (showPrompt && deferredPrompt) {
+    return (
+      <div
+        role="alert"
+        className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] w-[calc(100%-2rem)] max-w-sm
+                   bg-card border border-border shadow-2xl rounded-2xl p-4
+                   animate-in slide-in-from-bottom-4 duration-300"
+      >
+        <button
+          onClick={handleDismiss}
+          className="absolute top-3 right-3 text-muted-foreground hover:text-foreground"
+          aria-label="Tutup"
+        >
+          <X className="h-4 w-4" />
+        </button>
+
+        <div className="flex items-start gap-3">
+          <img src="/superkomputer.png" alt="App icon" className="w-12 h-12 rounded-xl shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm text-foreground">Install Super Komputer</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Pasang di layar utama untuk akses cepat tanpa browser.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-2 mt-3">
+          <Button size="sm" className="flex-1 gradient-primary text-white" onClick={handleInstall}>
+            <Download className="h-3 w-3 mr-1" /> Install Sekarang
+          </Button>
+          <Button size="sm" variant="ghost" onClick={handleDismiss} className="text-muted-foreground">
+            Nanti
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   // ── iOS Safari Guide ───────────────────────────────────────────────────
   if (showIOSGuide) {

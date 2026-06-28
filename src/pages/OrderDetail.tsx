@@ -1032,6 +1032,25 @@ export default function OrderDetailPage() {
         edited_at: new Date().toISOString(),
       })
       .eq("id", order.id);
+
+    // Log perubahan data ke service_updates agar memicu notifikasi
+    const changes: string[] = [];
+    if (editForm.customer_name !== order.customer_name) changes.push("Nama Pelanggan");
+    if (editForm.customer_phone !== order.customer_phone) changes.push("No. Telepon");
+    if (editForm.device_brand !== order.device_brand) changes.push("Merek");
+    if (editForm.device_model !== order.device_model) changes.push("Model");
+    if (editForm.device_type !== order.device_type) changes.push("Jenis Perangkat");
+    if (editForm.service_type !== order.service_type) changes.push("Tipe Servis");
+    if ((editForm.customer_email || "") !== (order.customer_email || "")) changes.push("Email");
+
+    const changeSummary = changes.length > 0 ? changes.join(", ") : "Data tiket";
+    await supabase.from("service_updates").insert({
+      order_id: order.id,
+      status: order.status as any,
+      description: `[EDIT DATA] ${changeSummary} diperbarui oleh ${profile?.full_name || "Staff"}`,
+      updated_by: user!.id,
+    });
+
     toast.success("Data pesanan berhasil diperbarui");
     setEditOpen(false);
     fetchData();

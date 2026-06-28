@@ -91,6 +91,7 @@ Deno.serve(async (req) => {
     let action = bodyAction;
     let status = bodyStatus;
     let delayReason = bodyDelayReason;
+    let editDescription = "";
 
     if (!action) {
       if (update_id) {
@@ -105,6 +106,9 @@ Deno.serve(async (req) => {
         if (description.startsWith("[ALASAN TERLAMBAT]")) {
           action = "delay_reason";
           delayReason = description.replace("[ALASAN TERLAMBAT]", "").trim();
+        } else if (description.startsWith("[EDIT DATA]")) {
+          action = "edit_data";
+          editDescription = description.replace("[EDIT DATA]", "").trim();
         } else {
           action = "status_update";
         }
@@ -214,6 +218,11 @@ Deno.serve(async (req) => {
           userBody = isAssignedTech
             ? `Tiket ${order.ticket_number} (${order.customer_name}) belum diupdate lebih dari 24 jam. Mohon segera ditindaklanjuti.`
             : `[Peringatan] Tiket ${order.ticket_number} (${order.customer_name}) belum diupdate oleh ${assigneeName} lebih dari 24 jam.`;
+        } else if (action === "edit_data") {
+          userTitle = "Data Tiket Diperbarui";
+          userBody = isAssignedTech
+            ? `${actorName} memperbarui data tiket ${order.ticket_number} (Tugas Anda): ${editDescription}`
+            : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} memperbarui data tiket.`;
         }
 
         return {
@@ -281,6 +290,11 @@ Deno.serve(async (req) => {
         userBody = isAssignedTech
           ? `Tiket ${order.ticket_number} (${order.customer_name}) belum diupdate lebih dari 24 jam. Mohon segera ditindaklanjuti.`
           : `[Peringatan] Tiket ${order.ticket_number} (${order.customer_name}) belum diupdate oleh ${assigneeName} lebih dari 24 jam.`;
+      } else if (action === "edit_data") {
+        userTitle = "Data Tiket Diperbarui";
+        userBody = isAssignedTech
+          ? `${actorName} memperbarui data tiket ${order.ticket_number} (Tugas Anda): ${editDescription}`
+          : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} memperbarui data tiket.`;
       }
 
       const targetPath = `/dashboard/orders/${order.ticket_number}`;

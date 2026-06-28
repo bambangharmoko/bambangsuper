@@ -1723,22 +1723,38 @@ export default function OrderDetailPage() {
                     Unggah foto bukti kerusakan dari kamera atau galeri perangkat.
                   </p>
                   <div className="flex gap-2">
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      capture="environment" 
+                      id="camera-input"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) setDiagnosisPhotos((prev) => [...prev, file]);
+                        // Reset input so the same file can be selected again if needed
+                        e.target.value = "";
+                      }}
+                    />
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      multiple 
+                      id="gallery-input"
+                      className="hidden"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        if (files.length > 0) setDiagnosisPhotos((prev) => [...prev, ...files]);
+                        // Reset input
+                        e.target.value = "";
+                      }}
+                    />
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       className="relative"
-                      onClick={() => {
-                        const input = document.createElement("input");
-                        input.type = "file";
-                        input.accept = "image/*";
-                        input.capture = "environment";
-                        input.onchange = (e) => {
-                          const file = (e.target as HTMLInputElement).files?.[0];
-                          if (file) setDiagnosisPhotos((prev) => [...prev, file]);
-                        };
-                        input.click();
-                      }}
+                      onClick={() => document.getElementById("camera-input")?.click()}
                     >
                       <Camera className="h-3 w-3 mr-1" /> Kamera
                     </Button>
@@ -1746,17 +1762,7 @@ export default function OrderDetailPage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        const input = document.createElement("input");
-                        input.type = "file";
-                        input.accept = "image/*";
-                        input.multiple = true;
-                        input.onchange = (e) => {
-                          const files = Array.from((e.target as HTMLInputElement).files || []);
-                          if (files.length > 0) setDiagnosisPhotos((prev) => [...prev, ...files]);
-                        };
-                        input.click();
-                      }}
+                      onClick={() => document.getElementById("gallery-input")?.click()}
                     >
                       <Upload className="h-3 w-3 mr-1" /> Galeri
                     </Button>

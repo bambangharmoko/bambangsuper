@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405);
 
   try {
-    const { ticket_number, fcm_token, user_agent } = await req.json();
+    const { ticket_number, fcm_token, user_agent, action = "subscribe" } = await req.json();
     if (typeof ticket_number !== "string" || !ticket_number.trim()) {
       return jsonResponse({ error: "Nomor tiket wajib diisi" }, 400);
     }
@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
         ticket_number: ticket,
         fcm_token: fcm_token.trim(),
         user_agent: typeof user_agent === "string" ? user_agent.slice(0, 500) : null,
-        is_active: true,
+        is_active: action !== "unsubscribe",
       },
       { onConflict: "ticket_number,fcm_token" }
     );

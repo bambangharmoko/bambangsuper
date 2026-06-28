@@ -180,11 +180,13 @@ export const NotificationSubscribeButton = ({ ticketNumber }: Props) => {
         if (isMessagingSupported()) {
           const token = await registerSwAndGetToken().catch(() => null);
           if (token) {
-            await supabase
-              .from("customer_push_tokens")
-              .update({ is_active: false })
-              .eq("ticket_number", ticketNumber)
-              .eq("fcm_token", token);
+            await supabase.functions.invoke("subscribe-push-token", {
+              body: {
+                ticket_number: ticketNumber,
+                fcm_token: token,
+                action: "unsubscribe",
+              },
+            });
           }
         }
       } catch (e) {

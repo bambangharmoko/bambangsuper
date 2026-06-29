@@ -9,14 +9,19 @@ if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
       // 1. Service Worker utama PWA (Workbox precache + runtime caching)
-      //    Hanya tersedia di production build; di dev mode dimatikan
+      //    autoUpdate: SW baru langsung aktif tanpa prompt → install / update terasa instan
       if (import.meta.env.PROD) {
         const { registerSW } = await import("virtual:pwa-register");
         registerSW({
           immediate: true,
-          onNeedRefresh() {
-            // SW baru tersedia — bisa tampilkan notif "update tersedia" jika mau
-            console.info("[PWA] Update tersedia. Refresh untuk versi terbaru.");
+          onRegisteredSW(swUrl, registration) {
+            // Cek update setiap 60 menit
+            if (registration) {
+              setInterval(() => {
+                registration.update();
+              }, 60 * 60 * 1000);
+            }
+            console.info("[PWA] Service Worker terdaftar:", swUrl);
           },
           onOfflineReady() {
             console.info("[PWA] Aplikasi siap digunakan secara offline.");

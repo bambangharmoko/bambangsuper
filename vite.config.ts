@@ -43,7 +43,7 @@ export default defineConfig(({ mode: _mode }) => ({
       outDir: "dist",
 
       // Jangan konflik dengan SW Firebase yang sudah ada
-      registerType: "prompt",
+      registerType: "autoUpdate",
     }),
   ],
   resolve: {

@@ -20,6 +20,7 @@ import CustomerManagement from "./pages/CustomerManagement";
 import ClosedTicketsManager from "./pages/ClosedTicketsManager";
 import NotFound from "./pages/NotFound";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import { OpenInAppBanner } from "@/components/OpenInAppBanner";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          {/* Banner "Buka di Aplikasi" — muncul jika PWA sudah terinstall tapi user buka di browser */}
+          <OpenInAppBanner />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/track" element={<Navigate to="/" replace />} />
@@ -49,7 +52,7 @@ const App = () => (
           </Routes>
         </AuthProvider>
       </BrowserRouter>
-      {/* PWA install prompt — muncul di semua halaman */}
+      {/* PWA install prompt — muncul di semua halaman jika PWA belum terinstall */}
       <PWAInstallPrompt />
     </TooltipProvider>
   </QueryClientProvider>

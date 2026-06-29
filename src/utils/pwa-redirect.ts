@@ -74,14 +74,26 @@ export async function shouldShowOpenInAppBanner(): Promise<boolean> {
 }
 
 /**
- * Buka URL saat ini di PWA. Menggunakan teknik yang berbeda per platform.
- * Catatan: Ini bergantung pada `launch_handler: { client_mode: "navigate-existing" }`
- * di manifest.json agar browser mengarahkan ke jendela PWA yang sudah ada.
+ * Buka URL saat ini di PWA.
+ * Memaksa browser mengalihkan user ke PWA yang sudah terinstall.
  */
 export function openInPWA(): void {
-  // Cara paling sederhana: navigasi ke URL sendiri.
-  // Dengan launch_handler di manifest.json, browser Chrome/Edge akan
-  // secara otomatis membuka URL ini di window PWA yang sudah terinstall.
-  const currentUrl = window.location.href;
-  window.location.href = currentUrl;
+  const currentPath = window.location.pathname + window.location.search;
+  const domain = window.location.host;
+  
+  // 1. Deteksi Android: Gunakan intent:// URL (Deep link langsung ke aplikasi yang menghandle HTTPS)
+  const isAndroid = /android/i.test(navigator.userAgent || "");
+  const targetUrl = isAndroid 
+    ? `intent://${domain}${currentPath}#Intent;scheme=https;end;`
+    : `web+sk://${currentPath}`;
+
+  // 2. Eksekusi redirect menggunakan trik klik elemen anchor (<a>)
+  // Metode ini lebih bisa diandalkan daripada window.location.replace
+  // karena browser menganggapnya sebagai link navigation standar.
+  const link = document.createElement("a");
+  link.href = targetUrl;
+  link.target = "_top";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }

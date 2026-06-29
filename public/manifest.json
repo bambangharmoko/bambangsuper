@@ -23,6 +23,12 @@
   "launch_handler": {
     "client_mode": "navigate-existing"
   },
+  "protocol_handlers": [
+    {
+      "protocol": "web+sk",
+      "url": "/?redirect=%s"
+    }
+  ],
   "handle_links": "preferred",
   "icons": [
     {

@@ -1,75 +1,97 @@
-import { useEffect, useState } from "react";
-import { ExternalLink, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  shouldShowOpenInAppBanner,
-  dismissRedirectBanner,
-  openInPWA,
-} from "@/utils/pwa-redirect";
+import { useEffect, useState, useRef } from "react";
+import { shouldShowOpenInAppBanner, openInPWA, dismissRedirectBanner } from "@/utils/pwa-redirect";
 
 /**
- * Banner "Buka di Aplikasi"
+ * PWA Auto Redirect & Banner
  * ─────────────────────────
- * Muncul di bagian atas halaman ketika:
- * 1. User membuka situs di browser biasa (bukan PWA)
- * 2. PWA sudah terinstall di perangkat
- *
- * Mirip dengan OLX yang menampilkan smart banner di atas halaman.
+ * Otomatis redirect ke PWA (jika sudah terinstall) saat user 
+ * membuka web via browser.
  */
 export function OpenInAppBanner() {
   const [show, setShow] = useState(false);
+  const [autoRedirecting, setAutoRedirecting] = useState(false);
+  const hasAttemptedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     shouldShowOpenInAppBanner().then((shouldShow) => {
-      if (!cancelled) setShow(shouldShow);
+      if (cancelled || !shouldShow) return;
+      
+      setShow(true);
+
+      // Jika ini pertama kali mount, coba lakukan auto-redirect langsung (mirip OLX)
+      if (!hasAttemptedRef.current) {
+        hasAttemptedRef.current = true;
+        setAutoRedirecting(true);
+        
+        const tryRedirect = () => {
+          openInPWA();
+          // Hapus event listener jika berhasil dipanggil via gesture
+          window.removeEventListener('touchstart', tryRedirect);
+          window.removeEventListener('click', tryRedirect);
+        };
+        
+        // 1. Coba panggil otomatis (terkadang berhasil di beberapa versi OS/Browser)
+        setTimeout(() => {
+          tryRedirect();
+          
+          // 2. Jika redirect otomatis gagal (karena browser butuh User Gesture):
+          // Kita pasang penjebak (interceptor). Saat user pertama kali 
+          // menyentuh layar (misal niatnya scroll), kita langsung trigger PWA-nya!
+          window.addEventListener('touchstart', tryRedirect, { once: true, capture: true });
+          window.addEventListener('click', tryRedirect, { once: true, capture: true });
+          
+          // 3. Jika setelah 3.5 detik user sama sekali tidak menyentuh layar,
+          // barulah kita tampilkan tombol fallback secara manual.
+          setTimeout(() => {
+            if (!cancelled) setAutoRedirecting(false);
+          }, 3500);
+        }, 300);
+      }
     });
     return () => { cancelled = true; };
   }, []);
 
   if (!show) return null;
 
+  // Jika sedang proses redirect otomatis, tampilkan layar interstitial
+  if (autoRedirecting) {
+    return (
+      <div className="fixed inset-0 z-[99999] bg-background/95 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
+        <h2 className="text-xl font-bold text-foreground">Membuka Aplikasi...</h2>
+        <p className="text-sm text-muted-foreground mt-2 text-center max-w-[250px]">
+          Anda sedang dialihkan ke Super Komputer App.
+        </p>
+      </div>
+    );
+  }
+
+  // Fallback: Jika auto-redirect gagal (dilarang browser dsb), tampilkan tombol
   return (
-    <div className="fixed top-0 left-0 right-0 z-[9999] animate-in slide-in-from-top duration-300">
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg">
-        <div className="container mx-auto px-4 py-2.5 flex items-center gap-3">
-          {/* App Icon */}
-          <img
-            src="/superkomputer.png"
-            alt="Super Komputer"
-            className="w-8 h-8 rounded-lg object-cover bg-white shrink-0"
-          />
-
-          {/* Text */}
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold leading-tight">Super Komputer</p>
-            <p className="text-[11px] text-white/70 leading-tight">
-              Buka di aplikasi untuk pengalaman lebih baik
-            </p>
-          </div>
-
-          {/* Open Button */}
-          <Button
-            size="sm"
-            onClick={openInPWA}
-            className="shrink-0 h-8 px-4 rounded-full bg-white text-blue-600 hover:bg-white/90 font-semibold text-xs shadow-md"
-          >
-            <ExternalLink className="h-3 w-3 mr-1" />
-            Buka
-          </Button>
-
-          {/* Close Button */}
-          <button
-            onClick={() => {
-              dismissRedirectBanner();
-              setShow(false);
-            }}
-            className="shrink-0 p-1 rounded-full hover:bg-white/20 transition-colors"
-            aria-label="Tutup"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+    <div className="fixed inset-0 z-[99999] bg-background/95 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
+      <img src="/superkomputer.png" alt="Super Komputer" className="w-20 h-20 rounded-2xl mb-6 shadow-xl" />
+      <h2 className="text-2xl font-bold text-foreground mb-2">Buka di Aplikasi</h2>
+      <p className="text-sm text-muted-foreground text-center max-w-xs mb-8">
+        Lanjutkan di aplikasi Super Komputer untuk pengalaman yang lebih cepat dan nyaman.
+      </p>
+      
+      <div className="flex flex-col gap-3 w-full max-w-[280px]">
+        <button
+          onClick={openInPWA}
+          className="w-full h-12 rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg active:scale-95 transition-transform"
+        >
+          Buka Sekarang
+        </button>
+        <button
+          onClick={() => {
+            dismissRedirectBanner();
+            setShow(false);
+          }}
+          className="w-full h-12 rounded-xl bg-secondary text-secondary-foreground font-semibold active:scale-95 transition-transform"
+        >
+          Lanjutkan di Browser
+        </button>
       </div>
     </div>
   );

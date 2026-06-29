@@ -192,52 +192,7 @@ export default function OrderDetailPage() {
   const [diagnosisPhotos, setDiagnosisPhotos] = useState<File[]>([]);
   const [uploadingDiagPhotos, setUploadingDiagPhotos] = useState(false);
 
-  // WebRTC HTML5 Camera (Bypasses Android OOM Kill)
-  const [webcamOpen, setWebcamOpen] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
 
-  const startWebcam = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-      setWebcamOpen(true);
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      }, 100);
-    } catch (err) {
-      console.error("Camera access denied", err);
-      toast.error("Gagal mengakses kamera. Pastikan izin kamera diberikan di browser Anda.");
-    }
-  };
-
-  const stopWebcam = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach((track) => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    setWebcamOpen(false);
-  };
-
-  const captureWebcam = () => {
-    if (!videoRef.current) return;
-    const canvas = document.createElement("canvas");
-    canvas.width = videoRef.current.videoWidth;
-    canvas.height = videoRef.current.videoHeight;
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      ctx.drawImage(videoRef.current, 0, 0);
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const file = new File([blob], `kamera-${Date.now()}.jpg`, { type: "image/jpeg" });
-          setDiagnosisPhotos((prev) => [...prev, file]);
-          toast.success("Foto berhasil diambil");
-          stopWebcam();
-        }
-      }, "image/jpeg", 0.8);
-    }
-  };
 
   // Reassign technician (Owner only)
   const [reassignDialogOpen, setReassignDialogOpen] = useState(false);
@@ -1772,23 +1727,19 @@ export default function OrderDetailPage() {
       <Dialog 
         open={statusDialogOpen} 
         onOpenChange={(open) => {
-          // Jangan tutup dialog ketika webcam overlay sedang aktif
-          if (!open && webcamOpen) return;
           setStatusDialogOpen(open);
           if (!open) clearDrafts();
         }}
       >
         <DialogContent
           onInteractOutside={(e) => {
-            // Cegah dialog tertutup saat interaksi dengan webcam overlay atau input file tersembunyi
+            // Cegah dialog tertutup saat interaksi dengan native file input
             e.preventDefault();
           }}
           onPointerDownOutside={(e) => {
-            // Cegah dialog tertutup saat klik di luar (webcam overlay, hidden inputs)
             e.preventDefault();
           }}
           onFocusOutside={(e) => {
-            // Cegah dialog tertutup saat focus berpindah ke webcam overlay atau input file
             e.preventDefault();
           }}
         >
@@ -1828,7 +1779,7 @@ export default function OrderDetailPage() {
                       variant="outline"
                       size="sm"
                       className="relative"
-                      onClick={startWebcam}
+                      onClick={() => document.getElementById("camera-input")?.click()}
                     >
                       <Camera className="h-3 w-3 mr-1" /> Kamera
                     </Button>
@@ -2523,29 +2474,6 @@ export default function OrderDetailPage() {
         </DialogContent>
       </Dialog>
       
-      {/* HTML5 In-App Camera Overlay (Prevents OOM Kill) */}
-      {webcamOpen && (
-        <div className="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center">
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            className="w-full h-full object-contain bg-black"
-          />
-          <div className="absolute bottom-0 inset-x-0 p-6 bg-gradient-to-t from-black/80 to-transparent flex items-center justify-between">
-            <Button variant="ghost" className="text-white hover:bg-white/20 rounded-full px-6" onClick={stopWebcam}>
-              Batal
-            </Button>
-            <button
-              onClick={captureWebcam}
-              className="w-16 h-16 rounded-full bg-white border-4 border-gray-400 hover:bg-gray-200 focus:outline-none transition-transform active:scale-95"
-              aria-label="Ambil Foto"
-            />
-            <div className="w-[88px]" /> {/* Spacer to balance 'Batal' button */}
-          </div>
-        </div>
-      )}
-
       {/* Hidden Global Inputs for Android OOM Tab Recovery (Must be outside Dialog portals) */}
       <input 
         type="file" 

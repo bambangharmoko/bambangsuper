@@ -145,11 +145,11 @@ export default function UserManagementPage() {
             return (
               <Card key={u.id}>
                 <CardContent className="p-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-medium">{u.full_name}</p>
-                      <p className="text-sm text-muted-foreground">{u.email}</p>
-                      <div className="flex gap-2 mt-1">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="min-w-0 flex-1 w-full">
+                      <p className="font-medium truncate">{u.full_name}</p>
+                      <p className="text-sm text-muted-foreground truncate">{u.email}</p>
+                      <div className="flex flex-wrap gap-2 mt-2">
                         <Badge variant="outline" className="text-xs">
                           {u.requested_role}
                         </Badge>
@@ -169,18 +169,18 @@ export default function UserManagementPage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setViewTarget(u)}>
+                    <div className="flex flex-wrap gap-2 w-full md:w-auto pt-3 mt-1 md:pt-0 md:mt-0 border-t md:border-t-0 justify-end md:justify-start">
+                      <Button size="sm" variant="outline" onClick={() => setViewTarget(u)} className="flex-1 md:flex-none">
                         <Eye className="h-3 w-3 mr-1" /> Detail
                       </Button>
                       {user && u.id !== user.id && (
                         <>
                           {!u.is_approved ? (
-                            <Button size="sm" onClick={() => approveUser(u.id, u.requested_role)} className="gradient-primary">
+                            <Button size="sm" onClick={() => approveUser(u.id, u.requested_role)} className="gradient-primary flex-1 md:flex-none">
                               <UserCheck className="h-3 w-3 mr-1" /> Approve
                             </Button>
                           ) : (
-                            <Button size="sm" variant="destructive" onClick={() => revokeUser(u.id)}>
+                            <Button size="sm" variant="destructive" onClick={() => revokeUser(u.id)} className="flex-1 md:flex-none">
                               <UserX className="h-3 w-3 mr-1" /> Revoke
                             </Button>
                           )}

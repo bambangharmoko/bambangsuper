@@ -91,6 +91,85 @@ interface InvoiceItem {
   amount: number | null;
 }
 
+// IndexedDB for persisting photo File objects across page reloads (OOM Recovery)
+const DB_NAME = "super_komputer_order_detail";
+const STORE_NAME = "diagnosis_photos";
+
+const openDB = (): Promise<IDBDatabase> => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: "id" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+const savePhotosToDB = async (photos: File[]) => {
+  try {
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    
+    await new Promise<void>((resolve, reject) => {
+      const clearReq = store.clear();
+      clearReq.onsuccess = () => resolve();
+      clearReq.onerror = () => reject(clearReq.error);
+    });
+
+    for (let i = 0; i < photos.length; i++) {
+      await new Promise<void>((resolve, reject) => {
+        const putReq = store.put({ id: i.toString(), file: photos[i] });
+        putReq.onsuccess = () => resolve();
+        putReq.onerror = () => reject(putReq.error);
+      });
+    }
+  } catch (e) {
+    console.error("Failed to save photos to IndexedDB:", e);
+  }
+};
+
+const loadPhotosFromDB = async (): Promise<File[]> => {
+  try {
+    const db = await openDB();
+    return await new Promise<File[]>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readonly");
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.getAll();
+      request.onsuccess = () => {
+        const data = request.result || [];
+        const restored: File[] = data.map((item: any) => item.file);
+        resolve(restored);
+      };
+      request.onerror = () => reject(request.error);
+    });
+  } catch (e) {
+    console.error("Failed to load photos from IndexedDB:", e);
+    return [];
+  }
+};
+
+const clearPhotosFromDB = async () => {
+  try {
+    const db = await openDB();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.clear();
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) {
+    console.error("Failed to clear photos from IndexedDB:", e);
+  }
+};
+
 export default function OrderDetailPage() {
   const { ticketId } = useParams();
   const navigate = useNavigate();
@@ -191,6 +270,38 @@ export default function OrderDetailPage() {
   // Diagnosis evidence photos
   const [diagnosisPhotos, setDiagnosisPhotos] = useState<File[]>([]);
   const [uploadingDiagPhotos, setUploadingDiagPhotos] = useState(false);
+
+  // OOM Kill Recovery with IndexedDB
+  const photosRef = useRef<File[]>(diagnosisPhotos);
+  
+  useEffect(() => {
+    photosRef.current = diagnosisPhotos;
+    if (diagnosisPhotos.length > 0) {
+      savePhotosToDB(diagnosisPhotos);
+    } else {
+      clearPhotosFromDB();
+    }
+  }, [diagnosisPhotos]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden" && photosRef.current.length > 0) {
+        savePhotosToDB(photosRef.current);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, []);
+
+  useEffect(() => {
+    const loadSavedPhotos = async () => {
+      const restored = await loadPhotosFromDB();
+      if (restored.length > 0) {
+        setDiagnosisPhotos(restored);
+      }
+    };
+    loadSavedPhotos();
+  }, []);
 
 
 
@@ -450,6 +561,8 @@ export default function OrderDetailPage() {
     sessionStorage.removeItem("draft_publicNote");
     sessionStorage.removeItem("draft_internalDiagNote");
     sessionStorage.removeItem("draft_pendingStatus");
+    clearPhotosFromDB();
+    setDiagnosisPhotos([]);
   };
 
   // Re-fetch notes when resolvedId becomes available

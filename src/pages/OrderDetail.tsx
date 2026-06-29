@@ -1772,11 +1772,26 @@ export default function OrderDetailPage() {
       <Dialog 
         open={statusDialogOpen} 
         onOpenChange={(open) => {
+          // Jangan tutup dialog ketika webcam overlay sedang aktif
+          if (!open && webcamOpen) return;
           setStatusDialogOpen(open);
           if (!open) clearDrafts();
         }}
       >
-        <DialogContent>
+        <DialogContent
+          onInteractOutside={(e) => {
+            // Cegah dialog tertutup saat interaksi dengan webcam overlay atau input file tersembunyi
+            e.preventDefault();
+          }}
+          onPointerDownOutside={(e) => {
+            // Cegah dialog tertutup saat klik di luar (webcam overlay, hidden inputs)
+            e.preventDefault();
+          }}
+          onFocusOutside={(e) => {
+            // Cegah dialog tertutup saat focus berpindah ke webcam overlay atau input file
+            e.preventDefault();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Update Status ke "{pendingStatus}"</DialogTitle>
             <DialogDescription>Masukkan keterangan untuk perubahan status.</DialogDescription>

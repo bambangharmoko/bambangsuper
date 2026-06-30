@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
+import { useReconnectableChannel } from "@/hooks/useReconnectableChannel";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -232,6 +233,16 @@ export default function ClosedTicketsManager() {
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  // ─── Realtime: auto-refresh when tickets are closed/deleted ─────────────
+  const buildClosedTicketsChannel = useCallback(
+    () => supabase
+      .channel("closed-tickets-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "service_orders" }, () => fetchOrders()),
+    [fetchOrders],
+  );
+
+  useReconnectableChannel(!!user, buildClosedTicketsChannel, fetchOrders);
 
   // Reset halaman saat search/filter berubah
   useEffect(() => {

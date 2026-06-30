@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
+import { useReconnectableChannel } from "@/hooks/useReconnectableChannel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -126,6 +127,16 @@ export default function Reports() {
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  // ─── Realtime: auto-refresh when orders change ────────────────────────────
+  const buildReportsChannel = useCallback(
+    () => supabase
+      .channel("reports-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "service_orders" }, () => fetchOrders()),
+    [fetchOrders],
+  );
+
+  useReconnectableChannel(true, buildReportsChannel, fetchOrders);
 
   const applyFilters = () => {
     fetchOrders();

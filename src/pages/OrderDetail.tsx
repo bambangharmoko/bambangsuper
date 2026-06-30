@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useParams, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
+import { useReconnectableChannel } from "@/hooks/useReconnectableChannel";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -533,6 +534,36 @@ export default function OrderDetailPage() {
     fetchData();
     fetchNotes();
   }, [ticketId]);
+
+  // ─── Realtime: auto-refresh when other devices make changes ───────────────
+  const buildOrderDetailChannel = useCallback(
+    () => {
+      const channel = supabase.channel(`order-detail-${ticketId}`);
+      // Listen to changes on the specific order
+      channel.on("postgres_changes", { event: "*", schema: "public", table: "service_orders" }, () => {
+        fetchData();
+      });
+      // Listen to status updates (timeline)
+      channel.on("postgres_changes", { event: "*", schema: "public", table: "service_updates" }, () => {
+        fetchData();
+      });
+      // Listen to photo changes
+      channel.on("postgres_changes", { event: "*", schema: "public", table: "service_photos" }, () => {
+        fetchData();
+      });
+      // Listen to internal notes changes
+      channel.on("postgres_changes", { event: "*", schema: "public", table: "internal_notes" }, () => {
+        fetchNotes();
+      });
+      return channel;
+    },
+    [ticketId],
+  );
+
+  useReconnectableChannel(!!ticketId, buildOrderDetailChannel, () => {
+    fetchData();
+    fetchNotes();
+  });
 
   useEffect(() => {
     sessionStorage.setItem("draft_statusNote", statusNote);

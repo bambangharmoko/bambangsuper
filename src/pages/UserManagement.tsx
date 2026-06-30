@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
+import { useReconnectableChannel } from "@/hooks/useReconnectableChannel";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -64,6 +65,23 @@ export default function UserManagementPage() {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  // ─── Realtime: auto-refresh when users are approved/revoked/deleted ───────
+  const buildUsersChannel = useCallback(
+    () => {
+      const channel = supabase.channel("users-realtime");
+      channel.on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => {
+        fetchUsers();
+      });
+      channel.on("postgres_changes", { event: "*", schema: "public", table: "user_roles" }, () => {
+        fetchUsers();
+      });
+      return channel;
+    },
+    [],
+  );
+
+  useReconnectableChannel(!!user, buildUsersChannel, fetchUsers);
 
   const approveUser = async (userId: string, requestedRole: string) => {
     const target = users.find((u) => u.id === userId);

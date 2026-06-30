@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useReconnectableChannel } from "@/hooks/useReconnectableChannel";
 import { StatusTimeline } from "@/components/StatusTimeline";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -99,6 +100,26 @@ export default function TrackPage() {
     setLoading(true);
     fetchData();
   }, [ticketId, fetchData]);
+
+  // ─── Realtime: auto-refresh when order status changes ─────────────────────
+  const buildTrackChannel = useCallback(
+    () => {
+      const channel = supabase.channel(`track-${ticketId}`);
+      channel.on("postgres_changes", { event: "*", schema: "public", table: "service_orders" }, () => {
+        fetchData();
+      });
+      channel.on("postgres_changes", { event: "*", schema: "public", table: "service_updates" }, () => {
+        fetchData();
+      });
+      channel.on("postgres_changes", { event: "*", schema: "public", table: "service_photos" }, () => {
+        fetchData();
+      });
+      return channel;
+    },
+    [ticketId, fetchData],
+  );
+
+  useReconnectableChannel(!!ticketId, buildTrackChannel, fetchData);
 
   useEffect(() => {
     const handleOnline = () => {

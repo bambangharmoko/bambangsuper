@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
+import { useReconnectableChannel } from "@/hooks/useReconnectableChannel";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -90,6 +91,16 @@ export default function CustomerManagementPage() {
   useEffect(() => {
     fetchCustomers();
   }, []);
+
+  // ─── Realtime: auto-refresh when customers are added/edited/deleted ───────
+  const buildCustomersChannel = useCallback(
+    () => supabase
+      .channel("customers-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "saved_customers" }, () => fetchCustomers()),
+    [],
+  );
+
+  useReconnectableChannel(!!user, buildCustomersChannel, fetchCustomers);
 
   const filtered = customers.filter((c) => {
     const q = search.toLowerCase();

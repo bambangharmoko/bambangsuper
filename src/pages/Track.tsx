@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { isRunningAsPWA, openInPWA } from "@/utils/pwa-redirect";
 import { supabase } from "@/integrations/supabase/client";
 import { useReconnectableChannel } from "@/hooks/useReconnectableChannel";
 import { StatusTimeline } from "@/components/StatusTimeline";
@@ -49,6 +50,34 @@ interface Photo {
 
 export default function TrackPage() {
   const { ticketId } = useParams();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session && ticketId) {
+        if (!isRunningAsPWA()) {
+          const hasFired = sessionStorage.getItem(`pwa_intent_fired_${ticketId}`);
+          
+          if (!hasFired) {
+            sessionStorage.setItem(`pwa_intent_fired_${ticketId}`, "true");
+            // Jika belum di dalam aplikasi PWA (masih di browser), paksa buka PWA
+            openInPWA();
+            // Fallback navigasi internal jika popup diblokir atau gagal
+            setTimeout(() => {
+              navigate(`/dashboard/orders/${ticketId.toUpperCase()}`, { replace: true });
+            }, 500);
+          } else {
+            // Jika sudah pernah dipanggil (berarti fallback), langsung navigasi
+            navigate(`/dashboard/orders/${ticketId.toUpperCase()}`, { replace: true });
+          }
+        } else {
+          // Jika sudah di dalam PWA, langsung pindah ke dashboard internal
+          navigate(`/dashboard/orders/${ticketId.toUpperCase()}`, { replace: true });
+        }
+      }
+    });
+  }, [ticketId, navigate]);
+
   const [order, setOrder] = useState<Order | null>(null);
   const [updates, setUpdates] = useState<Update[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);

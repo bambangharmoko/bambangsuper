@@ -115,7 +115,7 @@ const savePhotosToDB = async (photos: File[]) => {
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
-    
+
     await new Promise<void>((resolve, reject) => {
       const clearReq = store.clear();
       clearReq.onsuccess = () => resolve();
@@ -187,6 +187,7 @@ export default function OrderDetailPage() {
 
   // Names for creator & assignee
   const [creatorName, setCreatorName] = useState<string>("-");
+  const [creatorUsername, setCreatorUsername] = useState<string>("-");
   const [creatorRole, setCreatorRole] = useState<string>("-");
   const [assigneeName, setAssigneeName] = useState<string>("-");
 
@@ -274,7 +275,7 @@ export default function OrderDetailPage() {
 
   // OOM Kill Recovery with IndexedDB
   const photosRef = useRef<File[]>(diagnosisPhotos);
-  
+
   useEffect(() => {
     photosRef.current = diagnosisPhotos;
     if (diagnosisPhotos.length > 0) {
@@ -372,6 +373,7 @@ export default function OrderDetailPage() {
             ? `${creatorProfile.full_name}${creatorProfile.username ? ` (@${creatorProfile.username})` : ""}`
             : "Unknown",
         );
+        setCreatorUsername(creatorProfile?.username || "Unknown");
         setCreatorRole(orderRoleMap[orderRes.data.created_by] || "unknown");
 
         if (orderRes.data.assigned_technician) {
@@ -833,14 +835,14 @@ export default function OrderDetailPage() {
     const link = `${window.location.origin}/track/${order.ticket_number}`;
     const msg = encodeURIComponent(
       `Yth. ${order.customer_name},\n\n` +
-        `Berikut rincian hasil diagnosa untuk tiket *${order.ticket_number}*:\n\n` +
-        `📋 *Hasil Diagnosa:*\n${confirmDiagnosisData}\n\n` +
-        `🔧 *Spare Part yang Dibutuhkan:*\n${confirmSpareParts.trim()}\n\n` +
-        `💰 *Estimasi Biaya:* Rp ${confirmEstCost.toLocaleString("id-ID")}\n` +
-        `⏱️ *Estimasi Durasi:* ${confirmDuration.trim()}\n\n` +
-        `Mohon konfirmasi persetujuan Anda untuk melanjutkan pengerjaan.\n\n` +
-        `🔗 Lacak status: ${link}\n\n` +
-        `Salam,\n*Super Computer Service*`,
+      `Berikut rincian hasil diagnosa untuk tiket *${order.ticket_number}*:\n\n` +
+      `📋 *Hasil Diagnosa:*\n${confirmDiagnosisData}\n\n` +
+      `🔧 *Spare Part yang Dibutuhkan:*\n${confirmSpareParts.trim()}\n\n` +
+      `💰 *Estimasi Biaya:* Rp ${confirmEstCost.toLocaleString("id-ID")}\n` +
+      `⏱️ *Estimasi Durasi:* ${confirmDuration.trim()}\n\n` +
+      `Mohon konfirmasi persetujuan Anda untuk melanjutkan pengerjaan.\n\n` +
+      `🔗 Lacak status: ${link}\n\n` +
+      `Salam,\n*Super Computer Service*`,
     );
     const cleanPhone = order.customer_phone.replace(/\D/g, "");
     const waPhone = cleanPhone.startsWith("0") ? "62" + cleanPhone.slice(1) : cleanPhone;
@@ -1011,10 +1013,16 @@ export default function OrderDetailPage() {
         }
       }
 
-      await supabase
+      const { error: updateError } = await supabase
         .from("service_orders")
         .update({ status: pendingStatus as any })
         .eq("id", order.id);
+
+      if (updateError) {
+        toast.error(`Gagal update status: ${updateError.message}`);
+        return;
+      }
+
       await supabase.from("service_updates").insert({
         order_id: order.id,
         status: pendingStatus as any,
@@ -1053,7 +1061,11 @@ export default function OrderDetailPage() {
       updateData.warranty_unit = warrantyUnit;
       updateData.warranty_notes = warrantyNotes || null;
       updateData.warranty_expiry = expiryDate.toISOString();
-      await supabase.from("service_orders").update(updateData).eq("id", order.id);
+      const { error: updateError } = await supabase.from("service_orders").update(updateData).eq("id", order.id);
+      if (updateError) {
+        toast.error(`Gagal update status (Close): ${updateError.message}`);
+        return;
+      }
       await supabase.from("service_updates").insert({
         order_id: order.id,
         status: pendingStatus as any,
@@ -1078,10 +1090,16 @@ export default function OrderDetailPage() {
       return;
     }
 
-    await supabase
+    const { error: updateError } = await supabase
       .from("service_orders")
       .update({ status: pendingStatus as any })
       .eq("id", order.id);
+
+    if (updateError) {
+      toast.error(`Gagal update status: ${updateError.message}`);
+      return;
+    }
+
     await supabase.from("service_updates").insert({
       order_id: order.id,
       status: pendingStatus as any,
@@ -1273,17 +1291,17 @@ export default function OrderDetailPage() {
     const unitName = [order.device_brand, order.device_model].filter(Boolean).join(" ") || order.device_type || "-";
     const msg = encodeURIComponent(
       `Halo *${order.customer_name}*, terima kasih telah mempercayakan perbaikan unit Anda di *Toko Super Komputer*. Berikut adalah rangkuman detail tiket penerimaan servis Anda:\n\n` +
-        `🧾 *Nomor Tiket:* ${order.ticket_number}\n\n` +
-        `📅 *Tanggal Masuk:* ${date}\n\n` +
-        `🔧 *Tipe Servis:* ${order.service_type || "-"}\n\n` +
-        `💻 *Unit:* ${unitName}\n\n` +
-        `⚠️ *Kondisi Unit:* ${order.unit_condition || "-"}\n\n` +
-        `🎒 *Kelengkapan:* ${order.unit_accessories || "-"}\n\n` +
-        `📌 *Status Saat Ini:* ${order.status}\n\n` +
-        `🔍 *Pantau Status Servis:*\n\n` +
-        `Kakak bisa melacak proses pengerjaan secara real-time melalui link berikut:\n\n` +
-        `👉 ${link}\n\n` +
-        `Kami akan segera menginformasikan jika ada update atau pengecekan lebih lanjut. Terima kasih! 🙏`,
+      `🧾 *Nomor Tiket:* ${order.ticket_number}\n\n` +
+      `📅 *Tanggal Masuk:* ${date}\n\n` +
+      `🔧 *Tipe Servis:* ${order.service_type || "-"}\n\n` +
+      `💻 *Unit:* ${unitName}\n\n` +
+      `⚠️ *Kondisi Unit:* ${order.unit_condition || "-"}\n\n` +
+      `🎒 *Kelengkapan:* ${order.unit_accessories || "-"}\n\n` +
+      `📌 *Status Saat Ini:* ${order.status}\n\n` +
+      `🔍 *Pantau Status Servis:*\n\n` +
+      `Kakak bisa melacak proses pengerjaan secara real-time melalui link berikut:\n\n` +
+      `👉 ${link}\n\n` +
+      `Kami akan segera menginformasikan jika ada update atau pengecekan lebih lanjut. Terima kasih! 🙏`,
     );
     const cleanPhone = order.customer_phone.replace(/\D/g, "");
     const waPhone = cleanPhone.startsWith("0") ? "62" + cleanPhone.slice(1) : cleanPhone;
@@ -1346,51 +1364,133 @@ export default function OrderDetailPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-3xl mx-auto space-y-4 print:max-w-none print:mx-0">
-        {/* Print Header - Only visible when printing */}
-        <div className="hidden print:block text-center border-b-2 border-black pb-4 mb-4">
-          <h1 className="text-2xl font-bold text-black">Toko Super Komputer</h1>
-          <p className="text-sm text-black">Jl Ahmad Yani No 118</p>
-          <p className="text-sm text-black">Telp: 0811-5404-999</p>
-          <div className="mt-4 flex justify-between items-end">
-            <div className="text-left">
-              <p className="text-sm font-bold text-black">No. Tiket: {order.ticket_number}</p>
-              <p className="text-xs text-black">
-                {new Date(order.created_at).toLocaleString("id-ID", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-              </p>
+      <div className="max-w-3xl mx-auto space-y-4 print:max-w-none print:mx-0 print:p-4 print:mb-0 print:h-auto">
+        {/* Print Layout - Only visible when printing */}
+        <div className="hidden print:block text-black text-sm font-sans">
+          {/* Header & QR Codes */}
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex flex-col items-center gap-1 w-24">
+              <QRCodeSVG value="https://wa.me/628115404999" size={54} bgColor="#ffffff" fgColor="#000000" level="M" />
+              <p className="text-[9px] font-medium mt-1 text-center leading-tight">WhatsApp Kami</p>
             </div>
-            <div className="text-right">
-              <StatusBadge status={order.status} />
+
+            <div className="text-center flex-1 px-2">
+              <h1 className="text-base font-bold uppercase mb-0.5">Formulir Tanda Terima Servis / Perbaikan</h1>
+              <h2 className="text-sm font-bold">SUPER KOMPUTER</h2>
+              <p className="text-[9px]">Jl Ahmad Yani No 118 | Telp/WA: 0811-5404-999 | IG: @superkomputer | Tokopedia: superkomputer </p>
+            </div>
+
+            <div className="flex flex-col items-center gap-1 w-24">
+              <QRCodeSVG value={`${window.location.origin}/track/${order.ticket_number}`} size={54} bgColor="#ffffff" fgColor="#000000" level="M" />
+              <p className="text-[9px] font-medium mt-1 text-center leading-tight">Lacak Tiket</p>
             </div>
           </div>
 
-          {/* QR Codes — hanya muncul saat print */}
-          <div className="mt-5 flex justify-between">
-            {/* QR 1: WhatsApp toko */}
-            <div className="flex flex-col items-center gap-1">
-              <QRCodeSVG
-                value={`https://wa.me/628115404999`}
-                size={90}
-                bgColor="#ffffff"
-                fgColor="#000000"
-                level="M"
-              />
-              <p className="text-[10px] text-black font-medium mt-1">WhatsApp Kami</p>
-              <p className="text-[9px] text-black">0811-5404-999</p>
-            </div>
+          {/* Informasi Pengguna */}
+          <div className="mb-2">
+            <h3 className="font-bold text-sm mb-1 border-b border-black pb-1">👤 INFORMASI PENGGUNA</h3>
+            <table className="w-full text-[11px] border-collapse border border-black">
+              <tbody>
+                <tr>
+                  <td className="border border-black p-1 font-bold w-1/3 bg-gray-100">ID Service</td>
+                  <td className="border border-black p-1">{order.ticket_number}</td>
+                </tr>
+                <tr>
+                  <td className="border border-black p-1 font-bold bg-gray-100">Nama Pelanggan</td>
+                  <td className="border border-black p-1">{order.customer_name}</td>
+                </tr>
+                <tr>
+                  <td className="border border-black p-1 font-bold bg-gray-100">Nomor Telepon/Ponsel</td>
+                  <td className="border border-black p-1">{order.customer_phone}</td>
+                </tr>
 
-            {/* QR 2: Link lacak tiket pelanggan */}
-            <div className="flex flex-col items-center gap-1">
-              <QRCodeSVG
-                value={`${window.location.origin}/track/${order.ticket_number}`}
-                size={90}
-                bgColor="#ffffff"
-                fgColor="#000000"
-                level="M"
-              />
-              <p className="text-[10px] text-black font-medium mt-1">Lacak Status Servis</p>
-              <p className="text-[9px] text-black">Scan untuk cek progress</p>
+                <tr>
+                  <td className="border border-black p-1 font-bold bg-gray-100">Email</td>
+                  <td className="border border-black p-1">{order.customer_email || "-"}</td>
+                </tr>
+                <tr>
+                  <td className="border border-black p-1 font-bold bg-gray-100">Tanggal Masuk / Waktu</td>
+                  <td className="border border-black p-1">{new Date(order.created_at).toLocaleString("id-ID", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Informasi Produk */}
+          <div className="mb-2">
+            <h3 className="font-bold text-sm mb-1 border-b border-black pb-1">💻 INFORMASI PRODUK</h3>
+            <table className="w-full text-[11px] border-collapse border border-black">
+              <tbody>
+                <tr>
+                  <td className="border border-black p-1 font-bold w-1/3 bg-gray-100">Jenis Perangkat</td>
+                  <td className="border border-black p-1">{order.device_type} {order.device_type_other ? `(${order.device_type_other})` : ""}</td>
+                </tr>
+                <tr>
+                  <td className="border border-black p-1 font-bold bg-gray-100">Merek & Model</td>
+                  <td className="border border-black p-1">{order.device_brand} {order.device_model}</td>
+                </tr>
+                <tr>
+                  <td className="border border-black p-1 font-bold bg-gray-100">Nomor Seri (SN) / IMEI</td>
+                  <td className="border border-black p-1">{order.serial_number || "-"}</td>
+                </tr>
+                <tr>
+                  <td className="border border-black p-1 font-bold bg-gray-100">Kelengkapan (Aksesori)</td>
+                  <td className="border border-black p-1">{order.unit_accessories || "-"}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Keluhan & Diagnosa Awal */}
+          <div className="mb-2">
+            <h3 className="font-bold text-sm mb-1 border-b border-black pb-1">🛠️ KELUHAN & DIAGNOSA AWAL</h3>
+            <table className="w-full text-[11px] border-collapse border border-black">
+              <tbody>
+                <tr>
+                  <td className="border border-black p-1 font-bold w-1/3 bg-gray-100 align-top">Permasalahan Unit</td>
+                  <td className="border border-black p-1">{order.problem_explanation || order.damage_description || "-"}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Syarat dan Ketentuan Layanan */}
+          <div className="mb-2 text-[9px] leading-tight">
+            <h3 className="font-bold text-sm mb-1 border-b border-black pb-1">📜 SYARAT DAN KETENTUAN LAYANAN</h3>
+            <p className="italic mb-0.5">*(Silakan pelanggan membaca S&K di bawah ini sebelum menandatangani)*</p>
+            <ol className="list-decimal pl-4 space-y-0.5 mb-1.5">
+              <li><strong>Risiko Kehilangan Data:</strong> Kami tidak bertanggung jawab atas kehilangan, kerusakan, atau kebocoran data selama proses pengecekan maupun perbaikan. Pelanggan sangat disarankan untuk melakukan <em>backup</em> data pribadi secara mandiri sebelum menyerahkan unit.</li>
+              <li><strong>Batas Waktu Pengambilan Unit:</strong> Unit yang telah selesai diperbaiki atau dibatalkan, namun tidak diambil dalam kurun waktu <strong>3 (tiga) bulan</strong> sejak pelanggan dihubungi, maka segala bentuk kerusakan, kehilangan, atau penyusutan nilai barang sudah berada di luar tanggung jawab kami. Pihak toko berhak mengelola unit tersebut untuk menutupi biaya administrasi dan penyimpanan.</li>
+              <li><strong>Risiko Unit Mati Total:</strong> Untuk unit yang diserahkan dalam <strong>Kondisi apa pun</strong>, apabila sebelumnya pelanggan telah diinformasikan oleh teknisi bahwa terdapat risiko unit menjadi Mati Total selama proses pembongkaran, pengecekan, atau perbaikan, maka kami tidak bertanggung jawab jika hal tersebut benar-benar terjadi. Tindakan perbaikan komponen elektronik memiliki risiko teknis bawaan yang terkadang di luar kendali.</li>
+              <li><strong>Pengecekan Gratis (<em>Free Diagnostic</em>):</strong> Kami tidak memungut biaya pengecekan atau diagnosa. Apabila setelah dilakukan pengecekan pelanggan memutuskan untuk membatalkan perbaikan (misalnya karena estimasi biaya tidak disetujui), unit akan dirakit kembali dan dikembalikan <strong>tanpa dikenakan biaya apa pun</strong>.</li>
+              <li><strong>Garansi Perbaikan:</strong> Garansi servis berlaku selama <strong>30 Hari</strong> terhitung sejak unit selesai diperbaiki atau diambil. Garansi ini <strong>hanya berlaku</strong> untuk jenis keluhan dan pergantian suku cadang yang sama.</li>
+              <li><strong>Klaim & Batalnya Garansi (Void):</strong> Garansi otomatis hangus atau tidak berlaku apabila unit kembali dengan keluhan/kerusakan pada komponen yang <strong>berbeda</strong> dari riwayat perbaikan sebelumnya. Garansi juga batal jika ditemukan indikasi kelalaian pemakaian (<em>human error</em>), seperti cacat fisik (jatuh, terbentur, pecah), atau indikasi unit terkena cairan setelah perbaikan selesai.</li>
+              <li><strong>Keamanan Unit & Kejadian Tak Terduga:</strong> Kami berkomitmen penuh untuk menjaga keamanan unit Anda selama berada di bengkel kami. Namun, apabila terjadi kejadian luar biasa di luar kendali kami (<em>force majeure</em>) seperti bencana alam, kebakaran, atau musibah tak terduga lainnya, maka segala bentuk penyelesaian akan dibicarakan secara musyawarah dan kekeluargaan demi menemukan solusi terbaik bagi kedua belah pihak.</li>
+            </ol>
+            <div className="border border-black p-1 bg-gray-50">
+              <p className="font-bold mb-0.5 text-[9px]">PERNYATAAN PELANGGAN</p>
+              <p>Saya telah membaca, memahami, dan menyetujui seluruh Syarat dan Ketentuan di atas. Saya juga mengonfirmasi bahwa data informasi produk yang diserahkan adalah benar.</p>
             </div>
+          </div>
+
+          {/* Signatures */}
+          <div className="mt-4">
+            <table className="w-full text-center text-[11px]">
+              <tbody>
+                <tr>
+                  <td className="w-1/2 pb-8"><strong>Tanda Tangan Pelanggan</strong></td>
+                  <td className="w-1/2 pb-8"><strong>Tanda Tangan Penerima</strong></td>
+                </tr>
+                <tr>
+                  <td>( ................................................. )</td>
+                  <td>( ................................................. )</td>
+                </tr>
+                <tr>
+                  <td><strong>Nama: {order.customer_name || "................................................."}</strong></td>
+                  <td><strong>Nama: {creatorUsername !== "Unknown" && creatorUsername !== "-" ? creatorUsername : "................................................."}</strong></td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -1499,68 +1599,6 @@ export default function OrderDetailPage() {
           </CardContent>
         </Card>
 
-        {/* Customer & Device Info */}
-        <div className="grid md:grid-cols-2 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Info Pelanggan</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-1 text-sm">
-              <p>
-                <span className="text-muted-foreground">Nama:</span> {order.customer_name}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Telepon:</span>{" "}
-                {order.customer_phone.replace(/(\d{4})(\d{4})(\d+)/, "$1-$2-$3")}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Email:</span> {order.customer_email || "-"}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Info Unit</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-1 text-sm">
-              <p>
-                <span className="text-muted-foreground">Perangkat:</span> {order.device_type} - {order.device_brand}{" "}
-                {order.device_model}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Tipe Servis:</span> {order.service_type}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Kondisi:</span> {order.unit_condition}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Kelengkapan:</span> {order.unit_accessories || "-"}
-              </p>
-              {order.serial_number && (
-                <p>
-                  <span className="text-muted-foreground">Serial Number:</span>{" "}
-                  <span className="font-mono bg-muted px-2 py-0.5 rounded">{order.serial_number}</span>
-                </p>
-              )}
-              {order.device_password && (
-                <p>
-                  <span className="text-muted-foreground">Password:</span>{" "}
-                  <span className="font-mono bg-muted px-2 py-0.5 rounded">{order.device_password}</span>
-                </p>
-              )}
-              {order.damage_description && (
-                <p>
-                  <span className="text-muted-foreground">Deskripsi:</span> {order.damage_description}
-                </p>
-              )}
-              {order.notes && (
-                <p>
-                  <span className="text-muted-foreground">Catatan:</span> {order.notes}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
 
         {/* Unit Checks */}
         {Object.keys(unitChecks).length > 0 && (
@@ -1654,10 +1692,10 @@ export default function OrderDetailPage() {
                   ) : (
                     (order as any).warranty_expiry
                       ? new Date((order as any).warranty_expiry).toLocaleDateString("id-ID", {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        })
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })
                       : "-"
                   )}
                 </span>
@@ -1877,8 +1915,8 @@ export default function OrderDetailPage() {
       </div>
 
       {/* Status Update Dialog */}
-      <Dialog 
-        open={statusDialogOpen} 
+      <Dialog
+        open={statusDialogOpen}
         onOpenChange={(open) => {
           setStatusDialogOpen(open);
           if (!open) clearDrafts();
@@ -2632,12 +2670,12 @@ export default function OrderDetailPage() {
           )}
         </DialogContent>
       </Dialog>
-      
+
       {/* Hidden Global Inputs for Android OOM Tab Recovery (Must be outside Dialog portals) */}
-      <input 
-        type="file" 
-        accept="image/*" 
-        capture="environment" 
+      <input
+        type="file"
+        accept="image/*"
+        capture="environment"
         id="camera-input"
         className="sr-only"
         onChange={(e) => {
@@ -2646,10 +2684,10 @@ export default function OrderDetailPage() {
           e.target.value = "";
         }}
       />
-      <input 
-        type="file" 
-        accept="image/*" 
-        multiple 
+      <input
+        type="file"
+        accept="image/*"
+        multiple
         id="gallery-input"
         className="sr-only"
         onChange={(e) => {

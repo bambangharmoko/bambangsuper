@@ -17,8 +17,14 @@ const DISMISS_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 1 hari
 
 /** Cek apakah halaman sudah berjalan di dalam PWA (standalone) */
 export function isRunningAsPWA(): boolean {
-  // Check display-mode standalone
-  if (window.matchMedia("(display-mode: standalone)").matches) return true;
+  // Check display-mode
+  if (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.matchMedia("(display-mode: minimal-ui)").matches ||
+    window.matchMedia("(display-mode: fullscreen)").matches
+  ) {
+    return true;
+  }
   // iOS Safari standalone
   if ("standalone" in navigator && (navigator as { standalone?: boolean }).standalone === true) return true;
   return false;

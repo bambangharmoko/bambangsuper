@@ -50,7 +50,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="min-h-screen flex bg-background print:min-h-0 print:bg-transparent print:block">
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-foreground/20 backdrop-blur-sm z-40 lg:hidden print:hidden"
@@ -113,7 +113,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
       <div
         className={cn(
-          "flex-1 flex flex-col min-h-screen min-w-0 transition-all duration-300",
+          "flex-1 flex flex-col min-h-screen min-w-0 transition-all duration-300 print:min-h-0 print:block",
           sidebarOpen ? "lg:pl-64" : "lg:pl-0"
         )}
       >
@@ -128,7 +128,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           <NotificationBell />
         </header>
 
-        <main className="flex-1 overflow-auto px-3 py-4 sm:px-4 lg:p-6">{children}</main>
+        <main className="flex-1 overflow-auto px-3 py-4 sm:px-4 lg:p-6 print:overflow-visible print:p-0">{children}</main>
       </div>
     </div>
   );

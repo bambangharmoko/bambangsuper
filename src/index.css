@@ -107,8 +107,11 @@
 }
 
 @media print {
-  /* Kompensasi margin halaman agar konten tidak mepet ke tepi kertas */
-  body {
-    padding: 16mm 14mm;
+  html, body, #root {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
 }

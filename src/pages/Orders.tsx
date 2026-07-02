@@ -202,8 +202,8 @@ export default function OrdersPage() {
     if (!activeFilter || activeFilter === "all") return list;
     const now = new Date();
     const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const staleStatuses = ["Diterima", "Diagnosa", "Menunggu Konfirmasi", "Pending", "Perbaikan"];
-    const inProgressStatuses = ["Diagnosa", "Menunggu Konfirmasi", "Pending", "Perbaikan"];
+    const staleStatuses = ["Diterima", "Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"];
+    const inProgressStatuses = ["Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"];
 
     switch (activeFilter) {
       case "in_progress":
@@ -254,7 +254,7 @@ export default function OrdersPage() {
 
   // Technician views
   const openPool = filtered.filter((o) => o.status === "Diterima" && !o.assigned_technician);
-  const activeWorkStatuses = ["Diagnosa", "Menunggu Konfirmasi", "Pending", "Perbaikan"];
+  const activeWorkStatuses = ["Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"];
   const finishedWorkStatuses = ["Selesai", "Siap diAmbil", "Close"];
   const threeMonthsAgo = new Date();
   threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
@@ -376,7 +376,7 @@ export default function OrdersPage() {
   const renderOrderCard = (o: Order, showCheckbox = false) => {
     const warrantyDaysLeft = activeFilter === "under_warranty" ? getWarrantyDaysLeft(o.warranty_expiry) : null;
     const showCancelPickupAction = activeFilter === "cancel" && o.status === "Cancelled" && !o.is_picked_up;
-    const showUpdateAge = isTechnician && o.assigned_technician === user?.id && ["Diagnosa", "Menunggu Konfirmasi", "Pending", "Perbaikan"].includes(o.status);
+    const showUpdateAge = isTechnician && o.assigned_technician === user?.id && ["Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"].includes(o.status);
     const isLateUpdate = showUpdateAge && Date.now() - new Date(o.updated_at).getTime() > 24 * 60 * 60 * 1000;
 
     return (
@@ -554,9 +554,9 @@ export default function OrdersPage() {
               </TabsTrigger>
               <TabsTrigger value="mine" className="min-w-44 flex-1">
                 Sedang Dikerjakan ({myTickets.length})
-                {myTickets.filter((o) => ["Diagnosa", "Menunggu Konfirmasi", "Pending", "Perbaikan"].includes(o.status) && Date.now() - new Date(o.updated_at).getTime() > 24 * 60 * 60 * 1000).length > 0 && (
+                {myTickets.filter((o) => ["Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"].includes(o.status) && Date.now() - new Date(o.updated_at).getTime() > 24 * 60 * 60 * 1000).length > 0 && (
                   <span className="ml-2 rounded-full bg-destructive px-1.5 text-[10px] text-destructive-foreground">
-                    {myTickets.filter((o) => ["Diagnosa", "Menunggu Konfirmasi", "Pending", "Perbaikan"].includes(o.status) && Date.now() - new Date(o.updated_at).getTime() > 24 * 60 * 60 * 1000).length}
+                    {myTickets.filter((o) => ["Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"].includes(o.status) && Date.now() - new Date(o.updated_at).getTime() > 24 * 60 * 60 * 1000).length}
                   </span>
                 )}
               </TabsTrigger>

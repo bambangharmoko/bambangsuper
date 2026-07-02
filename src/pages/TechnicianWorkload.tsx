@@ -16,7 +16,7 @@ interface TechData {
   tickets: any[];
 }
 
-const ACTIVE_STATUSES = ["Diterima", "Diagnosa", "Menunggu Konfirmasi", "Pending", "Perbaikan"] as const;
+const ACTIVE_STATUSES = ["Diterima", "Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"] as const;
 
 export default function TechnicianWorkload() {
   const [techData, setTechData] = useState<TechData[]>([]);
@@ -169,7 +169,7 @@ export default function TechnicianWorkload() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">
-                    {selectedTech.tickets.filter((t) => ["Pending", "Menunggu Konfirmasi"].includes(t.status)).length}
+                    {selectedTech.tickets.filter((t) => ["Menunggu Sparepart", "Menunggu Persetujuan Pelanggan"].includes(t.status)).length}
                   </p>
                   <p className="text-xs text-muted-foreground">Tertunda</p>
                 </div>

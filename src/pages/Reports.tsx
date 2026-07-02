@@ -150,7 +150,7 @@ export default function Reports() {
   };
 
   const statusGroups = {
-    "Dalam Pengerjaan": ["Diterima", "Diagnosa", "Menunggu Konfirmasi", "Pending", "Perbaikan"],
+    "Dalam Pengerjaan": ["Diterima", "Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"],
     "Selesai": ["Selesai", "Siap diAmbil", "Close"],
     "Cancel": ["Cancelled"],
   };

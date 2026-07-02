@@ -508,8 +508,8 @@ export type Database = {
       service_status:
         | "Diterima"
         | "Diagnosa"
-        | "Menunggu Konfirmasi"
-        | "Pending"
+        | "Menunggu Persetujuan Pelanggan"
+        | "Menunggu Sparepart"
         | "Perbaikan"
         | "Selesai"
         | "Siap diAmbil"
@@ -646,8 +646,8 @@ export const Constants = {
       service_status: [
         "Diterima",
         "Diagnosa",
-        "Menunggu Konfirmasi",
-        "Pending",
+        "Menunggu Persetujuan Pelanggan",
+        "Menunggu Sparepart",
         "Perbaikan",
         "Selesai",
         "Siap diAmbil",

@@ -39,7 +39,7 @@ export function StaleTicketsAlert() {
 
     const checkStaleTickets = async () => {
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const activeStatuses = ["Diterima", "Diagnosa", "Menunggu Konfirmasi", "Pending", "Perbaikan"] as const;
+      const activeStatuses = ["Diterima", "Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"] as const;
 
       const { data: orders } = await supabase
         .from("service_orders")

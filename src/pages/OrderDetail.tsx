@@ -54,8 +54,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 const STATUS_FLOW = [
   "Diterima",
   "Diagnosa",
-  "Menunggu Konfirmasi",
-  "Pending",
+  "Menunggu Persetujuan Pelanggan",
+  "Menunggu Sparepart",
   "Perbaikan",
   "Selesai",
   "Siap diAmbil",
@@ -659,7 +659,7 @@ export default function OrderDetailPage() {
 
   const isTechnician = hasRole("technician") && !hasRole("admin") && !hasRole("owner");
   const isMyTicket = isTechnician && order.assigned_technician === user?.id;
-  const staleTechnicianStatuses = ["Diagnosa", "Menunggu Konfirmasi", "Pending", "Perbaikan"];
+  const staleTechnicianStatuses = ["Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"];
   const isStaleTechnicianTicket =
     isMyTicket && staleTechnicianStatuses.includes(order.status) && Date.now() - new Date(order.updated_at).getTime() > 24 * 60 * 60 * 1000;
   const hasDelayReason = Boolean(((order as any).update_delay_reason || delayReason).trim());
@@ -687,8 +687,8 @@ export default function OrderDetailPage() {
       }
       return [];
     }
-    if (order.status === "Diagnosa") return ["Menunggu Konfirmasi", "Pending", "Perbaikan"];
-    if (order.status === "Menunggu Konfirmasi") return ["Pending", "Perbaikan"];
+    if (order.status === "Diagnosa") return ["Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"];
+    if (order.status === "Menunggu Persetujuan Pelanggan") return ["Menunggu Sparepart", "Perbaikan"];
     if (currentIndex >= 0 && currentIndex < STATUS_FLOW.length - 1) {
       const next = STATUS_FLOW[currentIndex + 1];
       // Skip "Cancelled" — bukan langkah maju dalam alur normal
@@ -766,7 +766,7 @@ export default function OrderDetailPage() {
       }
       return;
     }
-    if (order.status === "Diagnosa" && ns === "Menunggu Konfirmasi") {
+    if (order.status === "Diagnosa" && ns === "Menunggu Persetujuan Pelanggan") {
       setPublicNote("");
       setInternalDiagNote("");
       setPendingStatus(ns);
@@ -777,10 +777,10 @@ export default function OrderDetailPage() {
     setStatusDialogOpen(true);
   };
 
-  // Open confirmation modal for "Menunggu Konfirmasi" status
+  // Open confirmation modal for "Menunggu Persetujuan Pelanggan" status
   const openConfirmationModal = () => {
     // Get latest diagnosis data from updates
-    const diagUpdate = [...updates].reverse().find((u) => u.status === "Menunggu Konfirmasi" && u.description);
+    const diagUpdate = [...updates].reverse().find((u) => u.status === "Menunggu Persetujuan Pelanggan" && u.description);
     setConfirmDiagnosisData(diagUpdate?.description || "Tidak ada data diagnosa");
     setConfirmSpareParts("");
     setConfirmEstCost(0);
@@ -836,7 +836,7 @@ export default function OrderDetailPage() {
     const cleanPhone = order.customer_phone.replace(/\D/g, "");
     const waPhone = cleanPhone.startsWith("0") ? "62" + cleanPhone.slice(1) : cleanPhone;
 
-    toast.success("Rincian konfirmasi disimpan & draf WhatsApp dibuka. Status tetap di Menunggu Konfirmasi.");
+    toast.success("Rincian konfirmasi disimpan & draf WhatsApp dibuka. Status tetap di Menunggu Persetujuan Pelanggan.");
     setConfirmationOpen(false);
     fetchData();
 
@@ -965,7 +965,7 @@ export default function OrderDetailPage() {
   };
 
   const isClosingStatus = pendingStatus === "Close";
-  const isDiagnosaToKonfirmasi = order.status === "Diagnosa" && pendingStatus === "Menunggu Konfirmasi";
+  const isDiagnosaToKonfirmasi = order.status === "Diagnosa" && pendingStatus === "Menunggu Persetujuan Pelanggan";
 
   const confirmStatusUpdate = async () => {
     if (isDiagnosaToKonfirmasi) {
@@ -1237,7 +1237,7 @@ export default function OrderDetailPage() {
 
   const REASSIGN_STATUSES = isInstallOrder
     ? ["Perbaikan", "Selesai", "Siap diAmbil"]
-    : ["Diagnosa", "Menunggu Konfirmasi", "Pending", "Perbaikan", "Selesai", "Siap diAmbil"];
+    : ["Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan", "Selesai", "Siap diAmbil"];
   const canReassign = isOwner && REASSIGN_STATUSES.includes(order.status);
 
   const confirmReassign = async () => {
@@ -1683,7 +1683,7 @@ export default function OrderDetailPage() {
           <Card className="print:hidden">
             <CardContent className="p-4 flex flex-wrap gap-2">
               {/* Confirmation button for Admin/Owner on Menunggu Konfirmasi */}
-              {order.status === "Menunggu Konfirmasi" && isAdminOrOwner && (
+              {order.status === "Menunggu Persetujuan Pelanggan" && isAdminOrOwner && (
                 <Button
                   onClick={openConfirmationModal}
                   disabled={shouldLockStatusForDelayReason}
@@ -1699,10 +1699,10 @@ export default function OrderDetailPage() {
                   // Buat label yang lebih deskriptif untuk pilihan percabangan
                   let label = `→ ${ns}`;
                   if (order.status === "Diagnosa") {
-                    if (ns === "Menunggu Konfirmasi") label = "→ Menunggu Konfirmasi";
-                    if (ns === "Pending") label = "→ Pending (Skip Konfirmasi)";
+                    if (ns === "Menunggu Persetujuan Pelanggan") label = "→ Menunggu Persetujuan Pelanggan";
+                    if (ns === "Menunggu Sparepart") label = "→ Menunggu Sparepart (Skip Konfirmasi)";
                     if (ns === "Perbaikan") label = "→ Langsung Perbaikan";
-                  } else if (order.status === "Menunggu Konfirmasi") {
+                  } else if (order.status === "Menunggu Persetujuan Pelanggan") {
                     if (ns === "Perbaikan") label = "→ Langsung Perbaikan";
                   }
                   return (

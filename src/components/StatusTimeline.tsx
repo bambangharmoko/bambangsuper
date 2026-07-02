@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils";
 const STATUS_ORDER = [
   "Diterima",
   "Diagnosa",
-  "Menunggu Konfirmasi",
-  "Pending",
+  "Menunggu Persetujuan Pelanggan",
+  "Menunggu Sparepart",
   "Perbaikan",
   "Selesai",
   "Siap diAmbil",
@@ -25,7 +25,7 @@ const isInstallServiceType = (serviceType?: string) => {
 const INSTALL_STATUS_ORDER = [
   { status: "Diterima", label: "Diterima" },
   { status: "Perbaikan", label: "Sedang Dikerjakan" },
-  { status: "Pending", label: "Pending", optional: true },
+  { status: "Menunggu Sparepart", label: "Menunggu Sparepart", optional: true },
   { status: "Selesai", label: "Selesai" },
   { status: "Siap diAmbil", label: "Siap Diambil" },
   { status: "Cancelled", label: "Cancelled", optional: true },
@@ -61,7 +61,7 @@ export function StatusTimeline({
   //   jika tiket tidak pernah di-cancel (tidak ada update Cancelled)
   const timelineSteps = isInstallService
     ? INSTALL_STATUS_ORDER.filter((step) => {
-      if (step.status === "Pending") return latestUpdateByStatus[step.status] || currentStatus === "Pending";
+      if (step.status === "Menunggu Sparepart") return latestUpdateByStatus[step.status] || currentStatus === "Menunggu Sparepart";
       // Tampilkan Cancelled hanya jika tiket pernah di-cancel
       if (step.status === "Cancelled") return isCancelled || !!latestUpdateByStatus["Cancelled"];
       return true;

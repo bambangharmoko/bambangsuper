@@ -71,8 +71,8 @@ export default function DashboardHome() {
       const safeOrders = orders || [];
       const now = new Date();
       const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      const staleStatuses = ["Diagnosa", "Menunggu Konfirmasi", "Pending", "Perbaikan"];
-      const inProgressStatuses = ["Diagnosa", "Menunggu Konfirmasi", "Pending", "Perbaikan"];
+      const staleStatuses = ["Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"];
+      const inProgressStatuses = ["Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"];
 
       setStats({
         total: safeOrders.length,
@@ -149,7 +149,7 @@ export default function DashboardHome() {
   const paginatedOrders = allOrders.slice((safePage - 1) * RECENT_PER_PAGE, safePage * RECENT_PER_PAGE);
   const staleTechOrders = allOrders
     .filter((o) => {
-      const staleStatuses = ["Diagnosa", "Menunggu Konfirmasi", "Pending", "Perbaikan"];
+      const staleStatuses = ["Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"];
       return isTechnician && o.assigned_technician === user?.id && staleStatuses.includes(o.status) && Date.now() - new Date(o.updated_at).getTime() > 24 * 60 * 60 * 1000;
     })
     .sort((a, b) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime());

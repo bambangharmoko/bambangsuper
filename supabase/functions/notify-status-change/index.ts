@@ -96,13 +96,13 @@ const STATUS_MESSAGES: Record<string, { title: string; body: (name: string, tick
     title: "Sedang Diagnosa 🔍",
     body: (n, t) => `Tiket ${t} sedang dalam tahap diagnosa oleh teknisi kami.`,
   },
-  "Menunggu Konfirmasi": {
-    title: "Menunggu Konfirmasi Anda ⏳",
+  "Menunggu Persetujuan Pelanggan": {
+    title: "Menunggu Persetujuan Anda ⏳",
     body: (n, t) => `Halo ${n}, hasil diagnosa tiket ${t} sudah siap. Silakan cek detailnya.`,
   },
-  Pending: {
-    title: "Tiket Pending ⏸️",
-    body: (n, t) => `Tiket ${t} sementara dipending. Akan dilanjutkan secepatnya.`,
+  "Menunggu Sparepart": {
+    title: "Menunggu Sparepart ⏸️",
+    body: (n, t) => `Tiket ${t} sementara menunggu sparepart. Akan dilanjutkan secepatnya.`,
   },
   Perbaikan: {
     title: "Perbaikan Dimulai 🔧",

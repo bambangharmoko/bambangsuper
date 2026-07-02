@@ -560,7 +560,16 @@ export default function OrderDetailPage() {
     [ticketId],
   );
 
+  const isCameraActiveRef = useRef(false);
+
   useReconnectableChannel(!!ticketId, buildOrderDetailChannel, () => {
+    if (isCameraActiveRef.current) {
+      // Prevent data fetch from resetting UI state right after camera closes
+      setTimeout(() => {
+        isCameraActiveRef.current = false;
+      }, 1000);
+      return;
+    }
     fetchData();
     fetchNotes();
   });
@@ -1923,7 +1932,10 @@ export default function OrderDetailPage() {
                       variant="outline"
                       size="sm"
                       className="relative"
-                      onClick={() => document.getElementById("camera-input")?.click()}
+                      onClick={() => {
+                        isCameraActiveRef.current = true;
+                        document.getElementById("camera-input")?.click();
+                      }}
                     >
                       <Camera className="h-3 w-3 mr-1" /> Kamera
                     </Button>
@@ -1931,7 +1943,10 @@ export default function OrderDetailPage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => document.getElementById("gallery-input")?.click()}
+                      onClick={() => {
+                        isCameraActiveRef.current = true;
+                        document.getElementById("gallery-input")?.click();
+                      }}
                     >
                       <Upload className="h-3 w-3 mr-1" /> Galeri
                     </Button>

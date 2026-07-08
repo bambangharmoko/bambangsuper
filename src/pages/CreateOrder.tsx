@@ -513,6 +513,7 @@ export default function CreateOrderPage() {
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [pendingUnits, setPendingUnits] = useState<PendingUnit[]>([]);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [duplicateAlertOpen, setDuplicateAlertOpen] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -775,7 +776,7 @@ export default function CreateOrderPage() {
 
   const checkDuplicateCustomer = () => {
     if (isDuplicateCustomer()) {
-      toast.error("Data sudah ada.");
+      setDuplicateAlertOpen(true);
     }
   };
 
@@ -1890,6 +1891,23 @@ export default function CreateOrderPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Ya, Reset Form
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Duplicate Customer Alert Dialog */}
+      <AlertDialog open={duplicateAlertOpen} onOpenChange={setDuplicateAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Data Sudah Ada</AlertDialogTitle>
+            <AlertDialogDescription>
+              Nomor HP atau Email yang Anda masukkan sudah terdaftar di sistem. Silakan gunakan fitur <strong>Cari Pelanggan Tersimpan</strong> atau periksa kembali input Anda.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setDuplicateAlertOpen(false)}>
+              Mengerti
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

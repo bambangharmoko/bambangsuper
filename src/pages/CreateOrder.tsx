@@ -742,8 +742,40 @@ export default function CreateOrderPage() {
 
   const filteredCustomers = savedCustomers.filter(
     (c) =>
-      c.customer_name.toLowerCase().includes(customerSearch.toLowerCase()) || c.customer_phone.includes(customerSearch),
+      c.customer_name.toLowerCase().includes(customerSearch.toLowerCase()) || 
+      c.customer_phone.includes(customerSearch) ||
+      (c.customer_email && c.customer_email.toLowerCase().includes(customerSearch.toLowerCase())),
   );
+
+  const checkDuplicateCustomer = () => {
+    if (customerLocked) return;
+    
+    const normalizePhone = (p: string) => {
+      const digits = p.replace(/\D/g, "");
+      if (digits.startsWith("0")) return `62${digits.slice(1)}`;
+      if (digits.startsWith("8")) return `62${digits}`;
+      return digits;
+    };
+
+    const currentPhone = form.customerPhone ? normalizePhone(form.customerPhone) : "";
+    const currentEmail = form.customerEmail ? form.customerEmail.toLowerCase().trim() : "";
+
+    if (!currentPhone && !currentEmail) return;
+
+    const isDuplicate = savedCustomers.some(c => {
+      const dbPhone = c.customer_phone ? normalizePhone(c.customer_phone) : "";
+      const dbEmail = c.customer_email ? c.customer_email.toLowerCase().trim() : "";
+      
+      const phoneMatch = currentPhone && dbPhone && currentPhone === dbPhone;
+      const emailMatch = currentEmail && dbEmail && currentEmail === dbEmail;
+      
+      return phoneMatch || emailMatch;
+    });
+
+    if (isDuplicate) {
+      toast.error("Data sudah ada.");
+    }
+  };
 
   const selectCustomer = (c: any) => {
     update("customerName", c.customer_name);
@@ -1147,7 +1179,7 @@ export default function CreateOrderPage() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Ketik nama atau nomor HP..."
+                    placeholder="Ketik nama, nomor HP, atau email..."
                     value={customerSearch}
                     onChange={(e) => {
                       setCustomerSearch(e.target.value);
@@ -1191,6 +1223,7 @@ export default function CreateOrderPage() {
                 <Input
                   value={form.customerPhone}
                   onChange={(e) => update("customerPhone", e.target.value)}
+                  onBlur={checkDuplicateCustomer}
                   disabled={customerLocked}
                   className={customerLocked ? "bg-muted" : ""}
                 />
@@ -1218,6 +1251,7 @@ export default function CreateOrderPage() {
                 <Input
                   value={form.customerEmail}
                   onChange={(e) => update("customerEmail", e.target.value)}
+                  onBlur={checkDuplicateCustomer}
                   disabled={customerLocked && emailLockedFromDb}
                   className={customerLocked && emailLockedFromDb ? "bg-muted" : ""}
                   placeholder={customerLocked && !emailLockedFromDb ? "Tambahkan email pelanggan..." : ""}

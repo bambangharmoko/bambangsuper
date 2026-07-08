@@ -774,10 +774,12 @@ export default function CreateOrderPage() {
     });
   };
 
-  const checkDuplicateCustomer = () => {
-    if (isDuplicateCustomer()) {
+  const handleNextStep = () => {
+    if (step === 2 && isDuplicateCustomer()) {
       setDuplicateAlertOpen(true);
+      return;
     }
+    setStep((s) => s + 1);
   };
 
   const selectCustomer = (c: any) => {
@@ -863,7 +865,7 @@ export default function CreateOrderPage() {
       case 1:
         return !!form.serviceType;
       case 2:
-        return !!form.customerName && !!form.customerPhone && !isDuplicateCustomer();
+        return !!form.customerName && !!form.customerPhone;
       case 3: {
         const typeOk = form.deviceType === "Lainnya" ? !!form.deviceTypeOther : !!form.deviceType;
         const snOk = form.serviceType !== "Garansi Partner" || !!form.serialNumber;
@@ -1226,7 +1228,6 @@ export default function CreateOrderPage() {
                 <Input
                   value={form.customerPhone}
                   onChange={(e) => update("customerPhone", e.target.value)}
-                  onBlur={checkDuplicateCustomer}
                   disabled={customerLocked}
                   className={customerLocked ? "bg-muted" : ""}
                 />
@@ -1254,7 +1255,6 @@ export default function CreateOrderPage() {
                 <Input
                   value={form.customerEmail}
                   onChange={(e) => update("customerEmail", e.target.value)}
-                  onBlur={checkDuplicateCustomer}
                   disabled={customerLocked && emailLockedFromDb}
                   className={customerLocked && emailLockedFromDb ? "bg-muted" : ""}
                   placeholder={customerLocked && !emailLockedFromDb ? "Tambahkan email pelanggan..." : ""}
@@ -1852,7 +1852,7 @@ export default function CreateOrderPage() {
             <ArrowLeft className="h-4 w-4 mr-1" /> Kembali
           </Button>
           {step < 5 ? (
-            <Button onClick={() => setStep((s) => s + 1)} disabled={!canProceed()} className="gradient-primary">
+            <Button onClick={handleNextStep} disabled={!canProceed()} className="gradient-primary">
               Lanjut <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
           ) : (

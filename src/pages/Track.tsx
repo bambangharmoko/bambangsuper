@@ -8,7 +8,8 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, ArrowLeft, Phone, Mail, Monitor, RefreshCw } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Phone, Mail, Monitor, RefreshCw, Printer } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { NotificationSubscribeButton } from "@/components/NotificationSubscribeButton";
@@ -33,6 +34,12 @@ interface Order {
   warranty_unit?: string | null;
   warranty_expiry?: string | null;
   warranty_notes?: string | null;
+  customer_email?: string;
+  device_type_other?: string;
+  serial_number?: string;
+  unit_accessories?: string;
+  problem_explanation?: string;
+  damage_description?: string;
 }
 
 interface Update {
@@ -227,8 +234,136 @@ export default function TrackPage() {
   const invoiceItems = (order.invoice_items || []) as { description: string; amount: number }[];
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-20 gradient-hero text-primary-foreground p-4">
+    <div className="min-h-screen bg-background print:bg-transparent print:min-h-0">
+      {/* Print Layout - Only visible when printing */}
+      <div className="hidden print:block text-black text-sm font-sans max-w-3xl mx-auto p-4">
+        {/* Header & QR Codes */}
+        <div className="flex justify-between items-center mb-2">
+          <div className="flex flex-col items-center gap-1 w-24">
+            <QRCodeSVG value="https://wa.me/628115404999" size={54} bgColor="#ffffff" fgColor="#000000" level="M" />
+            <p className="text-[9px] font-medium mt-1 text-center leading-tight">WhatsApp Kami</p>
+          </div>
+
+          <div className="text-center flex-1 px-2">
+            <h1 className="text-base font-bold uppercase mb-0.5">Formulir Tanda Terima Servis / Perbaikan</h1>
+            <h2 className="text-sm font-bold">SUPER KOMPUTER</h2>
+            <p className="text-[9px]">Jl Ahmad Yani No 118 | Telp/WA: 0811-5404-999 | IG: @superkomputer | Tokopedia: superkomputer </p>
+          </div>
+
+          <div className="flex flex-col items-center gap-1 w-24">
+            <QRCodeSVG value={`${window.location.origin}/track/${order.ticket_number}`} size={54} bgColor="#ffffff" fgColor="#000000" level="M" />
+            <p className="text-[9px] font-medium mt-1 text-center leading-tight">Lacak Tiket</p>
+          </div>
+        </div>
+
+        {/* Informasi Pengguna */}
+        <div className="mb-2">
+          <h3 className="font-bold text-sm mb-1 border-b border-black pb-1">👤 INFORMASI PENGGUNA</h3>
+          <table className="w-full text-[11px] border-collapse border border-black">
+            <tbody>
+              <tr>
+                <td className="border border-black p-1 font-bold w-1/3 bg-gray-100">ID Service</td>
+                <td className="border border-black p-1">{order.ticket_number}</td>
+              </tr>
+              <tr>
+                <td className="border border-black p-1 font-bold bg-gray-100">Nama Pelanggan</td>
+                <td className="border border-black p-1">{order.customer_name}</td>
+              </tr>
+              <tr>
+                <td className="border border-black p-1 font-bold bg-gray-100">Nomor Telepon/Ponsel</td>
+                <td className="border border-black p-1">{order.customer_phone || "-"}</td>
+              </tr>
+              <tr>
+                <td className="border border-black p-1 font-bold bg-gray-100">Email</td>
+                <td className="border border-black p-1">{order.customer_email || "-"}</td>
+              </tr>
+              <tr>
+                <td className="border border-black p-1 font-bold bg-gray-100">Tanggal Masuk / Waktu</td>
+                <td className="border border-black p-1">{new Date(order.created_at).toLocaleString("id-ID", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Informasi Produk */}
+        <div className="mb-2">
+          <h3 className="font-bold text-sm mb-1 border-b border-black pb-1">💻 INFORMASI PRODUK</h3>
+          <table className="w-full text-[11px] border-collapse border border-black">
+            <tbody>
+              <tr>
+                <td className="border border-black p-1 font-bold w-1/3 bg-gray-100">Jenis Perangkat</td>
+                <td className="border border-black p-1">{order.device_type} {order.device_type_other ? `(${order.device_type_other})` : ""}</td>
+              </tr>
+              <tr>
+                <td className="border border-black p-1 font-bold bg-gray-100">Merek & Model</td>
+                <td className="border border-black p-1">{order.device_brand} {order.device_model}</td>
+              </tr>
+              <tr>
+                <td className="border border-black p-1 font-bold bg-gray-100">Nomor Seri (SN) / IMEI</td>
+                <td className="border border-black p-1">{order.serial_number || "-"}</td>
+              </tr>
+              <tr>
+                <td className="border border-black p-1 font-bold bg-gray-100">Kelengkapan (Aksesori)</td>
+                <td className="border border-black p-1">{order.unit_accessories || "-"}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Keluhan & Diagnosa Awal */}
+        <div className="mb-2">
+          <h3 className="font-bold text-sm mb-1 border-b border-black pb-1">🛠️ KELUHAN & DIAGNOSA AWAL</h3>
+          <table className="w-full text-[11px] border-collapse border border-black">
+            <tbody>
+              <tr>
+                <td className="border border-black p-1 font-bold w-1/3 bg-gray-100 align-top">Permasalahan Unit</td>
+                <td className="border border-black p-1">{order.problem_explanation || order.damage_description || "-"}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Syarat dan Ketentuan Layanan */}
+        <div className="mb-2 text-[9px] leading-tight">
+          <h3 className="font-bold text-sm mb-1 border-b border-black pb-1">📜 SYARAT DAN KETENTUAN LAYANAN</h3>
+          <p className="italic mb-0.5">*(Silakan pelanggan membaca S&K di bawah ini sebelum menandatangani)*</p>
+          <ol className="list-decimal pl-4 space-y-0.5 mb-1.5">
+            <li><strong>Risiko Kehilangan Data:</strong> Kami tidak bertanggung jawab atas kehilangan, kerusakan, atau kebocoran data selama proses pengecekan maupun perbaikan. Pelanggan sangat disarankan untuk melakukan <em>backup</em> data pribadi secara mandiri sebelum menyerahkan unit.</li>
+            <li><strong>Batas Waktu Pengambilan Unit:</strong> Unit yang telah selesai diperbaiki atau dibatalkan, namun tidak diambil dalam kurun waktu <strong>3 (tiga) bulan</strong> sejak pelanggan dihubungi, maka segala bentuk kerusakan, kehilangan, atau penyusutan nilai barang sudah berada di luar tanggung jawab kami. Pihak toko berhak mengelola unit tersebut untuk menutupi biaya administrasi dan penyimpanan.</li>
+            <li><strong>Risiko Unit Mati Total:</strong> Untuk unit yang diserahkan dalam <strong>Kondisi apa pun</strong>, apabila sebelumnya pelanggan telah diinformasikan oleh teknisi bahwa terdapat risiko unit menjadi Mati Total selama proses pembongkaran, pengecekan, atau perbaikan, maka kami tidak bertanggung jawab jika hal tersebut benar-benar terjadi. Tindakan perbaikan komponen elektronik memiliki risiko teknis bawaan yang terkadang di luar kendali.</li>
+            <li><strong>Pengecekan Gratis (<em>Free Diagnostic</em>):</strong> Kami tidak memungut biaya pengecekan atau diagnosa. Apabila setelah dilakukan pengecekan pelanggan memutuskan untuk membatalkan perbaikan (misalnya karena estimasi biaya tidak disetujui), unit akan dirakit kembali dan dikembalikan <strong>tanpa dikenakan biaya apa pun</strong>.</li>
+            <li><strong>Garansi Perbaikan:</strong> Garansi servis berlaku selama <strong>30 Hari</strong> terhitung sejak unit selesai diperbaiki atau diambil. Garansi ini <strong>hanya berlaku</strong> untuk jenis keluhan dan pergantian suku cadang yang sama.</li>
+            <li><strong>Klaim & Batalnya Garansi (Void):</strong> Garansi otomatis hangus atau tidak berlaku apabila unit kembali dengan keluhan/kerusakan pada komponen yang <strong>berbeda</strong> dari riwayat perbaikan sebelumnya. Garansi juga batal jika ditemukan indikasi kelalaian pemakaian (<em>human error</em>), seperti cacat fisik (jatuh, terbentur, pecah), atau indikasi unit terkena cairan setelah perbaikan selesai.</li>
+            <li><strong>Keamanan Unit & Kejadian Tak Terduga:</strong> Kami berkomitmen penuh untuk menjaga keamanan unit Anda selama berada di bengkel kami. Namun, apabila terjadi kejadian luar biasa di luar kendali kami (<em>force majeure</em>) seperti bencana alam, kebakaran, atau musibah tak terduga lainnya, maka segala bentuk penyelesaian akan dibicarakan secara musyawarah dan kekeluargaan demi menemukan solusi terbaik bagi kedua belah pihak.</li>
+          </ol>
+          <div className="border border-black p-1 bg-gray-50">
+            <p className="font-bold mb-0.5 text-[9px]">PERNYATAAN PELANGGAN</p>
+            <p>Saya telah membaca, memahami, dan menyetujui seluruh Syarat dan Ketentuan di atas. Saya juga mengonfirmasi bahwa data informasi produk yang diserahkan adalah benar.</p>
+          </div>
+        </div>
+
+        {/* Signatures */}
+        <div className="mt-4">
+          <table className="w-full text-center text-[11px]">
+            <tbody>
+              <tr>
+                <td className="w-1/2 pb-8"><strong>Tanda Tangan Pelanggan</strong></td>
+                <td className="w-1/2 pb-8"><strong>Tanda Tangan Penerima</strong></td>
+              </tr>
+              <tr>
+                <td>( ................................................. )</td>
+                <td>( ................................................. )</td>
+              </tr>
+              <tr>
+                <td><strong>Nama: {order.customer_name || "................................................."}</strong></td>
+                <td><strong>Nama: SUPER KOMPUTER</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <header className="sticky top-0 z-20 gradient-hero text-primary-foreground p-4 print:hidden">
         <div className="max-w-lg mx-auto">
           <Link to="/" className="flex items-center gap-2 text-sm text-primary-foreground/70 mb-3 hover:text-primary-foreground">
             <ArrowLeft className="h-4 w-4" /> Kembali
@@ -240,13 +375,16 @@ export default function TrackPage() {
             </div>
             <StatusBadge status={displayStatus} />
           </div>
-          <div className="mt-3">
+          <div className="mt-3 flex justify-between items-center">
             <NotificationSubscribeButton ticketNumber={order.ticket_number} />
+            <Button variant="outline" size="sm" onClick={() => window.print()} className="bg-transparent border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
+              <Printer className="h-4 w-4 mr-2" /> Cetak Tanda Terima
+            </Button>
           </div>
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto p-4 space-y-4">
+      <div className="max-w-lg mx-auto p-4 space-y-4 print:hidden">
         {!isOnline && <div className="rounded-lg bg-warning/10 px-3 py-2 text-sm text-warning">Mode offline. Status akan diperbarui saat koneksi kembali.</div>}
         {/* Detail Unit */}
         <Card>

@@ -747,8 +747,8 @@ export default function CreateOrderPage() {
       (c.customer_email && c.customer_email.toLowerCase().includes(customerSearch.toLowerCase())),
   );
 
-  const checkDuplicateCustomer = () => {
-    if (customerLocked) return;
+  const isDuplicateCustomer = () => {
+    if (customerLocked) return false;
     
     const normalizePhone = (p: string) => {
       const digits = p.replace(/\D/g, "");
@@ -760,9 +760,9 @@ export default function CreateOrderPage() {
     const currentPhone = form.customerPhone ? normalizePhone(form.customerPhone) : "";
     const currentEmail = form.customerEmail ? form.customerEmail.toLowerCase().trim() : "";
 
-    if (!currentPhone && !currentEmail) return;
+    if (!currentPhone && !currentEmail) return false;
 
-    const isDuplicate = savedCustomers.some(c => {
+    return savedCustomers.some(c => {
       const dbPhone = c.customer_phone ? normalizePhone(c.customer_phone) : "";
       const dbEmail = c.customer_email ? c.customer_email.toLowerCase().trim() : "";
       
@@ -771,8 +771,10 @@ export default function CreateOrderPage() {
       
       return phoneMatch || emailMatch;
     });
+  };
 
-    if (isDuplicate) {
+  const checkDuplicateCustomer = () => {
+    if (isDuplicateCustomer()) {
       toast.error("Data sudah ada.");
     }
   };
@@ -860,7 +862,7 @@ export default function CreateOrderPage() {
       case 1:
         return !!form.serviceType;
       case 2:
-        return !!form.customerName && !!form.customerPhone;
+        return !!form.customerName && !!form.customerPhone && !isDuplicateCustomer();
       case 3: {
         const typeOk = form.deviceType === "Lainnya" ? !!form.deviceTypeOther : !!form.deviceType;
         const snOk = form.serviceType !== "Garansi Partner" || !!form.serialNumber;

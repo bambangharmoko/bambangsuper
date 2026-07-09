@@ -21,6 +21,7 @@ import ClosedTicketsManager from "./pages/ClosedTicketsManager";
 import NotFound from "./pages/NotFound";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { OpenInAppBanner } from "@/components/OpenInAppBanner";
+import { BackButtonHandler } from "@/components/BackButtonHandler";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ const App = () => (
         <AuthProvider>
           {/* Banner "Buka di Aplikasi" — muncul jika PWA sudah terinstall tapi user buka di browser */}
           <OpenInAppBanner />
+          <BackButtonHandler />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/track" element={<Navigate to="/" replace />} />

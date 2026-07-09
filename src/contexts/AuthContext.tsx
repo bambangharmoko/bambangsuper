@@ -1,6 +1,7 @@
 import { createContext, useContext, useCallback, useEffect, useState, useRef, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { clearNavStack } from "@/hooks/useNavigationStack";
 
 type AppRole = "owner" | "admin" | "technician";
 
@@ -290,9 +291,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchUserData]);
 
   const signOut = async () => {
+    const uid = userRef.current?.id;
     await supabase.auth.signOut();
     clearSessionHint();
     clearCachedProfileAndRoles();
+    if (uid) clearNavStack(uid);
     setUser(null);
     setSession(null);
     setProfile(null);

@@ -559,7 +559,18 @@ export default function OrdersPage() {
           <DialogContent className="p-0 border-none bg-transparent shadow-none max-w-sm">
             <BarcodeScanner
               onDetected={(val) => {
-                setSearch(val);
+                let finalVal = val.trim();
+                try {
+                  if (finalVal.startsWith("http")) {
+                    const url = new URL(finalVal);
+                    if (url.pathname.includes("/dashboard/orders/")) {
+                      finalVal = url.pathname.split("/").pop() || finalVal;
+                    }
+                  }
+                } catch (e) {
+                  // Keep raw value if parsing fails
+                }
+                setSearch(finalVal);
                 setScannerOpen(false);
               }}
               onClose={() => setScannerOpen(false)}

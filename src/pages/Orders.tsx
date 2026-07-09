@@ -253,7 +253,9 @@ export default function OrdersPage() {
   );
 
   // Technician views
-  const openPool = filtered.filter((o) => o.status === "Diterima" && !o.assigned_technician);
+  const openPool = filtered
+    .filter((o) => o.status === "Diterima" && !o.assigned_technician)
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   const activeWorkStatuses = ["Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"];
   const finishedWorkStatuses = ["Selesai", "Siap diAmbil", "Close"];
   const threeMonthsAgo = new Date();

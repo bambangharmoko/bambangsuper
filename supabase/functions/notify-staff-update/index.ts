@@ -161,6 +161,11 @@ Deno.serve(async (req) => {
           return userId === order.assigned_technician;
         }
 
+        // Fix: Do not notify the person who made the change
+        if (userId === updated_by) {
+          return false;
+        }
+
         const roles = userRolesMap[userId] || [];
         const isAdminOrOwner = roles.includes("admin") || roles.includes("owner");
         const isTechnician = roles.includes("technician");
@@ -186,62 +191,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Insert database notification logs for history
-    if (targetUserIds.length > 0) {
-      const notificationsToInsert = targetUserIds.map((userId) => {
-        const isAssignedTech = userId === order.assigned_technician;
-        let userTitle = "Update Tiket";
-        let userBody = `Ada perubahan pada tiket ${order.ticket_number}.`;
-
-        if (action === "status_update") {
-          userTitle = isAssignedTech ? "Update Tugas Anda" : "Update Status Tiket";
-          userBody = isAssignedTech
-            ? `${actorName} mengubah status tiket ${order.ticket_number} (Tugas Anda) menjadi ${status}.`
-            : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} mengubah status menjadi ${status}.`;
-        } else if (action === "delay_reason") {
-          userTitle = "Alasan Keterlambatan Update";
-          userBody = isAssignedTech
-            ? `${actorName} menambahkan alasan keterlambatan pada tiket ${order.ticket_number} (Tugas Anda).`
-            : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} menambahkan alasan keterlambatan: ${delayReason}`;
-        } else if (action === "note_create") {
-          userTitle = "Memo Baru Tiket";
-          userBody = isAssignedTech
-            ? `${actorName} menambahkan memo pada tiket ${order.ticket_number} (Tugas Anda).`
-            : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} menambahkan memo.`;
-        } else if (action === "note_update") {
-          userTitle = "Update Memo Tiket";
-          userBody = isAssignedTech
-            ? `${actorName} memperbarui memo pada tiket ${order.ticket_number} (Tugas Anda).`
-            : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} memperbarui memo.`;
-        } else if (action === "stale_reminder") {
-          userTitle = "⚠️ Pengingat Tiket";
-          userBody = isAssignedTech
-            ? `Tiket ${order.ticket_number} (${order.customer_name}) belum diupdate lebih dari 24 jam. Mohon segera ditindaklanjuti.`
-            : `[Peringatan] Tiket ${order.ticket_number} (${order.customer_name}) belum diupdate oleh ${assigneeName} lebih dari 24 jam.`;
-        } else if (action === "edit_data") {
-          userTitle = "Data Tiket Diperbarui";
-          userBody = isAssignedTech
-            ? `${actorName} memperbarui data tiket ${order.ticket_number} (Tugas Anda): ${editDescription}`
-            : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} memperbarui data tiket.`;
-        }
-
-        return {
-          user_id: userId,
-          title: userTitle,
-          message: userBody,
-          order_id: order_id,
-          is_read: false
-        };
-      });
-
-      const { error: insertError } = await supabase
-        .from("notifications")
-        .insert(notificationsToInsert);
-
-      if (insertError) {
-        console.error("Failed to insert notification history logs:", insertError);
-      }
-    }
+    // We will save successful DB notifications at the end
+    const successfulNotifiedUsers = new Set<string>();
 
     const { data: tokens, error: tokenError } = await supabase
       .from("staff_push_tokens")
@@ -303,11 +254,75 @@ Deno.serve(async (req) => {
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({ message: { token: fcm_token, data: { title: userTitle, body: userBody, order_id, status: status || "", url: targetPath }, webpush: { notification: { title: userTitle, body: userBody, icon: "/superkomputer.png", badge: "/superkomputer.png", tag: `staff-ticket-${order_id}`, requireInteraction: true, data: { order_id, status: status || "", url: targetPath } }, fcm_options: { link: `${APP_ORIGIN}${targetPath}` } } } }),
       });
-      if (res.ok) sent++;
-      else if (res.status === 404 || res.status === 400) invalidTokenIds.push(id);
+      if (res.ok) {
+        sent++;
+        successfulNotifiedUsers.add(user_id);
+      } else if (res.status === 404 || res.status === 400) {
+        invalidTokenIds.push(id);
+      }
     }));
 
-    if (invalidTokenIds.length > 0) await supabase.from("staff_push_tokens").update({ is_active: false }).in("id", invalidTokenIds);
+    if (invalidTokenIds.length > 0) {
+      await supabase.from("staff_push_tokens").update({ is_active: false }).in("id", invalidTokenIds);
+    }
+
+    // Insert database notification logs for history ONLY for successfully notified users
+    const notifiedUsersArray = Array.from(successfulNotifiedUsers);
+    if (notifiedUsersArray.length > 0) {
+      const notificationsToInsert = notifiedUsersArray.map((userId) => {
+        const isAssignedTech = userId === order.assigned_technician;
+        let userTitle = "Update Tiket";
+        let userBody = `Ada perubahan pada tiket ${order.ticket_number}.`;
+
+        if (action === "status_update") {
+          userTitle = isAssignedTech ? "Update Tugas Anda" : "Update Status Tiket";
+          userBody = isAssignedTech
+            ? `${actorName} mengubah status tiket ${order.ticket_number} (Tugas Anda) menjadi ${status}.`
+            : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} mengubah status menjadi ${status}.`;
+        } else if (action === "delay_reason") {
+          userTitle = "Alasan Keterlambatan Update";
+          userBody = isAssignedTech
+            ? `${actorName} menambahkan alasan keterlambatan pada tiket ${order.ticket_number} (Tugas Anda).`
+            : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} menambahkan alasan keterlambatan: ${delayReason}`;
+        } else if (action === "note_create") {
+          userTitle = "Memo Baru Tiket";
+          userBody = isAssignedTech
+            ? `${actorName} menambahkan memo pada tiket ${order.ticket_number} (Tugas Anda).`
+            : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} menambahkan memo.`;
+        } else if (action === "note_update") {
+          userTitle = "Update Memo Tiket";
+          userBody = isAssignedTech
+            ? `${actorName} memperbarui memo pada tiket ${order.ticket_number} (Tugas Anda).`
+            : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} memperbarui memo.`;
+        } else if (action === "stale_reminder") {
+          userTitle = "⚠️ Pengingat Tiket";
+          userBody = isAssignedTech
+            ? `Tiket ${order.ticket_number} (${order.customer_name}) belum diupdate lebih dari 24 jam. Mohon segera ditindaklanjuti.`
+            : `[Peringatan] Tiket ${order.ticket_number} (${order.customer_name}) belum diupdate oleh ${assigneeName} lebih dari 24 jam.`;
+        } else if (action === "edit_data") {
+          userTitle = "Data Tiket Diperbarui";
+          userBody = isAssignedTech
+            ? `${actorName} memperbarui data tiket ${order.ticket_number} (Tugas Anda): ${editDescription}`
+            : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} memperbarui data tiket.`;
+        }
+
+        return {
+          user_id: userId,
+          title: userTitle,
+          message: userBody,
+          order_id: order_id,
+          is_read: false
+        };
+      });
+
+      const { error: insertError } = await supabase
+        .from("notifications")
+        .insert(notificationsToInsert);
+
+      if (insertError) {
+        console.error("Failed to insert notification history logs:", insertError);
+      }
+    }
     return new Response(JSON.stringify({ ok: true, sent, total: tokens.length, invalidated: invalidTokenIds.length }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {
     console.error("notify-staff-update error:", err);

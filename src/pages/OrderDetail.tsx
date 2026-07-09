@@ -1600,7 +1600,7 @@ export default function OrderDetailPage() {
         </Card>
 
         {/* Info Pelanggan */}
-        <Card>
+        <Card className="print:hidden">
           <CardContent className="p-4 space-y-1">
             <p className="font-semibold text-sm mb-2">Info Pelanggan</p>
             <p className="text-sm text-muted-foreground">Nama: <span className="text-foreground font-medium">{order.customer_name}</span></p>
@@ -1612,7 +1612,7 @@ export default function OrderDetailPage() {
         </Card>
 
         {/* Info Unit */}
-        <Card>
+        <Card className="print:hidden">
           <CardContent className="p-4 space-y-1">
             <p className="font-semibold text-sm mb-2">Info Unit</p>
             <p className="text-sm text-muted-foreground">Perangkat: <span className="text-foreground font-medium">{[order.device_brand, order.device_model].filter(Boolean).join(" ") || order.device_type || "-"}</span></p>

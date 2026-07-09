@@ -563,8 +563,9 @@ export default function OrdersPage() {
                 try {
                   if (finalVal.startsWith("http")) {
                     const url = new URL(finalVal);
-                    if (url.pathname.includes("/dashboard/orders/")) {
-                      finalVal = url.pathname.split("/").pop() || finalVal;
+                    const segments = url.pathname.split("/").filter(Boolean);
+                    if (segments.length > 0) {
+                      finalVal = segments[segments.length - 1];
                     }
                   }
                 } catch (e) {

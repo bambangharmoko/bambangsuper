@@ -403,12 +403,8 @@ export default function OrdersPage() {
           </span>
         </div>
         <div className="text-sm mb-3">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Informasi Pelanggan</p>
           <p className="font-medium">{o.customer_name}</p>
-          <p className="text-muted-foreground text-xs mb-3">{o.customer_phone}</p>
-          
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Informasi Unit</p>
-          <p className="text-muted-foreground text-xs">{o.device_brand} {o.device_type}</p>
+          <p className="text-muted-foreground text-xs">{o.customer_phone} • {o.device_brand} {o.device_type}</p>
           {warrantyDaysLeft !== null && (
             <p className={`text-xs font-medium mt-1 ${warrantyDaysLeft <= 2 ? "text-destructive" : "text-success"}`}>
               Sisa Garansi: {warrantyDaysLeft} Hari lagi

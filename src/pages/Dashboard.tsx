@@ -30,9 +30,6 @@ interface RecentOrder {
   id: string;
   ticket_number: string;
   customer_name: string;
-  customer_phone: string;
-  device_brand: string;
-  device_type: string;
   status: string;
   updated_at: string;
   warranty_expiry: string | null;
@@ -63,7 +60,7 @@ export default function DashboardHome() {
     try {
       const { data: orders, error } = await supabase
         .from("service_orders")
-        .select("id, ticket_number, customer_name, customer_phone, device_brand, device_type, status, updated_at, warranty_expiry, is_picked_up, assigned_technician, update_delay_reason")
+        .select("id, ticket_number, customer_name, status, updated_at, warranty_expiry, is_picked_up, assigned_technician, update_delay_reason")
         .is("deleted_at", null)
         .abortSignal(controller.signal)
         .order("updated_at", { ascending: false });
@@ -250,25 +247,12 @@ export default function DashboardHome() {
                 const daysLate = Math.max(1, Math.floor((Date.now() - new Date(o.updated_at).getTime()) / (24 * 60 * 60 * 1000)));
                 return (
                   <div key={o.id} className="rounded-lg border border-destructive/20 bg-background p-3 space-y-2">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <p className="font-medium text-sm">{o.ticket_number}</p>
-                          <StatusBadge status={o.status} />
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 mb-2">
-                          <div>
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Informasi Pelanggan</p>
-                            <p className="text-sm font-medium">{o.customer_name}</p>
-                            <p className="text-xs text-muted-foreground">{o.customer_phone}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Informasi Unit</p>
-                            <p className="text-sm text-muted-foreground">{o.device_brand} {o.device_type}</p>
-                          </div>
-                        </div>
+                        <p className="text-sm font-semibold">{o.ticket_number} · {o.customer_name}</p>
                         <p className="text-xs text-destructive">Belum di-update selama {daysLate} hari</p>
                       </div>
+                      <StatusBadge status={o.status} />
                     </div>
                     <Textarea
                       value={delayReasons[o.id] ?? o.update_delay_reason ?? ""}
@@ -331,29 +315,15 @@ export default function DashboardHome() {
                   {paginatedOrders.map((o) => (
                     <div
                       key={o.id}
-                      className="flex flex-col sm:flex-row sm:justify-between p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors gap-3"
+                      className="flex justify-between items-center p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors"
                       onClick={() => navigate(`/dashboard/orders/${o.ticket_number}`)}
                     >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <p className="font-medium text-sm">{o.ticket_number}</p>
-                          <StatusBadge status={o.status} />
-                        </div>
-                        
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                          <div>
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Informasi Pelanggan</p>
-                            <p className="text-sm font-medium">{o.customer_name}</p>
-                            <p className="text-xs text-muted-foreground">{o.customer_phone}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Informasi Unit</p>
-                            <p className="text-sm text-muted-foreground">{o.device_brand} {o.device_type}</p>
-                          </div>
-                        </div>
+                      <div>
+                        <p className="font-medium text-sm">{o.ticket_number}</p>
+                        <p className="text-xs text-muted-foreground">{o.customer_name}</p>
                       </div>
-                      
-                      <div className="flex items-start sm:items-center justify-end">
+                      <div className="flex items-center gap-2">
+                        <StatusBadge status={o.status} />
                         <span className="text-xs text-muted-foreground">
                           {new Date(o.updated_at).toLocaleDateString("id-ID")}
                         </span>

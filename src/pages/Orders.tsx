@@ -25,12 +25,14 @@ interface Order {
   ticket_number: string;
   customer_name: string;
   customer_phone: string;
+  customer_email: string | null;
   device_type: string;
   device_brand: string;
   device_model: string;
   service_type: string;
   unit_condition: string;
   unit_accessories: string | null;
+  damage_description: string | null;
   status: string;
   created_at: string;
   updated_at: string;
@@ -123,7 +125,7 @@ export default function OrdersPage() {
     try {
       let query = supabase
         .from("service_orders")
-        .select("id, ticket_number, customer_name, customer_phone, device_type, device_brand, device_model, service_type, unit_condition, unit_accessories, status, created_at, updated_at, warranty_expiry, assigned_technician, is_picked_up, update_delay_reason")
+        .select("id, ticket_number, customer_name, customer_phone, customer_email, device_type, device_brand, device_model, service_type, unit_condition, unit_accessories, damage_description, status, created_at, updated_at, warranty_expiry, assigned_technician, is_picked_up, update_delay_reason")
         .is("deleted_at", null)
         .abortSignal(controller.signal);
 
@@ -402,21 +404,43 @@ export default function OrdersPage() {
             {new Date(o.created_at).toLocaleDateString("id-ID")}
           </span>
         </div>
-        <div className="text-sm mb-3">
-          <p className="font-medium">{o.customer_name}</p>
-          <p className="text-muted-foreground text-xs">{o.customer_phone} • {o.device_brand} {o.device_type}</p>
+        <div className="space-y-2 mb-3">
+          {/* Info Pelanggan */}
+          <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Info Pelanggan</p>
+            <p className="text-xs"><span className="text-muted-foreground">Nama:</span> <span className="font-medium">{o.customer_name}</span></p>
+            <p className="text-xs"><span className="text-muted-foreground">Telepon:</span> <span className="font-medium">{o.customer_phone}</span></p>
+            {o.customer_email && (
+              <p className="text-xs"><span className="text-muted-foreground">Email:</span> <span className="font-medium">{o.customer_email}</span></p>
+            )}
+          </div>
+          {/* Info Unit */}
+          <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Info Unit</p>
+            <p className="text-xs"><span className="text-muted-foreground">Perangkat:</span> <span className="font-medium">{o.device_brand} {o.device_model || o.device_type}</span></p>
+            <p className="text-xs"><span className="text-muted-foreground">Tipe Servis:</span> <span className="font-medium">{o.service_type}</span></p>
+            {o.unit_condition && (
+              <p className="text-xs"><span className="text-muted-foreground">Kondisi:</span> <span className="font-medium">{o.unit_condition}</span></p>
+            )}
+            {o.unit_accessories && (
+              <p className="text-xs"><span className="text-muted-foreground">Kelengkapan:</span> <span className="font-medium">{o.unit_accessories}</span></p>
+            )}
+            {o.damage_description && (
+              <p className="text-xs"><span className="text-muted-foreground">Deskripsi:</span> <span className="font-medium">{o.damage_description}</span></p>
+            )}
+          </div>
           {warrantyDaysLeft !== null && (
-            <p className={`text-xs font-medium mt-1 ${warrantyDaysLeft <= 2 ? "text-destructive" : "text-success"}`}>
+            <p className={`text-xs font-medium ${warrantyDaysLeft <= 2 ? "text-destructive" : "text-success"}`}>
               Sisa Garansi: {warrantyDaysLeft} Hari lagi
             </p>
           )}
           {showUpdateAge && (
-            <p className={`text-xs font-medium mt-1 ${isLateUpdate ? "text-destructive" : "text-muted-foreground"}`}>
+            <p className={`text-xs font-medium ${isLateUpdate ? "text-destructive" : "text-muted-foreground"}`}>
               {getUpdateAgeLabel(o.updated_at)}
             </p>
           )}
           {isLateUpdate && !o.update_delay_reason && (
-            <Badge variant="destructive" className="mt-2">Alasan terlambat belum diisi</Badge>
+            <Badge variant="destructive">Alasan terlambat belum diisi</Badge>
           )}
         </div>
         <div className="flex flex-wrap gap-2">

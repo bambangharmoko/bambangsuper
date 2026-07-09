@@ -12,11 +12,13 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { BarcodeScanner } from "@/components/BarcodeScanner";
 import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogFooter, AlertDialogAction, AlertDialogCancel, AlertDialogDescription,
 } from "@/components/ui/alert-dialog";
-import { Search, Plus, MessageCircle, Eye, Hand, X, ChevronLeft, ChevronRight, RefreshCw, ClipboardList, PackageCheck, AlertTriangle } from "lucide-react";
+import { Search, Plus, Hand, X, ChevronLeft, ChevronRight, RefreshCw, ClipboardList, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
@@ -99,6 +101,7 @@ function PaginationControls({ currentPage, totalPages, onPageChange }: { current
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [search, setSearch] = useState("");
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [loadingOrders, setLoadingOrders] = useState(true);
@@ -537,15 +540,32 @@ export default function OrdersPage() {
           </div>
         )}
 
-        <div className="relative">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Cari tiket, nama, atau no HP..."
-            className="pl-9"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="relative flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Cari tiket, nama, atau no HP..."
+              className="pl-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <Button variant="outline" size="icon" onClick={() => setScannerOpen(true)} title="Scan Barcode/QR Code">
+            <QrCode className="h-4 w-4" />
+          </Button>
         </div>
+
+        <Dialog open={scannerOpen} onOpenChange={setScannerOpen}>
+          <DialogContent className="p-0 border-none bg-transparent shadow-none max-w-sm">
+            <BarcodeScanner
+              onDetected={(val) => {
+                setSearch(val);
+                setScannerOpen(false);
+              }}
+              onClose={() => setScannerOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
 
         {isTechnician ? (
           <Tabs defaultValue="open" className="space-y-4" onValueChange={() => setCurrentPage(1)}>

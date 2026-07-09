@@ -243,7 +243,7 @@ const savePhotosToDB = async (orderPhotos: PhotoFile[]) => {
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
-    
+
     await new Promise<void>((resolve, reject) => {
       const clearReq = store.clear();
       clearReq.onsuccess = () => resolve();
@@ -743,14 +743,14 @@ export default function CreateOrderPage() {
 
   const filteredCustomers = savedCustomers.filter(
     (c) =>
-      c.customer_name.toLowerCase().includes(customerSearch.toLowerCase()) || 
+      c.customer_name.toLowerCase().includes(customerSearch.toLowerCase()) ||
       c.customer_phone.includes(customerSearch) ||
       (c.customer_email && c.customer_email.toLowerCase().includes(customerSearch.toLowerCase())),
   );
 
   const isDuplicateCustomer = () => {
     if (customerLocked) return false;
-    
+
     const normalizePhone = (p: string) => {
       const digits = p.replace(/\D/g, "");
       if (digits.startsWith("0")) return `62${digits.slice(1)}`;
@@ -766,10 +766,10 @@ export default function CreateOrderPage() {
     return savedCustomers.some(c => {
       const dbPhone = c.customer_phone ? normalizePhone(c.customer_phone) : "";
       const dbEmail = c.customer_email ? c.customer_email.toLowerCase().trim() : "";
-      
+
       const phoneMatch = currentPhone && dbPhone && currentPhone === dbPhone;
       const emailMatch = currentEmail && dbEmail && currentEmail === dbEmail;
-      
+
       return phoneMatch || emailMatch;
     });
   };
@@ -1027,7 +1027,7 @@ export default function CreateOrderPage() {
               const errBody = await ctx.json();
               serverMsg = errBody?.error || serverMsg;
             }
-          } catch (_) {}
+          } catch (_) { }
           console.error("Edge function error:", serverMsg);
           throw new Error(serverMsg);
         }
@@ -1771,7 +1771,7 @@ export default function CreateOrderPage() {
                     )}
                     {uncheckedItems.length > 0 && (
                       <p className="font-medium">
-                        <span className="text-muted-foreground">⬜ Tidak dicentang:</span> {uncheckedItems.join(", ")}
+                        <span className="text-muted-foreground">⬜ Tidak Dapat dicek/Tidak Berfungsi:</span> {uncheckedItems.join(", ")}
                       </p>
                     )}
                   </div>

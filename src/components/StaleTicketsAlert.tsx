@@ -19,6 +19,9 @@ interface StaleOrder {
   id: string;
   ticket_number: string;
   customer_name: string;
+  customer_phone: string;
+  device_brand: string;
+  device_type: string;
   status: string;
   updated_at: string;
   assigned_technician: string | null;
@@ -43,7 +46,7 @@ export function StaleTicketsAlert() {
 
       const { data: orders } = await supabase
         .from("service_orders")
-        .select("id, ticket_number, customer_name, status, updated_at, assigned_technician")
+        .select("id, ticket_number, customer_name, customer_phone, device_brand, device_type, status, updated_at, assigned_technician")
         .is("deleted_at", null)
         .in("status", activeStatuses)
         .lt("updated_at", oneDayAgo);
@@ -146,9 +149,19 @@ export function StaleTicketsAlert() {
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="font-semibold text-sm">{order.ticket_number}</p>
-                      <p className="text-xs text-muted-foreground">{order.customer_name}</p>
                     </div>
                     <StatusBadge status={order.status} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mt-1">
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Informasi Pelanggan</p>
+                      <p className="text-sm font-medium">{order.customer_name}</p>
+                      <p className="text-xs text-muted-foreground">{order.customer_phone}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Informasi Unit</p>
+                      <p className="text-sm text-muted-foreground">{order.device_brand} {order.device_type}</p>
+                    </div>
                   </div>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>

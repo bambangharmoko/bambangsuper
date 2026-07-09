@@ -18,7 +18,7 @@ import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogFooter, AlertDialogAction, AlertDialogCancel, AlertDialogDescription,
 } from "@/components/ui/alert-dialog";
-import { Search, Plus, Hand, X, ChevronLeft, ChevronRight, RefreshCw, ClipboardList, QrCode } from "lucide-react";
+import { Search, Plus, MessageCircle, Eye, Hand, X, ChevronLeft, ChevronRight, RefreshCw, ClipboardList, PackageCheck, AlertTriangle, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 

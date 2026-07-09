@@ -1599,6 +1599,35 @@ export default function OrderDetailPage() {
           </CardContent>
         </Card>
 
+        {/* Info Pelanggan */}
+        <Card>
+          <CardContent className="p-4 space-y-1">
+            <p className="font-semibold text-sm mb-2">Info Pelanggan</p>
+            <p className="text-sm text-muted-foreground">Nama: <span className="text-foreground font-medium">{order.customer_name}</span></p>
+            <p className="text-sm text-muted-foreground">Telepon: <span className="text-foreground font-medium">{order.customer_phone}</span></p>
+            {order.customer_email && (
+              <p className="text-sm text-muted-foreground">Email: <span className="text-foreground font-medium">{order.customer_email}</span></p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Info Unit */}
+        <Card>
+          <CardContent className="p-4 space-y-1">
+            <p className="font-semibold text-sm mb-2">Info Unit</p>
+            <p className="text-sm text-muted-foreground">Perangkat: <span className="text-foreground font-medium">{[order.device_brand, order.device_model].filter(Boolean).join(" ") || order.device_type || "-"}</span></p>
+            <p className="text-sm text-muted-foreground">Tipe Servis: <span className="text-foreground font-medium">{order.service_type || "-"}</span></p>
+            {order.unit_condition && (
+              <p className="text-sm text-muted-foreground">Kondisi: <span className="text-foreground font-medium">{order.unit_condition}</span></p>
+            )}
+            {order.unit_accessories && (
+              <p className="text-sm text-muted-foreground">Kelengkapan: <span className="text-foreground font-medium">{order.unit_accessories}</span></p>
+            )}
+            {(order as any).damage_description && (
+              <p className="text-sm text-muted-foreground">Deskripsi: <span className="text-foreground font-medium">{(order as any).damage_description}</span></p>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Unit Checks */}
         {Object.keys(unitChecks).length > 0 && (

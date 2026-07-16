@@ -1631,7 +1631,7 @@ export default function OrderDetailPage() {
 
         {/* Unit Checks */}
         {Object.keys(unitChecks).length > 0 && (
-          <Card>
+          <Card className="print:hidden">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Cek Unit</CardTitle>
             </CardHeader>
@@ -1675,7 +1675,7 @@ export default function OrderDetailPage() {
 
         {/* Invoice Info */}
         {order.invoice_items && (
-          <Card>
+          <Card className="print:hidden">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Invoice</CardTitle>
             </CardHeader>
@@ -1698,7 +1698,7 @@ export default function OrderDetailPage() {
 
         {/* Warranty Info */}
         {typeof (order as any).warranty_duration === "number" && order.status === "Close" && (
-          <Card className="border-primary/30">
+          <Card className="border-primary/30 print:hidden">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">🛡️ Garansi Toko</CardTitle>
             </CardHeader>

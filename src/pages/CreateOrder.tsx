@@ -1618,7 +1618,7 @@ export default function CreateOrderPage() {
               <div className="space-y-2">
                 <Label>Cek Unit {hasInstallService("Install Hardware") ? "*" : "(opsional)"}</Label>
                 <p className="text-xs text-muted-foreground">
-                  ✅ Centang = Kondisi Baik | ⬜ Tanpa centang = Tidak Berfungsi
+                  ✅ Centang = Kondisi Baik | ⬜ Tanpa centang = Tidak Dapat dicek/Tidak Berfungsi
                 </p>
                 <div className="flex flex-wrap gap-3">
                   {CHECK_ITEMS.map((item) => (

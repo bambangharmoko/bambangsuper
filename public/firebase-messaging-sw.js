@@ -1,13 +1,16 @@
 /* eslint-disable no-undef */
-// Service worker untuk Firebase Cloud Messaging.
+// Service worker untuk Firebase Cloud Messaging (background push handler).
 // Firebase web config bersifat publik; disimpan di sini agar background handler
 // selalu aktif sinkron saat browser membangunkan service worker untuk push event.
+//
+// CATATAN PENTING (Service Worker Scope):
+// File ini hanya digunakan sebagai SW khusus FCM yang terdaftar dengan scope "/".
+// Jika Workbox SW (/sw.js) sudah aktif pada scope "/", Firebase SDK akan
+// menggunakan Workbox SW tersebut untuk push token (via serviceWorkerRegistration).
+// File ini tetap dipertahankan sebagai fallback dan untuk kompatibilitas.
 
 importScripts("https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js");
-
-const configCache = "fcm-config-v1";
-const configRequest = "/__firebase-messaging-config__";
 
 const defaultFirebaseConfig = {
   apiKey: "AIzaSyDZ1Exuef_trrlf8uNuQRzZkeAmsQ-tcmY",
@@ -18,83 +21,152 @@ const defaultFirebaseConfig = {
 };
 
 const readConfigFromUrl = () => {
-  const urlParams = new URL(self.location.href).searchParams;
-  return {
-    apiKey: urlParams.get("apiKey"),
-    authDomain: urlParams.get("authDomain"),
-    projectId: urlParams.get("projectId"),
-    messagingSenderId: urlParams.get("messagingSenderId"),
-    appId: urlParams.get("appId"),
-  };
+  try {
+    const urlParams = new URL(self.location.href).searchParams;
+    return {
+      apiKey: urlParams.get("apiKey"),
+      authDomain: urlParams.get("authDomain"),
+      projectId: urlParams.get("projectId"),
+      messagingSenderId: urlParams.get("messagingSenderId"),
+      appId: urlParams.get("appId"),
+    };
+  } catch {
+    return {};
+  }
 };
 
-const hasConfig = (config) => !!(config.apiKey && config.projectId && config.messagingSenderId && config.appId);
+const hasConfig = (config) =>
+  !!(config.apiKey && config.projectId && config.messagingSenderId && config.appId);
 
-const persistConfig = async (config) => {
-  if (!hasConfig(config)) return;
-  const cache = await caches.open(configCache);
-  await cache.put(configRequest, new Response(JSON.stringify(config), { headers: { "Content-Type": "application/json" } }));
-};
-
-const readPersistedConfig = async () => {
-  const cache = await caches.open(configCache);
-  const response = await cache.match(configRequest);
-  return response ? response.json() : null;
-};
-
+// Tampilkan notifikasi dari payload FCM
 const showMessageNotification = (payload) => {
-  const title = payload.notification?.title || payload.data?.title || "Update Servis";
-  const data = {
-    ...(payload.data || {}),
-    url: payload.data?.url || (payload.data?.ticket_number ? `/track/${encodeURIComponent(payload.data.ticket_number)}` : undefined),
-  };
+  try {
+    const notification = payload.notification || {};
+    const data = payload.data || {};
 
-  self.registration.showNotification(title, {
-    body: payload.notification?.body || payload.data?.body || "",
-    icon: "/superkomputer.png",
-    badge: "/superkomputer.png",
-    tag: data.order_id ? `staff-ticket-${data.order_id}` : data.ticket_number || "service-update",
-    data,
-    requireInteraction: true,
-  });
+    const title = notification.title || data.title || "Update Servis";
+    const body = notification.body || data.body || "";
+
+    // Tentukan URL target berdasarkan konteks notifikasi:
+    // - Notifikasi staff (ada order_id): buka /dashboard/orders/
+    // - Notifikasi pelanggan (hanya ticket_number): buka /track/
+    // - URL eksplisit dari data.url: gunakan langsung
+    const targetPath =
+      data.url ||
+      (data.order_id && data.ticket_number
+        ? `/dashboard/orders/${data.ticket_number}`
+        : data.ticket_number
+        ? `/track/${encodeURIComponent(data.ticket_number)}`
+        : "/");
+
+    const tag = data.order_id
+      ? `staff-ticket-${data.order_id}`
+      : data.ticket_number || "service-update";
+
+    self.registration
+      .showNotification(title, {
+        body,
+        icon: notification.icon || "/superkomputer.png",
+        badge: "/superkomputer.png",
+        tag,
+        data: { ...data, url: targetPath },
+        requireInteraction: true,
+      })
+      .catch((err) => console.error("[FCM-SW] showNotification error:", err));
+  } catch (err) {
+    console.error("[FCM-SW] showMessageNotification error:", err);
+  }
 };
 
-// Service worker ini dipakai bersama untuk FCM pelanggan dan notifikasi staff.
+// Inisialisasi Firebase dengan config terbaik yang tersedia
 let messagingReady = Promise.resolve(true);
+try {
+  const urlConfig = readConfigFromUrl();
+  const firebaseConfig = hasConfig(urlConfig) ? urlConfig : defaultFirebaseConfig;
 
-const firebaseConfig = hasConfig(readConfigFromUrl()) ? readConfigFromUrl() : defaultFirebaseConfig;
-messagingReady = persistConfig(firebaseConfig).catch(() => undefined).then(() => true);
-firebase.initializeApp(firebaseConfig);
-firebase.messaging().onBackgroundMessage(showMessageNotification);
+  firebase.initializeApp(firebaseConfig);
+  const messaging = firebase.messaging();
+  messaging.onBackgroundMessage(showMessageNotification);
+  console.info("[FCM-SW] Firebase Messaging initialized, background handler active.");
+} catch (err) {
+  console.error("[FCM-SW] Firebase init error:", err);
+}
 
+// ── Install & Activate ─────────────────────────────────────────────────────
 self.addEventListener("install", (event) => {
-  event.waitUntil(messagingReady.then(() => self.skipWaiting()));
-});
-
-self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
-});
-
-// Klik notifikasi → buka halaman tracking
-self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
-  const explicitUrl = event.notification.data?.url;
-  const ticket = event.notification.data?.ticket_number;
-  const url = explicitUrl || (ticket ? `/track/${encodeURIComponent(ticket)}` : "/track");
-  const absoluteUrl = new URL(url, self.location.origin).href;
+  console.info("[FCM-SW] Installing...");
   event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if (client.url === absoluteUrl && "focus" in client) return client.focus();
-      }
-      if (clients.openWindow) return clients.openWindow(absoluteUrl);
+    messagingReady.then(() => self.skipWaiting()).catch((err) => {
+      console.error("[FCM-SW] Install error:", err);
+      return self.skipWaiting();
     })
   );
 });
 
-// Fetch event listener untuk memenuhi kriteria instalasi PWA
-self.addEventListener("fetch", (event) => {
-  // Biarkan browser menangani request jaringan seperti biasa.
-  // Anda dapat menambahkan strategi caching di sini jika diperlukan nanti.
+self.addEventListener("activate", (event) => {
+  console.info("[FCM-SW] Activating, claiming clients...");
+  event.waitUntil(self.clients.claim());
 });
 
+// ── Notification Click Handler ─────────────────────────────────────────────
+// Menangani klik notifikasi push — membuka atau memfokuskan tab yang relevan.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const data = event.notification.data || {};
+  const explicitUrl = data.url;
+  const orderId = data.order_id;
+  const ticketNumber = data.ticket_number;
+
+  // Prioritas URL:
+  // 1. URL eksplisit dari payload data.url (sudah di-set oleh edge function)
+  // 2. Dashboard order jika ada order_id (notifikasi staff)
+  // 3. Tracking page jika hanya ada ticket_number (notifikasi pelanggan)
+  // 4. Halaman utama sebagai fallback
+  const targetPath =
+    explicitUrl ||
+    (orderId && ticketNumber
+      ? `/dashboard/orders/${ticketNumber}`
+      : ticketNumber
+      ? `/track/${encodeURIComponent(ticketNumber)}`
+      : "/");
+
+  const absoluteUrl = new URL(targetPath, self.location.origin).href;
+
+  event.waitUntil(
+    clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clientList) => {
+        // 1. Fokuskan tab yang sudah membuka URL target persis
+        for (const client of clientList) {
+          if (client.url === absoluteUrl && "focus" in client) {
+            return client.focus();
+          }
+        }
+        // 2. Navigasikan tab yang sama origin ke URL target
+        for (const client of clientList) {
+          try {
+            if (
+              new URL(client.url).origin === self.location.origin &&
+              "navigate" in client
+            ) {
+              return client.navigate(absoluteUrl).then((c) => c && c.focus());
+            }
+          } catch {
+            // ignore URL parse error
+          }
+        }
+        // 3. Buka tab baru
+        if (clients.openWindow) return clients.openWindow(absoluteUrl);
+      })
+      .catch((err) => console.error("[FCM-SW] notificationclick error:", err))
+  );
+});
+
+// ── Fetch Handler ─────────────────────────────────────────────────────────
+// Minimal fetch handler — wajib ada agar SW bisa mengontrol halaman.
+// Semua request diteruskan ke jaringan seperti biasa.
+// Strategi caching dihandle oleh Workbox SW (/sw.js) yang merupakan SW utama.
+self.addEventListener("fetch", () => {
+  // Tidak melakukan apa-apa — pass-through ke browser
+});

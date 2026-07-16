@@ -191,28 +191,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // We will save successful DB notifications at the end
-    const successfulNotifiedUsers = new Set<string>();
-
-    const { data: tokens, error: tokenError } = await supabase
-      .from("staff_push_tokens")
-      .select("id, fcm_token, user_id")
-      .in("user_id", targetUserIds)
-      .eq("is_active", true);
-    if (tokenError) throw tokenError;
-
-    if (!tokens || tokens.length === 0) {
-      return new Response(JSON.stringify({ ok: true, sent: 0, message: "no active staff tokens, but DB notification history logged" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    const sa: ServiceAccount = JSON.parse(Deno.env.get("FIREBASE_SERVICE_ACCOUNT") || "{}");
-    const accessToken = await getAccessToken(sa);
-    const projectId = sa.project_id || Deno.env.get("FIREBASE_PROJECT_ID")!;
-    const invalidTokenIds: string[] = [];
-    let sent = 0;
-
-    await Promise.all(tokens.map(async ({ id, fcm_token, user_id }) => {
-      const isAssignedTech = user_id === order.assigned_technician;
+    // Helper: buat pesan notifikasi per user
+    const buildMessage = (userId: string) => {
+      const isAssignedTech = userId === order.assigned_technician;
       let userTitle = "Update Tiket";
       let userBody = `Ada perubahan pada tiket ${order.ticket_number}.`;
 
@@ -248,17 +229,101 @@ Deno.serve(async (req) => {
           : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} memperbarui data tiket.`;
       }
 
+      return { userTitle, userBody };
+    };
+
+    // ── 1. Insert DB notifications untuk SEMUA target users ──────────────────
+    // Dilakukan sebelum FCM agar notifikasi bell tampil meskipun push gagal.
+    // Ini memastikan staff yang belum subscribe push tetap dapat riwayat notifikasi.
+    const dbNotifications = targetUserIds.map((userId) => {
+      const { userTitle, userBody } = buildMessage(userId);
+      return {
+        user_id: userId,
+        title: userTitle,
+        message: userBody,
+        order_id: order_id,
+        is_read: false,
+      };
+    });
+
+    const { error: insertError } = await supabase
+      .from("notifications")
+      .insert(dbNotifications);
+
+    if (insertError) {
+      console.error("notify-staff-update: gagal insert notifikasi DB:", insertError);
+      // Tidak throw — lanjutkan FCM meskipun DB insert gagal
+    }
+
+    // ── 2. Kirim FCM push ke user yang punya token aktif ─────────────────────
+    const { data: tokens, error: tokenError } = await supabase
+      .from("staff_push_tokens")
+      .select("id, fcm_token, user_id")
+      .in("user_id", targetUserIds)
+      .eq("is_active", true);
+    if (tokenError) throw tokenError;
+
+    if (!tokens || tokens.length === 0) {
+      return new Response(JSON.stringify({ ok: true, sent: 0, dbNotified: dbNotifications.length, message: "no active FCM tokens; DB notifications inserted" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const sa: ServiceAccount = JSON.parse(Deno.env.get("FIREBASE_SERVICE_ACCOUNT") || "{}");
+    const accessToken = await getAccessToken(sa);
+    const projectId = sa.project_id || Deno.env.get("FIREBASE_PROJECT_ID")!;
+    const invalidTokenIds: string[] = [];
+    let sent = 0;
+
+    await Promise.all(tokens.map(async ({ id, fcm_token, user_id }) => {
+      const { userTitle, userBody } = buildMessage(user_id);
       const targetPath = `/dashboard/orders/${order.ticket_number}`;
-      const res = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ message: { token: fcm_token, data: { title: userTitle, body: userBody, order_id, status: status || "", url: targetPath }, webpush: { notification: { title: userTitle, body: userBody, icon: "/superkomputer.png", badge: "/superkomputer.png", tag: `staff-ticket-${order_id}`, requireInteraction: true, data: { order_id, status: status || "", url: targetPath } }, fcm_options: { link: `${APP_ORIGIN}${targetPath}` } } } }),
-      });
-      if (res.ok) {
-        sent++;
-        successfulNotifiedUsers.add(user_id);
-      } else if (res.status === 404 || res.status === 400) {
-        invalidTokenIds.push(id);
+
+      try {
+        const res = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: {
+              token: fcm_token,
+              data: {
+                title: userTitle,
+                body: userBody,
+                order_id,
+                ticket_number: order.ticket_number,
+                status: status || "",
+                url: targetPath,
+              },
+              webpush: {
+                notification: {
+                  title: userTitle,
+                  body: userBody,
+                  icon: "/superkomputer.png",
+                  badge: "/superkomputer.png",
+                  tag: `staff-ticket-${order_id}`,
+                  requireInteraction: true,
+                  data: {
+                    order_id,
+                    ticket_number: order.ticket_number,
+                    status: status || "",
+                    url: targetPath,
+                  },
+                },
+                fcm_options: { link: `${APP_ORIGIN}${targetPath}` },
+              },
+            },
+          }),
+        });
+
+        if (res.ok) {
+          sent++;
+        } else {
+          const errText = await res.text();
+          console.warn(`notify-staff-update: FCM gagal untuk token ${id}: ${res.status} ${errText}`);
+          if (res.status === 404 || res.status === 400) {
+            invalidTokenIds.push(id);
+          }
+        }
+      } catch (fcmErr) {
+        console.error(`notify-staff-update: FCM error untuk token ${id}:`, fcmErr);
       }
     }));
 
@@ -266,64 +331,16 @@ Deno.serve(async (req) => {
       await supabase.from("staff_push_tokens").update({ is_active: false }).in("id", invalidTokenIds);
     }
 
-    // Insert database notification logs for history ONLY for successfully notified users
-    const notifiedUsersArray = Array.from(successfulNotifiedUsers);
-    if (notifiedUsersArray.length > 0) {
-      const notificationsToInsert = notifiedUsersArray.map((userId) => {
-        const isAssignedTech = userId === order.assigned_technician;
-        let userTitle = "Update Tiket";
-        let userBody = `Ada perubahan pada tiket ${order.ticket_number}.`;
-
-        if (action === "status_update") {
-          userTitle = isAssignedTech ? "Update Tugas Anda" : "Update Status Tiket";
-          userBody = isAssignedTech
-            ? `${actorName} mengubah status tiket ${order.ticket_number} (Tugas Anda) menjadi ${status}.`
-            : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} mengubah status menjadi ${status}.`;
-        } else if (action === "delay_reason") {
-          userTitle = "Alasan Keterlambatan Update";
-          userBody = isAssignedTech
-            ? `${actorName} menambahkan alasan keterlambatan pada tiket ${order.ticket_number} (Tugas Anda).`
-            : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} menambahkan alasan keterlambatan: ${delayReason}`;
-        } else if (action === "note_create") {
-          userTitle = "Memo Baru Tiket";
-          userBody = isAssignedTech
-            ? `${actorName} menambahkan memo pada tiket ${order.ticket_number} (Tugas Anda).`
-            : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} menambahkan memo.`;
-        } else if (action === "note_update") {
-          userTitle = "Update Memo Tiket";
-          userBody = isAssignedTech
-            ? `${actorName} memperbarui memo pada tiket ${order.ticket_number} (Tugas Anda).`
-            : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} memperbarui memo.`;
-        } else if (action === "stale_reminder") {
-          userTitle = "⚠️ Pengingat Tiket";
-          userBody = isAssignedTech
-            ? `Tiket ${order.ticket_number} (${order.customer_name}) belum diupdate lebih dari 24 jam. Mohon segera ditindaklanjuti.`
-            : `[Peringatan] Tiket ${order.ticket_number} (${order.customer_name}) belum diupdate oleh ${assigneeName} lebih dari 24 jam.`;
-        } else if (action === "edit_data") {
-          userTitle = "Data Tiket Diperbarui";
-          userBody = isAssignedTech
-            ? `${actorName} memperbarui data tiket ${order.ticket_number} (Tugas Anda): ${editDescription}`
-            : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actorName} memperbarui data tiket.`;
-        }
-
-        return {
-          user_id: userId,
-          title: userTitle,
-          message: userBody,
-          order_id: order_id,
-          is_read: false
-        };
-      });
-
-      const { error: insertError } = await supabase
-        .from("notifications")
-        .insert(notificationsToInsert);
-
-      if (insertError) {
-        console.error("Failed to insert notification history logs:", insertError);
-      }
-    }
-    return new Response(JSON.stringify({ ok: true, sent, total: tokens.length, invalidated: invalidTokenIds.length }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        sent,
+        total: tokens.length,
+        invalidated: invalidTokenIds.length,
+        dbNotified: dbNotifications.length,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (err) {
     console.error("notify-staff-update error:", err);
     const msg = err instanceof Error ? err.message : "unknown error";

@@ -50,10 +50,22 @@ export function NotificationBell() {
   }, [fetchNotifications]);
 
   const buildNotificationsChannel = useCallback(
-    () => supabase
-      .channel("my-notifications")
-      .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, fetchNotifications),
-    [fetchNotifications],
+    () =>
+      supabase
+        // Gunakan channel name unik per user untuk menghindari duplikasi subscription
+        .channel(`notifications-${user?.id ?? "anon"}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "notifications",
+            // Filter hanya events untuk user ini — mengurangi traffic realtime
+            filter: user ? `user_id=eq.${user.id}` : undefined,
+          },
+          fetchNotifications
+        ),
+    [fetchNotifications, user],
   );
 
   useReconnectableChannel(!!user, buildNotificationsChannel, fetchNotifications);

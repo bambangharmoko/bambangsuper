@@ -54,10 +54,40 @@ const notify = async (title: string, body: string, orderId: string, ticketNumber
 export function useStaffRealtimeNotifications() {
   const { user, roles, loading, isApproved } = useAuth();
   const lastSeenRef = useRef<Set<string>>(new Set());
+  // Simpan timestamp terakhir registrasi token untuk rate-limit re-registration
+  const lastTokenRegRef = useRef<number>(0);
 
   useEffect(() => {
     if (loading || !user || !isApproved) return;
     if (!canUseNotifications()) return;
+
+    const registerStaffPushToken = async () => {
+      if (Notification.permission !== "granted") return;
+      // Rate limit: jangan re-register lebih dari sekali per 30 menit
+      const now = Date.now();
+      if (now - lastTokenRegRef.current < 30 * 60 * 1000) return;
+      lastTokenRegRef.current = now;
+
+      try {
+        const fcmToken = await registerSwAndGetToken();
+        if (!fcmToken) {
+          console.warn("[Staff-SW] FCM token kosong — push notification tidak akan berfungsi");
+          return;
+        }
+        const { data, error } = await supabase.functions.invoke("subscribe-staff-push-token", {
+          body: { fcm_token: fcmToken, user_agent: navigator.userAgent },
+        });
+        if (error || data?.error) {
+          throw error || new Error(data.error);
+        }
+        console.info("[Staff-SW] Push token berhasil didaftarkan.");
+      } catch (err) {
+        console.error("[Staff-SW] Gagal mendaftarkan push token:", err);
+        // Reset rate limit agar bisa retry lebih cepat jika gagal
+        lastTokenRegRef.current = 0;
+        throw err;
+      }
+    };
 
     const requestOnce = async () => {
       if (Notification.permission !== "default") return;
@@ -67,30 +97,43 @@ export function useStaffRealtimeNotifications() {
       if (permission === "granted") await registerStaffPushToken();
     };
 
-    const registerStaffPushToken = async () => {
-      if (Notification.permission !== "granted") return;
-      const fcmToken = await registerSwAndGetToken();
-      if (!fcmToken) return;
-      const { data, error } = await supabase.functions.invoke("subscribe-staff-push-token", {
-        body: { fcm_token: fcmToken, user_agent: navigator.userAgent },
-      });
-      if (error || data?.error) throw error || new Error(data.error);
+    requestOnce().catch((error) => console.warn("[Staff-SW] Permission request gagal:", error));
+    registerStaffPushToken().catch((error) => console.warn("[Staff-SW] Push token registration gagal:", error));
+
+    // Re-register token saat app kembali aktif (untuk handle token refresh FCM)
+    const handleFocusRegister = () => {
+      registerStaffPushToken().catch(() => {/* silent */});
+    };
+    const handleVisibilityRegister = () => {
+      if (document.visibilityState === "visible") {
+        registerStaffPushToken().catch(() => {/* silent */});
+      }
     };
 
-    requestOnce().catch((error) => console.warn("Notification permission request failed", error));
-    registerStaffPushToken().catch((error) => console.warn("Staff push token registration failed", error));
-    const unsubscribe = onForegroundMessage((payload: any) => {
+    const unsubscribeFCM = onForegroundMessage((payload: any) => {
       const title = payload?.notification?.title || payload?.data?.title || "Update Tiket";
       const body = payload?.notification?.body || payload?.data?.body || "";
       window.dispatchEvent(new Event("staff-data-refresh"));
       toast(title, { description: body });
       const data = {
         ...(payload?.data || {}),
-        url: payload?.data?.url || (payload?.data?.order_id ? `/dashboard/orders/${payload.data.ticket_number || payload.data.order_id}` : "/dashboard"),
+        url: payload?.data?.url || (payload?.data?.order_id
+          ? `/dashboard/orders/${payload.data.ticket_number || payload.data.order_id}`
+          : "/dashboard"),
       };
-      showForegroundNotification(title, body, data).catch((error) => console.warn("Foreground staff notification failed", error));
+      showForegroundNotification(title, body, data).catch((error) =>
+        console.warn("[Staff-SW] Foreground notification gagal:", error)
+      );
     });
-    return () => unsubscribe?.();
+
+    window.addEventListener("focus", handleFocusRegister);
+    document.addEventListener("visibilitychange", handleVisibilityRegister);
+
+    return () => {
+      unsubscribeFCM?.();
+      window.removeEventListener("focus", handleFocusRegister);
+      document.removeEventListener("visibilitychange", handleVisibilityRegister);
+    };
   }, [isApproved, loading, user]);
 
   useEffect(() => {

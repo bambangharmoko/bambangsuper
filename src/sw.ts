@@ -155,7 +155,7 @@ self.addEventListener("push", (event: PushEvent) => {
 });
 
 // ── Notification Click Handler ─────────────────────────────────────────────
-self.addEventListener("notificationclick", (event: NotificationClickEvent) => {
+self.addEventListener("notificationclick", (event: NotificationEvent) => {
   event.notification.close();
 
   // Ambil URL dari data notifikasi (sudah di-set oleh edge function atau push handler)
@@ -179,13 +179,13 @@ self.addEventListener("notificationclick", (event: NotificationClickEvent) => {
   const absoluteUrl = new URL(targetPath, self.location.origin).href;
 
   event.waitUntil(
-    clients
+    self.clients
       .matchAll({ type: "window", includeUncontrolled: true })
       .then((clientList) => {
         // Cari tab yang sudah membuka URL target
         for (const client of clientList) {
           if (client.url === absoluteUrl && "focus" in client) {
-            return client.focus();
+            return (client as WindowClient).focus();
           }
         }
         // Cari tab yang membuka origin yang sama dan navigasikan
@@ -198,7 +198,7 @@ self.addEventListener("notificationclick", (event: NotificationClickEvent) => {
           }
         }
         // Buka tab baru
-        if (clients.openWindow) return clients.openWindow(absoluteUrl);
+        return self.clients.openWindow(absoluteUrl);
       })
   );
 });

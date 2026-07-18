@@ -175,11 +175,11 @@ export default function OrderDetailPage() {
   const { ticketId } = useParams();
   const navigate = useNavigate();
   const { user, profile, hasRole } = useAuth();
+  const [order, setOrder] = useState<any>(null);
   const [updates, setUpdates] = useState<any[]>([]);
   const [photos, setPhotos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [isLinkedCustomer, setIsLinkedCustomer] = useState(false);
   const fetchRunRef = useRef(0);
 
   // Resolved UUID from ticket_number lookup
@@ -363,14 +363,6 @@ export default function OrderDetailPage() {
       if (orderRes.data) {
         setOrder(orderRes.data);
         setDelayReason((orderRes.data as any).update_delay_reason || "");
-
-        // Cek apakah pelanggan ini merupakan pelanggan tersimpan berdasarkan nomor HP (foreign key logika)
-        const { data: savedCust } = await supabase
-          .from("saved_customers")
-          .select("id")
-          .eq("customer_phone", orderRes.data.customer_phone)
-          .maybeSingle();
-        setIsLinkedCustomer(!!savedCust);
 
         const identityIds = [orderRes.data.created_by, orderRes.data.assigned_technician].filter(Boolean);
         const { profileMap: orderProfileMap, roleMap: orderRoleMap } = await fetchStaffIdentities(identityIds);
@@ -732,6 +724,7 @@ export default function OrderDetailPage() {
       ? isMyTicket && canCancel
       : canCancel;
   const canEdit = !isTechnician && order.status !== "Close";
+    const isLinkedCustomer = order?.unit_checks?._is_linked_customer === true;
   const canUpdateStatus = !isTechnician || isMyTicket;
   // Teknisi hanya bisa update sampai "Siap diAmbil" (tidak bisa Close)
   const techMaxStatus = "Siap diAmbil";
@@ -2487,7 +2480,7 @@ export default function OrderDetailPage() {
                     <p className="font-medium text-sm">Pelanggan Tersimpan</p>
                   </div>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Data pelanggan tersimpan hanya dapat diubah melalui halaman <span className="font-medium">Kelola Pelanggan</span>. Perubahan di sana akan otomatis tersinkronisasi ke tiket ini.
+                    Data pelanggan tersimpan hanya dapat diubah melalui halaman Kelola Pelanggan.
                   </p>
                 </div>
                 <div className="space-y-2">

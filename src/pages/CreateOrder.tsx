@@ -1003,7 +1003,7 @@ export default function CreateOrderPage() {
           .join("\n"),
       unit_condition: isInstallOrder ? unit.installServices.join(", ") : unit.unitCondition,
       unit_accessories: unit.unitAccessories || null,
-      unit_checks: unitChecks,
+      unit_checks: { ...unitChecks, _is_linked_customer: !!selectedCustomerId },
       service_type: form.serviceType,
       notes: unit.notes || null,
       serial_number: form.serviceType === "Garansi Partner" ? unit.serialNumber || null : null,

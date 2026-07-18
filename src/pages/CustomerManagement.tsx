@@ -144,25 +144,6 @@ export default function CustomerManagementPage() {
       return;
     }
 
-    // Batch-update all service_orders linked to this saved customer by their OLD phone number.
-    // This perfectly retains the existing architecture while providing Skenario 2 sync!
-    const { error: ordersError, count } = await supabase
-      .from("service_orders")
-      .update({
-        customer_name: editName.trim(),
-        customer_phone: editPhone.trim(),
-        customer_email: editEmail.trim() || null,
-      })
-      .eq("customer_phone", editCustomer.customer_phone);
-
-    if (ordersError) {
-      console.error("Gagal sinkronisasi tiket:", ordersError.message);
-      toast.success("Data pelanggan diperbarui (sinkronisasi tiket gagal, coba refresh)");
-    } else {
-      const ticketCount = count ?? 0;
-      toast.success(
-        ticketCount > 0
-          ? `Data pelanggan diperbarui — ${ticketCount} tiket terkait ikut diperbarui`
           : "Data pelanggan diperbarui"
       );
     }

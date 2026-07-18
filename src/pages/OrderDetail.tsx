@@ -2478,37 +2478,40 @@ export default function OrderDetailPage() {
             </div>
 
             {isLinkedCustomer ? (
-              /* Linked customer: name/phone are read-only, managed via Kelola Pelanggan */
-              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
-                <p className="text-xs font-medium text-primary flex items-center gap-1">
-                  🔗 Pelanggan Tersimpan
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Data nama dan nomor HP berasal dari data pelanggan tersimpan.
-                  Untuk mengubahnya, gunakan halaman{" "}
-                  <button
-                    type="button"
-                    className="text-primary underline underline-offset-2 font-medium"
-                    onClick={() => {
-                      setEditOpen(false);
-                      window.location.href = "/dashboard/customers";
-                    }}
-                  >
-                    Kelola Pelanggan
-                  </button>
-                  . Perubahan di sana akan otomatis berlaku pada semua tiket pelanggan ini.
-                </p>
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <div>
-                    <p className="text-[10px] text-muted-foreground mb-0.5">Nama</p>
-                    <p className="text-sm font-medium">{order.customer_name}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground mb-0.5">No HP</p>
-                    <p className="text-sm font-medium">{order.customer_phone}</p>
-                  </div>
+              /* Linked customer: name/phone/email are read-only, managed via Kelola Pelanggan */
+              <>
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 mb-2 space-y-1">
+                  <p className="text-xs font-medium text-primary flex items-center gap-1">
+                    🔗 Pelanggan Tersimpan
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Data pelanggan tersimpan hanya dapat diubah melalui halaman{" "}
+                    <button
+                      type="button"
+                      className="text-primary underline underline-offset-2 font-medium"
+                      onClick={() => {
+                        setEditOpen(false);
+                        window.location.href = "/dashboard/customers";
+                      }}
+                    >
+                      Kelola Pelanggan
+                    </button>
+                    .
+                  </p>
                 </div>
-              </div>
+                <div className="space-y-2">
+                  <Label>Nama Pelanggan</Label>
+                  <Input value={order.customer_name} disabled readOnly className="bg-muted cursor-not-allowed opacity-70" />
+                </div>
+                <div className="space-y-2">
+                  <Label>No HP / WhatsApp</Label>
+                  <Input value={order.customer_phone} disabled readOnly className="bg-muted cursor-not-allowed opacity-70" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input value={order.customer_email || ""} disabled readOnly className="bg-muted cursor-not-allowed opacity-70" />
+                </div>
+              </>
             ) : (
               /* Manual customer: name/phone are editable directly on the ticket */
               <>

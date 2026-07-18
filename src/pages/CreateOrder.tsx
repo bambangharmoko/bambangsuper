@@ -1039,6 +1039,15 @@ export default function CreateOrderPage() {
 
         const createdOrder = createData?.order || { id: orderId, ticket_number: "baru" };
 
+        // BACKUP FIX: Jika edge function belum di-deploy dengan update terbaru, 
+        // saved_customer_id mungkin tidak tersimpan. Kita update langsung dari frontend.
+        if (selectedCustomerId) {
+          await supabase
+            .from("service_orders")
+            .update({ saved_customer_id: selectedCustomerId })
+            .eq("id", createdOrder.id);
+        }
+
         if (unit.photos.length > 0) {
           await withTimeout(uploadOrderPhotos(createdOrder.id, unit.photos), REQUEST_TIMEOUT_MS, CREATE_ORDER_ERROR_MESSAGE);
         }

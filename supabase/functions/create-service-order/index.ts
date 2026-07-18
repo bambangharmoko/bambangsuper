@@ -104,6 +104,8 @@ Deno.serve(async (req) => {
       service_type: requireText(body.service_type, "Tipe servis", 80),
       notes: typeof body.notes === "string" && body.notes.trim() ? body.notes.trim() : null,
       serial_number: typeof body.serial_number === "string" && body.serial_number.trim() ? body.serial_number.trim() : null,
+      // saved_customer_id: links ticket to a saved customer record (null = manual customer)
+      saved_customer_id: typeof body.saved_customer_id === "string" && body.saved_customer_id.trim() ? body.saved_customer_id.trim() : null,
       created_by: userId,
     };
 

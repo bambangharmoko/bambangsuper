@@ -724,6 +724,9 @@ export default function OrderDetailPage() {
       ? isMyTicket && canCancel
       : canCancel;
   const canEdit = !isTechnician && order.status !== "Close";
+  // isLinkedCustomer: true when ticket was created with a saved customer (saved_customer_id is set).
+  // For linked tickets, customer name/phone are managed via Kelola Pelanggan, not editable here.
+  const isLinkedCustomer = !!(order as any).saved_customer_id;
   const canUpdateStatus = !isTechnician || isMyTicket;
   // Teknisi hanya bisa update sampai "Siap diAmbil" (tidak bisa Close)
   const techMaxStatus = "Siap diAmbil";
@@ -1222,31 +1225,42 @@ export default function OrderDetailPage() {
       return;
     }
     const editedInfo = `Di edit oleh ${profile?.full_name}, waktu ${new Date().toLocaleString("id-ID")}`;
+
+    // Build update payload — for linked customers, never overwrite name/phone from here.
+    // Those fields are managed exclusively via Kelola Pelanggan (CustomerManagement page).
+    const updatePayload: Record<string, unknown> = {
+      service_type: editForm.service_type,
+      device_type: editForm.device_type,
+      device_brand: editForm.device_brand,
+      device_model: editForm.device_model,
+      device_password: editForm.device_password || null,
+      edited_by: editedInfo,
+      edited_at: new Date().toISOString(),
+    };
+
+    if (!isLinkedCustomer) {
+      // Manual customer: allow updating contact info directly on the ticket
+      updatePayload.customer_name = editForm.customer_name;
+      updatePayload.customer_phone = editForm.customer_phone;
+      updatePayload.customer_email = editForm.customer_email || null;
+    }
+
     await supabase
       .from("service_orders")
-      .update({
-        service_type: editForm.service_type,
-        customer_name: editForm.customer_name,
-        customer_phone: editForm.customer_phone,
-        customer_email: editForm.customer_email || null,
-        device_type: editForm.device_type,
-        device_brand: editForm.device_brand,
-        device_model: editForm.device_model,
-        device_password: editForm.device_password || null,
-        edited_by: editedInfo,
-        edited_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq("id", order.id);
 
     // Log perubahan data ke service_updates agar memicu notifikasi
     const changes: string[] = [];
-    if (editForm.customer_name !== order.customer_name) changes.push("Nama Pelanggan");
-    if (editForm.customer_phone !== order.customer_phone) changes.push("No. Telepon");
+    if (!isLinkedCustomer) {
+      if (editForm.customer_name !== order.customer_name) changes.push("Nama Pelanggan");
+      if (editForm.customer_phone !== order.customer_phone) changes.push("No. Telepon");
+      if ((editForm.customer_email || "") !== (order.customer_email || "")) changes.push("Email");
+    }
     if (editForm.device_brand !== order.device_brand) changes.push("Merek");
     if (editForm.device_model !== order.device_model) changes.push("Model");
     if (editForm.device_type !== order.device_type) changes.push("Jenis Perangkat");
     if (editForm.service_type !== order.service_type) changes.push("Tipe Servis");
-    if ((editForm.customer_email || "") !== (order.customer_email || "")) changes.push("Email");
 
     const changeSummary = changes.length > 0 ? changes.join(", ") : "Data tiket";
     await supabase.from("service_updates").insert({
@@ -2462,27 +2476,69 @@ export default function OrderDetailPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Nama Pelanggan</Label>
-              <Input value={editForm.customer_name} disabled className="bg-muted" />
-              <p className="text-[10px] text-muted-foreground">
-                Nama pelanggan tidak dapat diubah. Gunakan menu Kelola Pelanggan.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label>No HP</Label>
-              <Input value={editForm.customer_phone} disabled className="bg-muted" />
-              <p className="text-[10px] text-muted-foreground">
-                No HP tidak dapat diubah. Gunakan menu Kelola Pelanggan.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input
-                value={editForm.customer_email}
-                onChange={(e) => setEditForm({ ...editForm, customer_email: e.target.value })}
-              />
-            </div>
+
+            {isLinkedCustomer ? (
+              /* Linked customer: name/phone are read-only, managed via Kelola Pelanggan */
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
+                <p className="text-xs font-medium text-primary flex items-center gap-1">
+                  🔗 Pelanggan Tersimpan
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Data nama dan nomor HP berasal dari data pelanggan tersimpan.
+                  Untuk mengubahnya, gunakan halaman{" "}
+                  <button
+                    type="button"
+                    className="text-primary underline underline-offset-2 font-medium"
+                    onClick={() => {
+                      setEditOpen(false);
+                      window.location.href = "/dashboard/customers";
+                    }}
+                  >
+                    Kelola Pelanggan
+                  </button>
+                  . Perubahan di sana akan otomatis berlaku pada semua tiket pelanggan ini.
+                </p>
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground mb-0.5">Nama</p>
+                    <p className="text-sm font-medium">{order.customer_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground mb-0.5">No HP</p>
+                    <p className="text-sm font-medium">{order.customer_phone}</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Manual customer: name/phone are editable directly on the ticket */
+              <>
+                <div className="space-y-2">
+                  <Label>Nama Pelanggan</Label>
+                  <Input
+                    value={editForm.customer_name}
+                    onChange={(e) => setEditForm({ ...editForm, customer_name: e.target.value })}
+                    placeholder="Nama pelanggan"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>No HP / WhatsApp</Label>
+                  <Input
+                    value={editForm.customer_phone}
+                    onChange={(e) => setEditForm({ ...editForm, customer_phone: e.target.value })}
+                    placeholder="No HP pelanggan"
+                    inputMode="tel"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input
+                    value={editForm.customer_email}
+                    onChange={(e) => setEditForm({ ...editForm, customer_email: e.target.value })}
+                  />
+                </div>
+              </>
+            )}
+
             <div className="space-y-2">
               <Label>Jenis Perangkat</Label>
               <Input

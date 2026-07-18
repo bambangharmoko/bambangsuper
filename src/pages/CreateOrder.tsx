@@ -971,6 +971,10 @@ export default function CreateOrderPage() {
       customer_name: form.customerName,
       customer_phone: form.customerPhone,
       customer_email: form.customerEmail || null,
+      // saved_customer_id links the ticket to a saved_customers record.
+      // null = manual customer (name/phone editable on the ticket).
+      // non-null = linked customer (name/phone managed via Kelola Pelanggan).
+      saved_customer_id: selectedCustomerId || null,
       device_type: deviceType,
       device_brand: unit.deviceBrand,
       device_model: unit.deviceModel,

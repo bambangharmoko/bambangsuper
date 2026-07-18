@@ -143,17 +143,43 @@ export default function CustomerManagementPage() {
       toast.error("Gagal menyimpan: " + error.message);
       return;
     }
-    toast.success("Data pelanggan diperbarui");
+
+    // Batch-update all service_orders linked to this saved customer.
+    // This ensures all tickets, print receipts, WhatsApp links, and search results
+    // always reflect the latest customer data without requiring a manual refresh.
+    const { error: ordersError, count } = await supabase
+      .from("service_orders")
+      .update({
+        customer_name: editName.trim(),
+        customer_phone: editPhone.trim(),
+        customer_email: editEmail.trim() || null,
+      })
+      .eq("saved_customer_id", editCustomer.id);
+
+    if (ordersError) {
+      console.error("Gagal sinkronisasi tiket:", ordersError.message);
+      // Non-fatal: saved_customers already updated successfully
+      toast.success("Data pelanggan diperbarui (sinkronisasi tiket gagal, coba refresh)");
+    } else {
+      const ticketCount = count ?? 0;
+      toast.success(
+        ticketCount > 0
+          ? `Data pelanggan diperbarui — ${ticketCount} tiket terkait ikut diperbarui`
+          : "Data pelanggan diperbarui"
+      );
+    }
+
     setEditOpen(false);
     fetchCustomers();
   };
 
   const checkWarrantyAndDelete = async (c: SavedCustomer) => {
-    // Check if any service order for this customer has active warranty
+    // Check if any service order for this customer has active warranty.
+    // Use saved_customer_id as the primary relation (accurate), fall back to customer_phone.
     const { data: orders } = await supabase
       .from("service_orders")
       .select("id, warranty_expiry, ticket_number")
-      .eq("customer_phone", c.customer_phone)
+      .or(`saved_customer_id.eq.${c.id},customer_phone.eq.${c.customer_phone}`)
       .not("warranty_expiry", "is", null);
 
     const hasActiveWarranty = (orders || []).some(
@@ -200,10 +226,11 @@ export default function CustomerManagementPage() {
     const blockedIds = new Set<string>();
 
     for (const c of customers) {
+      // Prefer saved_customer_id for accurate lookup; fall back to customer_phone
       const { data: orders } = await supabase
         .from("service_orders")
         .select("id, created_at, warranty_expiry")
-        .eq("customer_phone", c.customer_phone)
+        .or(`saved_customer_id.eq.${c.id},customer_phone.eq.${c.customer_phone}`)
         .order("created_at", { ascending: false })
         .limit(1);
 
@@ -216,7 +243,7 @@ export default function CustomerManagementPage() {
         const { data: warrantyOrders } = await supabase
           .from("service_orders")
           .select("warranty_expiry")
-          .eq("customer_phone", c.customer_phone)
+          .or(`saved_customer_id.eq.${c.id},customer_phone.eq.${c.customer_phone}`)
           .not("warranty_expiry", "is", null);
 
         const hasActive = (warrantyOrders || []).some(

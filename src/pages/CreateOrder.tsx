@@ -526,12 +526,14 @@ export default function CreateOrderPage() {
   const LOCAL_STORAGE_KEY_FORM = "super_komputer_create_order_form";
   const LOCAL_STORAGE_KEY_STEP = "super_komputer_create_order_step";
   const LOCAL_STORAGE_KEY_PENDING_UNITS = "super_komputer_create_order_pending_units";
+  const LOCAL_STORAGE_KEY_CUSTOMER_ID = "super_komputer_create_order_customer_id";
 
   // Load draft from localStorage on mount
   useEffect(() => {
     const savedForm = localStorage.getItem(LOCAL_STORAGE_KEY_FORM);
     const savedStep = localStorage.getItem(LOCAL_STORAGE_KEY_STEP);
     const savedPendingUnits = localStorage.getItem(LOCAL_STORAGE_KEY_PENDING_UNITS);
+    const savedCustomerId = localStorage.getItem(LOCAL_STORAGE_KEY_CUSTOMER_ID);
 
     if (savedForm) {
       try {
@@ -548,6 +550,14 @@ export default function CreateOrderPage() {
         } catch (e) {
           console.error("Failed to parse saved step", e);
         }
+      }
+      if (savedCustomerId) {
+        setSelectedCustomerId(savedCustomerId);
+        setCustomerLocked(true);
+        try {
+          const parsedForm = JSON.parse(savedForm);
+          if (parsedForm.customerEmail) setEmailLockedFromDb(true);
+        } catch(e) {}
       }
     } else {
       // Jika tidak ada draft form yang disimpan, bersihkan state form ke default
@@ -609,8 +619,13 @@ export default function CreateOrderPage() {
       localStorage.setItem(LOCAL_STORAGE_KEY_FORM, JSON.stringify(form));
       localStorage.setItem(LOCAL_STORAGE_KEY_STEP, String(step));
       localStorage.setItem(LOCAL_STORAGE_KEY_PENDING_UNITS, JSON.stringify(pendingUnits));
+      if (selectedCustomerId) {
+        localStorage.setItem(LOCAL_STORAGE_KEY_CUSTOMER_ID, selectedCustomerId);
+      } else {
+        localStorage.removeItem(LOCAL_STORAGE_KEY_CUSTOMER_ID);
+      }
     }
-  }, [form, step, pendingUnits]);
+  }, [form, step, pendingUnits, selectedCustomerId]);
 
   // Sync photos to IndexedDB when state changes
   useEffect(() => {
@@ -639,6 +654,7 @@ export default function CreateOrderPage() {
     localStorage.removeItem(LOCAL_STORAGE_KEY_FORM);
     localStorage.removeItem(LOCAL_STORAGE_KEY_STEP);
     localStorage.removeItem(LOCAL_STORAGE_KEY_PENDING_UNITS);
+    localStorage.removeItem(LOCAL_STORAGE_KEY_CUSTOMER_ID);
     await clearPhotosFromDB();
     setPhotos([]);
     setForm({
@@ -1080,6 +1096,7 @@ export default function CreateOrderPage() {
       localStorage.removeItem(LOCAL_STORAGE_KEY_FORM);
       localStorage.removeItem(LOCAL_STORAGE_KEY_STEP);
       localStorage.removeItem(LOCAL_STORAGE_KEY_PENDING_UNITS);
+      localStorage.removeItem(LOCAL_STORAGE_KEY_CUSTOMER_ID);
       await clearPhotosFromDB(); // await so IndexedDB is clean before navigating away
       setPhotos([]);
       setPendingUnits([]);

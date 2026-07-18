@@ -987,10 +987,6 @@ export default function CreateOrderPage() {
       customer_name: form.customerName,
       customer_phone: form.customerPhone,
       customer_email: form.customerEmail || null,
-      // saved_customer_id links the ticket to a saved_customers record.
-      // null = manual customer (name/phone editable on the ticket).
-      // non-null = linked customer (name/phone managed via Kelola Pelanggan).
-      saved_customer_id: selectedCustomerId || null,
       device_type: deviceType,
       device_brand: unit.deviceBrand,
       device_model: unit.deviceModel,
@@ -1054,15 +1050,6 @@ export default function CreateOrderPage() {
         if (createData?.error) throw new Error(createData.error);
 
         const createdOrder = createData?.order || { id: orderId, ticket_number: "baru" };
-
-        // BACKUP FIX: Jika edge function belum di-deploy dengan update terbaru, 
-        // saved_customer_id mungkin tidak tersimpan. Kita update langsung dari frontend.
-        if (selectedCustomerId) {
-          await supabase
-            .from("service_orders")
-            .update({ saved_customer_id: selectedCustomerId })
-            .eq("id", createdOrder.id);
-        }
 
         if (unit.photos.length > 0) {
           await withTimeout(uploadOrderPhotos(createdOrder.id, unit.photos), REQUEST_TIMEOUT_MS, CREATE_ORDER_ERROR_MESSAGE);

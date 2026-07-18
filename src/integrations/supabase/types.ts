@@ -238,7 +238,6 @@ export type Database = {
           invoice_items: Json | null
           is_picked_up: boolean
           notes: string | null
-          saved_customer_id: string | null
           serial_number: string | null
           service_type: string
           status: Database["public"]["Enums"]["service_status"]
@@ -274,7 +273,6 @@ export type Database = {
           invoice_items?: Json | null
           is_picked_up?: boolean
           notes?: string | null
-          saved_customer_id?: string | null
           serial_number?: string | null
           service_type: string
           status?: Database["public"]["Enums"]["service_status"]
@@ -310,7 +308,6 @@ export type Database = {
           invoice_items?: Json | null
           is_picked_up?: boolean
           notes?: string | null
-          saved_customer_id?: string | null
           serial_number?: string | null
           service_type?: string
           status?: Database["public"]["Enums"]["service_status"]

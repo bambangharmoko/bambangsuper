@@ -175,11 +175,11 @@ export default function OrderDetailPage() {
   const { ticketId } = useParams();
   const navigate = useNavigate();
   const { user, profile, hasRole } = useAuth();
-  const [order, setOrder] = useState<any>(null);
   const [updates, setUpdates] = useState<any[]>([]);
   const [photos, setPhotos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [isLinkedCustomer, setIsLinkedCustomer] = useState(false);
   const fetchRunRef = useRef(0);
 
   // Resolved UUID from ticket_number lookup
@@ -363,6 +363,14 @@ export default function OrderDetailPage() {
       if (orderRes.data) {
         setOrder(orderRes.data);
         setDelayReason((orderRes.data as any).update_delay_reason || "");
+
+        // Cek apakah pelanggan ini merupakan pelanggan tersimpan berdasarkan nomor HP (foreign key logika)
+        const { data: savedCust } = await supabase
+          .from("saved_customers")
+          .select("id")
+          .eq("customer_phone", orderRes.data.customer_phone)
+          .maybeSingle();
+        setIsLinkedCustomer(!!savedCust);
 
         const identityIds = [orderRes.data.created_by, orderRes.data.assigned_technician].filter(Boolean);
         const { profileMap: orderProfileMap, roleMap: orderRoleMap } = await fetchStaffIdentities(identityIds);
@@ -724,9 +732,6 @@ export default function OrderDetailPage() {
       ? isMyTicket && canCancel
       : canCancel;
   const canEdit = !isTechnician && order.status !== "Close";
-  // isLinkedCustomer: true when ticket was created with a saved customer (saved_customer_id is set).
-  // For linked tickets, customer name/phone are managed via Kelola Pelanggan, not editable here.
-  const isLinkedCustomer = !!(order as any).saved_customer_id;
   const canUpdateStatus = !isTechnician || isMyTicket;
   // Teknisi hanya bisa update sampai "Siap diAmbil" (tidak bisa Close)
   const techMaxStatus = "Siap diAmbil";
@@ -1225,15 +1230,12 @@ export default function OrderDetailPage() {
       return;
     }
     const editedInfo = `Di edit oleh ${profile?.full_name}, waktu ${new Date().toLocaleString("id-ID")}`;
-
-    // Build update payload — for linked customers, never overwrite name/phone from here.
-    // Those fields are managed exclusively via Kelola Pelanggan (CustomerManagement page).
-    const updatePayload: Record<string, unknown> = {
-      service_type: editForm.service_type,
+    const updatePayload: any = {
       device_type: editForm.device_type,
       device_brand: editForm.device_brand,
       device_model: editForm.device_model,
       device_password: editForm.device_password || null,
+      service_type: editForm.service_type,
       edited_by: editedInfo,
       edited_at: new Date().toISOString(),
     };
@@ -2452,12 +2454,11 @@ export default function OrderDetailPage() {
 
       {/* Edit Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Pesanan (Step 1-3)</DialogTitle>
-            <DialogDescription>Perbarui informasi pelanggan dan perangkat.</DialogDescription>
+            <DialogTitle>Edit Data Tiket</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+          <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Tipe Servis</Label>
               <Select
@@ -2481,22 +2482,12 @@ export default function OrderDetailPage() {
               /* Linked customer: name/phone/email are read-only, managed via Kelola Pelanggan */
               <>
                 <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 mb-2 space-y-1">
-                  <p className="text-xs font-medium text-primary flex items-center gap-1">
-                    🔗 Pelanggan Tersimpan
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    Data pelanggan tersimpan hanya dapat diubah melalui halaman{" "}
-                    <button
-                      type="button"
-                      className="text-primary underline underline-offset-2 font-medium"
-                      onClick={() => {
-                        setEditOpen(false);
-                        window.location.href = "/dashboard/customers";
-                      }}
-                    >
-                      Kelola Pelanggan
-                    </button>
-                    .
+                  <div className="flex items-center gap-1.5 text-primary mb-2">
+                    <Users className="h-4 w-4" />
+                    <p className="font-medium text-sm">Pelanggan Tersimpan</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Data pelanggan tersimpan hanya dapat diubah melalui halaman <span className="font-medium">Kelola Pelanggan</span>. Perubahan di sana akan otomatis tersinkronisasi ke tiket ini.
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -2513,7 +2504,7 @@ export default function OrderDetailPage() {
                 </div>
               </>
             ) : (
-              /* Manual customer: name/phone are editable directly on the ticket */
+              /* Manual customer: editable */
               <>
                 <div className="space-y-2">
                   <Label>Nama Pelanggan</Label>

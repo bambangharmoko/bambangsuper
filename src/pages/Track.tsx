@@ -454,22 +454,61 @@ export default function TrackPage() {
         </Card>
 
         {/* Unit Checks */}
-        {Object.keys(unitChecks).length > 0 && (
+        {/* Unit Checks */}
+        {order.unit_checks && (
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Hasil Cek Unit</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(unitChecks).map(([key, ok]) => (
-                  <Badge
-                    key={key}
-                    className={ok ? "bg-success text-success-foreground" : "bg-destructive text-destructive-foreground"}
-                  >
-                    {key}: {ok ? "OK" : "NO"}
-                  </Badge>
-                ))}
-              </div>
+              {(() => {
+                const STANDARD_CHECK_ITEMS = ["Speaker", "Camera", "Touchpad", "Keyboard", "Wifi", "LCD Panel"];
+                
+                // 1. Filter out internal keys like _is_linked_customer
+                const validChecks: Record<string, boolean> = {};
+                for (const [k, v] of Object.entries(unitChecks)) {
+                  if (!k.startsWith("_")) {
+                    validChecks[k] = Boolean(v);
+                  }
+                }
+                
+                // 2. Identify unchecked items
+                const uncheckedItems: string[] = [];
+                for (const item of STANDARD_CHECK_ITEMS) {
+                  // If it's explicitly false, or missing completely
+                  if (!validChecks[item]) {
+                    // For display, format Wifi -> Wi-Fi as requested
+                    uncheckedItems.push(item === "Wifi" ? "Wi-Fi" : item);
+                  }
+                }
+                
+                // Add any non-standard items that are explicitly false
+                for (const [k, v] of Object.entries(validChecks)) {
+                  if (!STANDARD_CHECK_ITEMS.includes(k) && !v) {
+                    uncheckedItems.push(k);
+                  }
+                }
+                
+                // 3. Logic to display
+                const totalItems = STANDARD_CHECK_ITEMS.length + Object.keys(validChecks).filter(k => !STANDARD_CHECK_ITEMS.includes(k)).length;
+                
+                if (uncheckedItems.length === totalItems) {
+                  return <p className="text-sm text-muted-foreground">Kondisi unit belum dapat diverifikasi atau unit tidak dalam kondisi baik saat pemeriksaan.</p>;
+                }
+                
+                if (uncheckedItems.length === 0) {
+                  return <p className="text-sm text-success-foreground font-medium">Seluruh kondisi unit telah diperiksa dan dalam kondisi baik.</p>;
+                }
+                
+                // Some are unchecked
+                const formatList = (list: string[]) => {
+                  if (list.length === 1) return list[0];
+                  if (list.length === 2) return `${list[0]} dan ${list[1]}`;
+                  return `${list.slice(0, -1).join(", ")}, dan ${list[list.length - 1]}`;
+                };
+                
+                return <p className="text-sm text-destructive-foreground">{formatList(uncheckedItems)} tidak dapat diperiksa atau terindikasi tidak dalam kondisi baik.</p>;
+              })()}
             </CardContent>
           </Card>
         )}

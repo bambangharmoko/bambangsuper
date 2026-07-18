@@ -342,6 +342,129 @@ export default function OrderDetailPage() {
     return { profileMap, roleMap };
   };
 
+  const createInternalNotification = async (
+    action: string,
+    orderId: string,
+    ticketNumber: string,
+    deviceStr: string,
+    actorName: string,
+    statusStr: string,
+    desc: string,
+    assignedTech: string | null
+  ) => {
+    if (!user) return;
+    try {
+      const { data: staffRoles } = await supabase.from("user_roles").select("user_id, role").in("role", ["admin", "owner", "technician"]);
+      const { data: approvedProfiles } = await supabase.from("profiles").select("id").eq("is_approved", true);
+      
+      if (!staffRoles || !approvedProfiles) return;
+      
+      const userRolesMap: Record<string, string[]> = {};
+      for (const row of staffRoles) {
+        if (!userRolesMap[row.user_id]) userRolesMap[row.user_id] = [];
+        userRolesMap[row.user_id].push(row.role);
+      }
+      
+      const approvedIds = new Set(approvedProfiles.map(p => p.id));
+      const targetUserIds = Object.keys(userRolesMap).filter(userId => {
+        if (!approvedIds.has(userId)) return false;
+        if (userId === user.id) return false;
+        
+        const roles = userRolesMap[userId];
+        const isAdminOrOwner = roles.includes("admin") || roles.includes("owner");
+        const isTechnician = roles.includes("technician");
+        
+        if (isTechnician && !isAdminOrOwner) {
+          return assignedTech === userId;
+        }
+        return true;
+      });
+      
+      if (targetUserIds.length === 0) return;
+      
+      const dbNotifications = targetUserIds.map(userId => {
+        const isAssignedTech = userId === assignedTech;
+        let userTitle = "Update Tiket";
+        let userBody = `Ada perubahan pada tiket ${ticketNumber}.`;
+        
+        if (action === "status_update") {
+          userTitle = isAssignedTech ? "Update Tugas Anda" : "Update Status Tiket";
+          userBody = isAssignedTech
+            ? `${actorName} mengubah status tiket ${ticketNumber} (Tugas Anda) menjadi ${statusStr}.`
+            : `Tiket ${ticketNumber} (${deviceStr}): ${actorName} mengubah status menjadi ${statusStr}.`;
+        } else if (action === "delay_reason") {
+          userTitle = "Alasan Keterlambatan Update";
+          userBody = isAssignedTech
+            ? `${actorName} menambahkan alasan keterlambatan pada tiket ${ticketNumber} (Tugas Anda).`
+            : `Tiket ${ticketNumber} (${deviceStr}): ${actorName} menambahkan alasan keterlambatan: ${desc.replace("[ALASAN TERLAMBAT]", "").trim()}`;
+        } else if (action === "edit_data") {
+          userTitle = "Data Tiket Diperbarui";
+          const editDesc = desc.replace("[EDIT DATA]", "").trim();
+          userBody = isAssignedTech
+            ? `${actorName} memperbarui data tiket ${ticketNumber} (Tugas Anda): ${editDesc}`
+            : `Tiket ${ticketNumber} (${deviceStr}): ${actorName} memperbarui data tiket.`;
+        } else if (action === "note_create") {
+          userTitle = "Memo Baru Tiket";
+          userBody = isAssignedTech
+            ? `${actorName} menambahkan memo pada tiket ${ticketNumber} (Tugas Anda).`
+            : `Tiket ${ticketNumber} (${deviceStr}): ${actorName} menambahkan memo.`;
+        }
+        
+        return {
+          user_id: userId,
+          title: userTitle,
+          message: userBody,
+          order_id: orderId,
+          is_read: false
+        };
+      });
+      
+      await supabase.from("notifications").insert(dbNotifications);
+    } catch (err) {
+      console.error("Gagal insert internal notification", err);
+    }
+  };
+
+  const insertServiceUpdate = async (payload: any) => {
+    const { data, error } = await supabase.from("service_updates").insert(payload).select("id").single();
+    if (error) throw error;
+    
+    let actionType = "status_update";
+    const desc = payload.description || "";
+    if (desc.startsWith("[ALASAN TERLAMBAT]")) {
+      actionType = "delay_reason";
+    } else if (desc.startsWith("[EDIT DATA]")) {
+      actionType = "edit_data";
+    }
+
+    supabase.functions.invoke("notify-staff-update", {
+      body: {
+        update_id: data.id,
+        order_id: payload.order_id,
+        status: payload.status,
+        updated_by: payload.updated_by,
+        action: actionType,
+        note_content: desc
+      }
+    }).catch(console.error);
+
+    if (order) {
+      const actorName = hasRole("admin") ? "Admin" : hasRole("owner") ? "Owner" : profile?.full_name || "Teknisi";
+      createInternalNotification(
+        actionType,
+        order.id,
+        order.ticket_number,
+        `${order.device_brand} ${order.device_model}`,
+        actorName,
+        payload.status,
+        desc,
+        order.assigned_technician
+      );
+    }
+    
+    return { data, error };
+  };
+
   const fetchData = async () => {
     if (!ticketId) return;
     const fetchRun = ++fetchRunRef.current;
@@ -492,6 +615,20 @@ export default function OrderDetailPage() {
             note_content: content,
           },
         }).catch((err) => console.error("Failed to send notepad notification", err));
+
+        if (order) {
+          const actorName = hasRole("admin") ? "Admin" : hasRole("owner") ? "Owner" : profile?.full_name || "Teknisi";
+          createInternalNotification(
+            "note_create",
+            order.id,
+            order.ticket_number,
+            `${order.device_brand} ${order.device_model}`,
+            actorName,
+            order.status,
+            content,
+            order.assigned_technician
+          );
+        }
       }
     } else {
       toast.error("Gagal menambahkan catatan");
@@ -825,7 +962,7 @@ export default function OrderDetailPage() {
       .eq("id", order.id);
 
     // Log confirmation as note on current status (no status change)
-    await supabase.from("service_updates").insert({
+    await insertServiceUpdate({
       order_id: order.id,
       status: order.status as any,
       description: confirmDesc,
@@ -861,7 +998,7 @@ export default function OrderDetailPage() {
       .from("service_orders")
       .update({ status: "Close" as any })
       .eq("id", order.id);
-    await supabase.from("service_updates").insert({
+    await insertServiceUpdate({
       order_id: order.id,
       status: "Close" as any,
       description: "Unit telah diambil oleh pelanggan",
@@ -886,7 +1023,7 @@ export default function OrderDetailPage() {
         final_cost: null,
       })
       .eq("id", order.id);
-    await supabase.from("service_updates").insert({
+    await insertServiceUpdate({
       order_id: order.id,
       status: "Perbaikan" as any,
       description: `[ROLLBACK] Dikembalikan ke Perbaikan: ${rollbackNote.trim()}`,
@@ -928,7 +1065,7 @@ export default function OrderDetailPage() {
     }
 
     await supabase.from("service_orders").update(updateData).eq("id", order.id);
-    await supabase.from("service_updates").insert({
+    await insertServiceUpdate({
       order_id: order.id,
       status: ownerRollbackTarget as any,
       description: `[${isForward ? "OVERRIDE" : "ROLLBACK"} oleh Owner] ${isForward ? "Diubah" : "Dikembalikan"} dari ${order.status} ke ${ownerRollbackTarget}: ${ownerRollbackNote.trim()}${reassignTechId ? ` | Teknisi diubah` : ""}`,
@@ -964,7 +1101,7 @@ export default function OrderDetailPage() {
         ? `[QC] Komponen tidak berfungsi: ${failedComponents.join(", ")}. ${qcNote}`
         : `[QC] Semua komponen berfungsi baik. ${qcNote}`;
 
-    await supabase.from("service_updates").insert({
+    await insertServiceUpdate({
       order_id: order.id,
       status: "Selesai" as any,
       description: qcSummary,
@@ -1024,7 +1161,7 @@ export default function OrderDetailPage() {
         return;
       }
 
-      await supabase.from("service_updates").insert({
+      await insertServiceUpdate({
         order_id: order.id,
         status: pendingStatus as any,
         description: publicNote.trim(),
@@ -1067,7 +1204,7 @@ export default function OrderDetailPage() {
         toast.error(`Gagal update status (Close): ${updateError.message}`);
         return;
       }
-      await supabase.from("service_updates").insert({
+      await insertServiceUpdate({
         order_id: order.id,
         status: pendingStatus as any,
         description: statusNote.trim() || "Unit telah diambil oleh pelanggan",
@@ -1101,7 +1238,7 @@ export default function OrderDetailPage() {
       return;
     }
 
-    await supabase.from("service_updates").insert({
+    await insertServiceUpdate({
       order_id: order.id,
       status: pendingStatus as any,
       description: statusNote.trim(),
@@ -1120,7 +1257,7 @@ export default function OrderDetailPage() {
       toast.error("Alasan pembatalan wajib diisi!");
       return;
     }
-    await supabase.from("service_updates").insert({
+    await insertServiceUpdate({
       order_id: order.id,
       status: "Cancelled" as any,
       description: cancelReason,
@@ -1139,7 +1276,7 @@ export default function OrderDetailPage() {
       toast.error("Alasan reaktivasi wajib diisi!");
       return;
     }
-    await supabase.from("service_updates").insert({
+    await insertServiceUpdate({
       order_id: order.id,
       status: "Diterima" as any,
       description: `[REAKTIVASI oleh Owner] ${reactivateReason}`,
@@ -1162,7 +1299,7 @@ export default function OrderDetailPage() {
       .from("service_orders")
       .update({ status: "Close" as any })
       .eq("id", order.id);
-    await supabase.from("service_updates").insert({
+    await insertServiceUpdate({
       order_id: order.id,
       status: "Close" as any,
       description: "Unit dari tiket yang dibatalkan telah diambil kembali oleh pelanggan",
@@ -1191,7 +1328,7 @@ export default function OrderDetailPage() {
       })
       .eq("id", order.id);
 
-    await supabase.from("service_updates").insert({
+    await insertServiceUpdate({
       order_id: order.id,
       status: "Siap diAmbil" as any,
       description: `Invoice dibuat. Total: Rp ${total.toLocaleString("id-ID")}`,
@@ -1258,7 +1395,7 @@ export default function OrderDetailPage() {
     if (editForm.service_type !== order.service_type) changes.push("Tipe Servis");
 
     const changeSummary = changes.length > 0 ? changes.join(", ") : "Data tiket";
-    await supabase.from("service_updates").insert({
+    await insertServiceUpdate({
       order_id: order.id,
       status: order.status as any,
       description: `[EDIT DATA] ${changeSummary} diperbarui oleh ${profile?.full_name || "Staff"}`,
@@ -1282,7 +1419,7 @@ export default function OrderDetailPage() {
       return;
     }
     await supabase.from("service_orders").update({ assigned_technician: reassignNewTechId }).eq("id", order.id);
-    await supabase.from("service_updates").insert({
+    await insertServiceUpdate({
       order_id: order.id,
       status: order.status as any,
       description: `[REASSIGN oleh Owner] Teknisi diubah`,
@@ -1341,7 +1478,7 @@ export default function OrderDetailPage() {
         is_read_by: [user!.id],
       } as any);
 
-      await supabase.from("service_updates").insert({
+      await insertServiceUpdate({
         order_id: order.id,
         status: order.status as any,
         description: `[ALASAN TERLAMBAT] ${reason}`,
@@ -2771,3 +2908,4 @@ export default function OrderDetailPage() {
     </DashboardLayout>
   );
 }
+

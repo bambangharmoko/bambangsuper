@@ -144,8 +144,25 @@ export default function CustomerManagementPage() {
       return;
     }
 
+    // Sync to service_orders (only if _is_linked_customer = true and phone matches)
+    const { data: tickets } = await supabase
+      .from("service_orders")
+      .select("id")
+      .eq("customer_phone", editCustomer.customer_phone)
+      .contains("unit_checks", { _is_linked_customer: true });
+      
+    if (tickets && tickets.length > 0) {
+      await supabase.from("service_orders").update({
+        customer_name: editName.trim(),
+        customer_phone: editPhone.trim(),
+      }).in("id", tickets.map(t => t.id));
+      toast.success(
+        tickets.length > 0
+          ? `Data pelanggan diperbarui & tersinkronisasi ke ${tickets.length} tiket`
           : "Data pelanggan diperbarui"
       );
+    } else {
+      toast.success("Data pelanggan diperbarui");
     }
 
     setEditOpen(false);

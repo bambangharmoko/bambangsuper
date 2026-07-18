@@ -8,7 +8,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, ArrowLeft, Phone, Mail, Monitor, RefreshCw, Printer } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Phone, Mail, Monitor, RefreshCw, Printer, CheckCircle } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -472,20 +472,24 @@ export default function TrackPage() {
                   }
                 }
                 
-                // 2. Identify unchecked items
+                // 2. Identify checked vs unchecked items
                 const uncheckedItems: string[] = [];
+                const checkedItems: string[] = [];
+                
                 for (const item of STANDARD_CHECK_ITEMS) {
-                  // If it's explicitly false, or missing completely
+                  const label = item === "Wifi" ? "Wi-Fi" : item;
                   if (!validChecks[item]) {
-                    // For display, format Wifi -> Wi-Fi as requested
-                    uncheckedItems.push(item === "Wifi" ? "Wi-Fi" : item);
+                    uncheckedItems.push(label);
+                  } else {
+                    checkedItems.push(label);
                   }
                 }
                 
-                // Add any non-standard items that are explicitly false
+                // Add any non-standard items
                 for (const [k, v] of Object.entries(validChecks)) {
-                  if (!STANDARD_CHECK_ITEMS.includes(k) && !v) {
-                    uncheckedItems.push(k);
+                  if (!STANDARD_CHECK_ITEMS.includes(k)) {
+                    if (!v) uncheckedItems.push(k);
+                    else checkedItems.push(k);
                   }
                 }
                 
@@ -497,17 +501,41 @@ export default function TrackPage() {
                 }
                 
                 if (uncheckedItems.length === 0) {
-                  return <p className="text-sm text-success-foreground font-medium">Seluruh kondisi unit telah diperiksa dan dalam kondisi baik.</p>;
+                  return <p className="text-sm text-success-foreground font-medium flex items-center gap-2"><CheckCircle className="h-4 w-4" /> Seluruh kondisi unit telah diperiksa dan dalam kondisi baik.</p>;
                 }
                 
-                // Some are unchecked
-                const formatList = (list: string[]) => {
-                  if (list.length === 1) return list[0];
-                  if (list.length === 2) return `${list[0]} dan ${list[1]}`;
-                  return `${list.slice(0, -1).join(", ")}, dan ${list[list.length - 1]}`;
-                };
-                
-                return <p className="text-sm text-destructive-foreground">{formatList(uncheckedItems)} tidak dapat diperiksa atau terindikasi tidak dalam kondisi baik.</p>;
+                // Mixed state
+                return (
+                  <div className="space-y-4">
+                    {checkedItems.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold text-green-700 dark:text-green-500">Kondisi Baik</p>
+                        <div className="flex flex-wrap gap-2">
+                          {checkedItems.map((item) => (
+                            <div key={item} className="flex items-center gap-1.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 rounded-md px-2.5 py-1 text-xs">
+                              <CheckCircle className="h-3.5 w-3.5" />
+                              <span>{item}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {uncheckedItems.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold text-amber-600 dark:text-amber-500">Tidak Dapat Diperiksa / Perlu Perhatian</p>
+                        <div className="flex flex-wrap gap-2">
+                          {uncheckedItems.map((item) => (
+                            <div key={item} className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 rounded-md px-2.5 py-1 text-xs">
+                              <AlertTriangle className="h-3.5 w-3.5" />
+                              <span>{item}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
               })()}
             </CardContent>
           </Card>

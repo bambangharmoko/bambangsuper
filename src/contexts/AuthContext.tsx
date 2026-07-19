@@ -301,7 +301,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const token = await registerSwAndGetToken().catch(() => null);
         if (token) {
-          await supabase.rpc("remove_push_token", { token_to_remove: token });
+          await (supabase.rpc as any)("remove_push_token", { token_to_remove: token });
         }
         await unregisterFCMToken();
         await closeAllNotifications();

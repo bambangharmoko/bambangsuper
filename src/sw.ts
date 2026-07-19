@@ -93,6 +93,22 @@ registerRoute(
   })
 );
 
+// 6. Dynamic Assets (JS/CSS dari Code Splitting yang tidak di-precache)
+registerRoute(
+  ({ request, url }) =>
+    request.destination === "script" ||
+    request.destination === "style" ||
+    url.pathname.endsWith(".js") ||
+    url.pathname.endsWith(".css"),
+  new StaleWhileRevalidate({
+    cacheName: "dynamic-assets",
+    plugins: [
+      new CacheableResponsePlugin({ statuses: [0, 200] }),
+      new ExpirationPlugin({ maxAgeSeconds: 60 * 60 * 24 * 30, maxEntries: 100 }), // 30 hari
+    ],
+  })
+);
+
 // ── Install & Activate ─────────────────────────────────────────────────────
 self.addEventListener("install", () => {
   self.skipWaiting();

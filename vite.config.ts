@@ -33,8 +33,12 @@ export default defineConfig(({ mode: _mode }) => ({
       injectManifest: {
         // Glob patterns aset yang akan di-precache
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
-        // Jangan precache service worker Firebase itu sendiri
-        globIgnores: ["firebase-messaging-sw.js", "staff-notifications-sw.js"],
+        // Jangan precache service worker Firebase, dan jangan precache async chunks
+        globIgnores: [
+          "firebase-messaging-sw.js", 
+          "staff-notifications-sw.js",
+          "assets/async/*.js"
+        ],
         // Rollup input untuk SW (TypeScript)
         rollupFormat: "es",
       },
@@ -46,6 +50,39 @@ export default defineConfig(({ mode: _mode }) => ({
       registerType: "autoUpdate",
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        chunkFileNames: (chunkInfo) => {
+          // Masukkan halaman (dynamic entry) atau chunk async ke folder async (di-ignore oleh PWA precache)
+          if (chunkInfo.isDynamicEntry || chunkInfo.name.includes("async")) {
+            return "assets/async/[name]-[hash].js";
+          }
+          // Masukkan file vendor/core ke folder core agar ter-precache
+          return "assets/core/[name]-[hash].js";
+        },
+        entryFileNames: "assets/core/[name]-[hash].js",
+        assetFileNames: "assets/[name]-[hash][extname]",
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("/react/") || id.includes("/react-dom/") || id.includes("/react-router/")) {
+              return "vendor-react";
+            }
+            if (id.includes("@supabase")) {
+              return "vendor-supabase";
+            }
+            if (id.includes("lucide-react") || id.includes("recharts") || id.includes("html5-qrcode")) {
+              return "async-vendor-heavy";
+            }
+            if (id.includes("date-fns") || id.includes("react-day-picker")) {
+              return "async-vendor-date";
+            }
+            return "vendor-core";
+          }
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

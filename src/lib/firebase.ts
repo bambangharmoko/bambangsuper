@@ -1,5 +1,5 @@
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
-import { getMessaging, getToken, onMessage, type Messaging } from "firebase/messaging";
+import { getMessaging, getToken, deleteToken, onMessage, type Messaging } from "firebase/messaging";
 import { supabase } from "@/integrations/supabase/client";
 
 interface FirebaseConfig {
@@ -181,6 +181,41 @@ export const registerSwAndGetToken = async (): Promise<string | null> => {
   } catch (err) {
     console.error("[Firebase] getToken() gagal:", err);
     return null;
+  }
+};
+
+export const unregisterFCMToken = async (): Promise<boolean> => {
+  if (!isMessagingSupported()) return false;
+  try {
+    const init = await initFirebase();
+    if (!init) return false;
+    
+    if (!messaging) messaging = getMessaging(init.app);
+    
+    const success = await deleteToken(messaging);
+    if (success) {
+      console.info("[Firebase] FCM token berhasil dihapus dari perangkat.");
+    } else {
+      console.warn("[Firebase] Gagal menghapus FCM token dari perangkat.");
+    }
+    return success;
+  } catch (err) {
+    console.error("[Firebase] Error saat menghapus token:", err);
+    return false;
+  }
+};
+
+export const closeAllNotifications = async (): Promise<void> => {
+  if (!isMessagingSupported()) return;
+  try {
+    const registration = await getMessagingRegistration();
+    if (!registration) return;
+    
+    const notifications = await registration.getNotifications();
+    notifications.forEach((n) => n.close());
+    console.info(`[Firebase] Berhasil menutup ${notifications.length} notifikasi aktif.`);
+  } catch (err) {
+    console.error("[Firebase] Gagal menutup notifikasi aktif:", err);
   }
 };
 

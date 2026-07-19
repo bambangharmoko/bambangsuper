@@ -37,6 +37,9 @@ Deno.serve(async (req) => {
     if (orderError) throw orderError;
     if (!order) return jsonResponse({ error: "Tiket tidak ditemukan" }, 404);
 
+    // Hapus token ini dari semua entitas lain untuk mencegah duplikasi
+    await admin.rpc("remove_push_token", { token_to_remove: fcm_token.trim() });
+
     const { error } = await admin.from("customer_push_tokens").upsert(
       {
         ticket_number: ticket,

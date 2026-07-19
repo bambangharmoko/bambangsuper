@@ -2,6 +2,8 @@ import { createContext, useContext, useCallback, useEffect, useState, useRef, Re
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { clearNavStack } from "@/hooks/useNavigationStack";
+import { registerSwAndGetToken, unregisterFCMToken, closeAllNotifications, isMessagingSupported } from "@/lib/firebase";
+import { useQueryClient } from "@tanstack/react-query";
 
 type AppRole = "owner" | "admin" | "technician";
 
@@ -109,6 +111,7 @@ const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number): Promise<
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<AuthContextType["profile"]>(null);
@@ -292,7 +295,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     const uid = userRef.current?.id;
+    
+    // Hapus FCM Token sebelum logout agar bisa pakai session saat ini untuk RPC
+    if (isMessagingSupported()) {
+      try {
+        const token = await registerSwAndGetToken().catch(() => null);
+        if (token) {
+          await supabase.rpc("remove_push_token", { token_to_remove: token });
+        }
+        await unregisterFCMToken();
+        await closeAllNotifications();
+      } catch (err) {
+        console.warn("Gagal membersihkan FCM token saat logout:", err);
+      }
+    }
+
     await supabase.auth.signOut();
+    queryClient.clear();
     clearSessionHint();
     clearCachedProfileAndRoles();
     if (uid) clearNavStack(uid);

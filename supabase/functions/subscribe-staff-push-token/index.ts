@@ -38,6 +38,10 @@ Deno.serve(async (req) => {
     if (approvedError) throw approvedError;
     if (!allowed || !approved) return jsonResponse({ error: "Akun belum diizinkan menerima notifikasi staff" }, 403);
 
+    // Hapus token ini dari semua akun lain (atau tabel lain) untuk mencegah duplikasi
+    // jika satu perangkat berganti akun.
+    await admin.rpc("remove_push_token", { token_to_remove: fcm_token.trim() });
+
     const { error } = await admin.from("staff_push_tokens").upsert(
       {
         user_id: userData.user.id,

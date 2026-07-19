@@ -888,6 +888,16 @@ export default function OrderDetailPage() {
   const handleNextStatus = (targetStatus?: string) => {
     const ns = targetStatus || nextStatus;
     if (!ns) return;
+
+    // VALIDATION: Block Admin/Owner from Diterima -> Diagnosa
+    if (order.status === "Diterima" && ns === "Diagnosa") {
+      if (isAdminOrOwner) {
+        const roleName = hasRole("owner") ? "Owner" : "Admin";
+        toast.error(`Role ${roleName} tidak dapat melakukan aksi ini.`);
+        return;
+      }
+    }
+
     if (order.status === "Perbaikan" && ns === "Selesai") {
       const initialChecks: Record<string, boolean> = {};
       QC_COMPONENTS.forEach((c) => {
@@ -1133,6 +1143,15 @@ export default function OrderDetailPage() {
   const isDiagnosaToKonfirmasi = order.status === "Diagnosa" && pendingStatus === "Menunggu Persetujuan Pelanggan";
 
   const confirmStatusUpdate = async () => {
+    if (order.status === "Diterima" && pendingStatus === "Diagnosa") {
+      if (isAdminOrOwner) {
+        const roleName = hasRole("owner") ? "Owner" : "Admin";
+        toast.error(`Role ${roleName} tidak dapat melakukan aksi ini.`);
+        setStatusDialogOpen(false);
+        return;
+      }
+    }
+
     if (isDiagnosaToKonfirmasi) {
       if (!publicNote.trim()) {
         toast.error("Keterangan publik wajib diisi!");
@@ -1797,10 +1816,10 @@ export default function OrderDetailPage() {
             {(() => {
               const STANDARD_CHECK_ITEMS = ["Speaker", "Camera", "Touchpad", "Keyboard", "Wifi", "LCD Panel"];
               const QC_COMPONENTS = ["Speaker", "Camera", "Touchpad", "Keyboard", "Wi-Fi", "USB Port", "LCD Panel"];
-              
+
               const validChecks: Record<string, boolean> = {};
               const qcChecksRead: Record<string, any> = {};
-              
+
               for (const [k, v] of Object.entries(unitChecks)) {
                 if (k.startsWith("_")) continue;
                 if (k.startsWith("qc_")) {
@@ -1894,7 +1913,7 @@ export default function OrderDetailPage() {
                         {(() => {
                           const uncheckedQc: string[] = [];
                           const checkedQc: string[] = [];
-                          
+
                           for (const item of QC_COMPONENTS) {
                             if (qcChecksRead[item] !== undefined) {
                               if (!qcChecksRead[item]) uncheckedQc.push(item);
@@ -2081,7 +2100,7 @@ export default function OrderDetailPage() {
                   let label = `→ ${ns}`;
                   if (order.status === "Diagnosa") {
                     if (ns === "Menunggu Persetujuan Pelanggan") label = "→ Menunggu Persetujuan Pelanggan";
-                    if (ns === "Menunggu Sparepart") label = "→ Menunggu Sparepart (Skip Konfirmasi)";
+                    if (ns === "Menunggu Sparepart") label = "→ Menunggu Sparepart";
                     if (ns === "Perbaikan") label = "→ Langsung Perbaikan";
                   } else if (order.status === "Menunggu Persetujuan Pelanggan") {
                     if (ns === "Perbaikan") label = "→ Langsung Perbaikan";

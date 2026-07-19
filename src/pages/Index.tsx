@@ -220,7 +220,10 @@ export default function IndexPage() {
       {/* ═══ Navbar ═══ */}
       <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
-          <span className="text-lg font-bold text-primary">Super Computer</span>
+          <div className="flex flex-col">
+            <span className="text-lg font-bold text-primary leading-tight">SUMTRA</span>
+            <span className="text-[10px] text-muted-foreground hidden sm:block leading-tight">Super Ultima Management, Tracking & Real-Time Application</span>
+          </div>
           <div className="flex items-center gap-3">
             <a
               href="https://www.tokopedia.com/superkomputer"
@@ -513,7 +516,7 @@ export default function IndexPage() {
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-sidebar-foreground/50">
             <span>© 2026 Super Computer Balikpapan.</span>
-            <span>Super Computer Apps by Bambang Harmoko</span>
+            <span>SUMTRA by Bambang Harmoko</span>
           </div>
         </div>
       </footer>

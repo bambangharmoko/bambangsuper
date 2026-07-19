@@ -141,7 +141,7 @@ self.addEventListener("push", (event: PushEvent) => {
   const notification = payload.notification || {};
   const data = payload.data || {};
 
-  const title = notification.title || data.title || "Super Komputer";
+  const title = notification.title || data.title || "SUMTRA";
   const body = notification.body || data.body || "";
   const icon = notification.icon || "/superkomputer.png";
   const badge = notification.badge || "/superkomputer.png";

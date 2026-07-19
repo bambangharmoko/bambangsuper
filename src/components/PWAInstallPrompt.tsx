@@ -137,7 +137,7 @@ export function PWAInstallPrompt() {
                   <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-0.5 shadow-lg shadow-blue-500/25">
                     <img
                       src="/superkomputer.png"
-                      alt="Super Komputer"
+                      alt="SUMTRA"
                       className="w-full h-full rounded-[14px] object-cover bg-white"
                     />
                   </div>
@@ -146,9 +146,9 @@ export function PWAInstallPrompt() {
                 {/* Text */}
                 <div className="flex-1 min-w-0 pr-6">
                   <p className="font-bold text-sm text-foreground leading-tight">
-                    Super Komputer
+                    SUMTRA
                   </p>
-                  <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 max-w-[200px] sm:max-w-xs leading-tight">
                     Install aplikasi untuk pengalaman lebih cepat
                   </p>
                 </div>
@@ -208,14 +208,14 @@ export function PWAInstallPrompt() {
                   <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-0.5 shadow-lg shadow-blue-500/25">
                     <img
                       src="/superkomputer.png"
-                      alt="Super Komputer"
+                      alt="SUMTRA"
                       className="w-full h-full rounded-[14px] object-cover bg-white"
                     />
                   </div>
                 </div>
                 <div className="flex-1 min-w-0 pr-6">
                   <p className="font-bold text-sm text-foreground leading-tight">
-                    Install Super Komputer
+                    Install SUMTRA
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Tambahkan ke Home Screen:

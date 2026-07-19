@@ -61,7 +61,7 @@ export function OpenInAppBanner() {
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
         <h2 className="text-xl font-bold text-foreground">Membuka Aplikasi...</h2>
         <p className="text-sm text-muted-foreground mt-2 text-center max-w-[250px]">
-          Anda sedang dialihkan ke Super Komputer App.
+          Anda sedang dialihkan ke SUMTRA.
         </p>
       </div>
     );
@@ -70,11 +70,13 @@ export function OpenInAppBanner() {
   // Fallback: Jika auto-redirect gagal (dilarang browser dsb), tampilkan tombol
   return (
     <div className="fixed inset-0 z-[99999] bg-background/95 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
-      <img src="/superkomputer.png" alt="Super Komputer" className="w-20 h-20 rounded-2xl mb-6 shadow-xl" />
-      <h2 className="text-2xl font-bold text-foreground mb-2">Buka di Aplikasi</h2>
-      <p className="text-sm text-muted-foreground text-center max-w-xs mb-8">
-        Lanjutkan di aplikasi Super Komputer untuk pengalaman yang lebih cepat dan nyaman.
-      </p>
+      <img src="/superkomputer.png" alt="SUMTRA" className="w-20 h-20 rounded-2xl mb-6 shadow-xl" />
+      <div className="space-y-2 mb-8">
+        <h2 className="text-xl font-bold text-foreground">Buka di Aplikasi</h2>
+        <p className="text-sm text-muted-foreground max-w-[280px] mx-auto">
+          Lanjutkan di aplikasi SUMTRA untuk pengalaman yang lebih cepat dan nyaman.
+        </p>
+      </div>
       
       <div className="flex flex-col gap-3 w-full max-w-[280px]">
         <button

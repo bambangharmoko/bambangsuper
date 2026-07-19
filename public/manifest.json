@@ -1,7 +1,7 @@
 {
-  "name": "Super Komputer",
-  "short_name": "Super Komputer",
-  "description": "Sistem manajemen servis dan perbaikan perangkat — Toko Super Komputer Balikpapan",
+  "name": "SUMTRA - Super Ultima Management, Tracking & Real-Time Application",
+  "short_name": "SUMTRA",
+  "description": "SUMTRA - Super Ultima Management, Tracking & Real-Time Application",
   "id": "/",
   "start_url": "/",
   "scope": "/",

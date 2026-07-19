@@ -66,9 +66,9 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       >
         <div className="p-4 border-b border-sidebar-border">
           <h1 className="text-lg font-bold text-sidebar-primary-foreground">
-            Super Computer
+            SUMTRA
           </h1>
-          <p className="text-xs text-sidebar-foreground/60">Service Management</p>
+          <p className="text-[10px] leading-tight text-sidebar-foreground/60 mt-0.5">Super Ultima Management, Tracking & Real-Time Application</p>
         </div>
 
         <nav className="flex-1 overflow-y-auto p-3 space-y-1">
@@ -122,7 +122,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             <Menu className="h-5 w-5" />
           </Button>
           {!sidebarOpen && (
-            <h1 className="text-sm font-bold transition-all duration-300">Super Computer</h1>
+            <h1 className="text-sm font-bold transition-all duration-300">SUMTRA</h1>
           )}
           <div className="flex-1" />
           <NotificationBell />

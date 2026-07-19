@@ -8,7 +8,7 @@ export function AppLoading() {
           <div className="absolute inset-5 rounded-full bg-card shadow-lg shadow-primary/20" />
           <img
             src="/superkomputer.png"
-            alt="Super Komputer"
+            alt="SUMTRA"
             className="relative h-16 w-16 object-contain animate-pulse"
           />
         </div>

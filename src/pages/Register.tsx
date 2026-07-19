@@ -120,7 +120,7 @@ export default function RegisterPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle className="text-xl">Registrasi Staff</CardTitle>
-          <p className="text-sm text-muted-foreground">Super Computer Apps</p>
+          <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight mt-1">Super Ultima Management, Tracking & Real-Time Application</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleRegister} className="space-y-4">

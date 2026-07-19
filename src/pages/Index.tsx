@@ -189,9 +189,10 @@ export default function IndexPage() {
   };
 
   // ─── Categories for Tabs ─────────────────────────────────────────────────
-  const activeTickets = results.filter((o) => ["Diterima", "Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"].includes(o.status));
-  const completedTickets = results.filter((o) => ["Selesai", "Siap diAmbil"].includes(o.status));
-  const historyTickets = results.filter((o) => ["Close", "Cancelled"].includes(o.status));
+  const belumDikerjakan = results.filter((o) => ["Diterima"].includes(o.status));
+  const sedangDikerjakan = results.filter((o) => ["Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"].includes(o.status));
+  const selesaiPengerjaan = results.filter((o) => ["Selesai", "Siap diAmbil"].includes(o.status));
+  const unitClose = results.filter((o) => ["Close", "Cancelled"].includes(o.status));
 
   const renderCard = (order: OrderResult) => (
     <Card
@@ -282,43 +283,62 @@ export default function IndexPage() {
           ) : results.length === 0 ? (
             <p className="text-center text-muted-foreground">Tidak ada pesanan ditemukan untuk nomor tersebut.</p>
           ) : (
-            <div className="space-y-4 max-w-lg mx-auto">
-              <h3 className="font-semibold text-lg">Pesanan Ditemukan ({results.length})</h3>
-              
-              <Tabs defaultValue="active" className="w-full space-y-4">
-                <TabsList className="w-full grid grid-cols-3">
-                  <TabsTrigger value="active" className="text-xs sm:text-sm">
-                    Aktif ({activeTickets.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="completed" className="text-xs sm:text-sm">
-                    Selesai ({completedTickets.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="history" className="text-xs sm:text-sm">
-                    Riwayat ({historyTickets.length})
-                  </TabsTrigger>
-                </TabsList>
+            <div className="space-y-6 max-w-4xl mx-auto">
+              <Tabs defaultValue="belum_dikerjakan" className="w-full space-y-6">
+                <div className="w-full overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+                  <TabsList className="w-max sm:w-full grid grid-cols-4 min-w-[600px] sm:min-w-0 bg-muted/50 p-1">
+                    <TabsTrigger value="belum_dikerjakan" className="text-xs sm:text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                      Belum Dikerjakan ({belumDikerjakan.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="sedang_dikerjakan" className="text-xs sm:text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                      Sedang Dikerjakan ({sedangDikerjakan.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="selesai_pengerjaan" className="text-xs sm:text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                      Selesai Pengerjaan ({selesaiPengerjaan.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="unit_close" className="text-xs sm:text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                      Unit Close ({unitClose.length})
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
                 
-                <TabsContent value="active" className="space-y-3">
-                  {activeTickets.length === 0 ? (
-                    <p className="text-center text-sm text-muted-foreground py-4">Tidak ada tiket aktif.</p>
+                <TabsContent value="belum_dikerjakan" className="space-y-3 mt-0">
+                  {belumDikerjakan.length === 0 ? (
+                    <p className="text-center text-sm text-muted-foreground py-8">Tidak ada tiket pada kategori ini</p>
                   ) : (
-                    activeTickets.map(renderCard)
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {belumDikerjakan.map(renderCard)}
+                    </div>
                   )}
                 </TabsContent>
                 
-                <TabsContent value="completed" className="space-y-3">
-                  {completedTickets.length === 0 ? (
-                    <p className="text-center text-sm text-muted-foreground py-4">Tidak ada tiket selesai.</p>
+                <TabsContent value="sedang_dikerjakan" className="space-y-3 mt-0">
+                  {sedangDikerjakan.length === 0 ? (
+                    <p className="text-center text-sm text-muted-foreground py-8">Tidak ada tiket pada kategori ini</p>
                   ) : (
-                    completedTickets.map(renderCard)
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {sedangDikerjakan.map(renderCard)}
+                    </div>
                   )}
                 </TabsContent>
 
-                <TabsContent value="history" className="space-y-3">
-                  {historyTickets.length === 0 ? (
-                    <p className="text-center text-sm text-muted-foreground py-4">Tidak ada tiket riwayat.</p>
+                <TabsContent value="selesai_pengerjaan" className="space-y-3 mt-0">
+                  {selesaiPengerjaan.length === 0 ? (
+                    <p className="text-center text-sm text-muted-foreground py-8">Tidak ada tiket pada kategori ini</p>
                   ) : (
-                    historyTickets.map(renderCard)
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {selesaiPengerjaan.map(renderCard)}
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="unit_close" className="space-y-3 mt-0">
+                  {unitClose.length === 0 ? (
+                    <p className="text-center text-sm text-muted-foreground py-8">Tidak ada tiket pada kategori ini</p>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {unitClose.map(renderCard)}
+                    </div>
                   )}
                 </TabsContent>
               </Tabs>

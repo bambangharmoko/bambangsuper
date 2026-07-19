@@ -65,19 +65,17 @@ export default defineConfig(({ mode: _mode }) => ({
         assetFileNames: "assets/[name]-[hash][extname]",
         manualChunks(id) {
           if (id.includes("node_modules")) {
-            if (id.includes("/react/") || id.includes("/react-dom/") || id.includes("/react-router/")) {
-              return "vendor-react";
-            }
-            if (id.includes("@supabase")) {
-              return "vendor-supabase";
-            }
             if (id.includes("lucide-react") || id.includes("recharts") || id.includes("html5-qrcode")) {
               return "async-vendor-heavy";
             }
             if (id.includes("date-fns") || id.includes("react-day-picker")) {
               return "async-vendor-date";
             }
-            return "vendor-core";
+            if (id.includes("@supabase")) {
+              return "vendor-supabase";
+            }
+            // Biarkan Vite menangani sisa node_modules secara otomatis
+            // untuk menghindari Circular Dependency runtime yang menyebabkan Blank White Screen
           }
         },
       },

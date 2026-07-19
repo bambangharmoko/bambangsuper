@@ -164,21 +164,11 @@ export default function TrackPage() {
       const onData = () => fetchDataRef.current();
 
       const channel = supabase.channel(`track-order-${orderId}`);
-      // Filter by the specific order ID so Supabase delivers events even for
-      // unauthenticated/public users (no broad table-scan needed by RLS).
+      // Use the proxy table that is not blocked by RLS for public users
+      // This will trigger a refetch whenever the order status is updated
       channel.on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "service_orders", filter: `id=eq.${orderId}` },
-        onData,
-      );
-      channel.on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "service_updates", filter: `order_id=eq.${orderId}` },
-        onData,
-      );
-      channel.on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "service_photos", filter: `order_id=eq.${orderId}` },
+        { event: "*", schema: "public", table: "public_service_updates", filter: `order_id=eq.${orderId}` },
         onData,
       );
       return channel;

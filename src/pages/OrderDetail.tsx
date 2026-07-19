@@ -356,37 +356,37 @@ export default function OrderDetailPage() {
     try {
       const { data: staffRoles } = await supabase.from("user_roles").select("user_id, role").in("role", ["admin", "owner", "technician"]);
       const { data: approvedProfiles } = await supabase.from("profiles").select("id").eq("is_approved", true);
-      
+
       if (!staffRoles || !approvedProfiles) return;
-      
+
       const userRolesMap: Record<string, string[]> = {};
       for (const row of staffRoles) {
         if (!userRolesMap[row.user_id]) userRolesMap[row.user_id] = [];
         userRolesMap[row.user_id].push(row.role);
       }
-      
+
       const approvedIds = new Set(approvedProfiles.map(p => p.id));
       const targetUserIds = Object.keys(userRolesMap).filter(userId => {
         if (!approvedIds.has(userId)) return false;
         if (userId === user.id) return false;
-        
+
         const roles = userRolesMap[userId];
         const isAdminOrOwner = roles.includes("admin") || roles.includes("owner");
         const isTechnician = roles.includes("technician");
-        
+
         if (isTechnician && !isAdminOrOwner) {
           return assignedTech === userId;
         }
         return true;
       });
-      
+
       if (targetUserIds.length === 0) return;
-      
+
       const dbNotifications = targetUserIds.map(userId => {
         const isAssignedTech = userId === assignedTech;
         let userTitle = "Update Tiket";
         let userBody = `Ada perubahan pada tiket ${ticketNumber}.`;
-        
+
         if (action === "status_update") {
           userTitle = isAssignedTech ? "Update Tugas Anda" : "Update Status Tiket";
           userBody = isAssignedTech
@@ -409,7 +409,7 @@ export default function OrderDetailPage() {
             ? `${actorName} menambahkan memo pada tiket ${ticketNumber} (Tugas Anda).`
             : `Tiket ${ticketNumber} (${deviceStr}): ${actorName} menambahkan memo.`;
         }
-        
+
         return {
           user_id: userId,
           title: userTitle,
@@ -418,7 +418,7 @@ export default function OrderDetailPage() {
           is_read: false
         };
       });
-      
+
       await supabase.from("notifications").insert(dbNotifications);
     } catch (err) {
       console.error("Gagal insert internal notification", err);
@@ -428,7 +428,7 @@ export default function OrderDetailPage() {
   const insertServiceUpdate = async (payload: any) => {
     const { data, error } = await supabase.from("service_updates").insert(payload).select("id").single();
     if (error) throw error;
-    
+
     let actionType = "status_update";
     const desc = payload.description || "";
     if (desc.startsWith("[ALASAN TERLAMBAT]")) {
@@ -461,7 +461,7 @@ export default function OrderDetailPage() {
         order.assigned_technician
       );
     }
-    
+
     return { data, error };
   };
 
@@ -861,7 +861,7 @@ export default function OrderDetailPage() {
       ? isMyTicket && canCancel
       : canCancel;
   const canEdit = !isTechnician && order.status !== "Close";
-    const isLinkedCustomer = order?.unit_checks?._is_linked_customer === true;
+  const isLinkedCustomer = order?.unit_checks?._is_linked_customer === true;
   const canUpdateStatus = !isTechnician || isMyTicket;
   // Teknisi hanya bisa update sampai "Siap diAmbil" (tidak bisa Close)
   const techMaxStatus = "Siap diAmbil";
@@ -1784,7 +1784,7 @@ export default function OrderDetailPage() {
             <CardContent>
               {(() => {
                 const STANDARD_CHECK_ITEMS = ["Speaker", "Camera", "Touchpad", "Keyboard", "Wifi", "LCD Panel"];
-                
+
                 // 1. Filter out internal keys like _is_linked_customer
                 const validChecks: Record<string, boolean> = {};
                 for (const [k, v] of Object.entries(unitChecks)) {
@@ -1792,11 +1792,11 @@ export default function OrderDetailPage() {
                     validChecks[k] = Boolean(v);
                   }
                 }
-                
+
                 // 2. Identify checked vs unchecked items
                 const uncheckedItems: string[] = [];
                 const checkedItems: string[] = [];
-                
+
                 for (const item of STANDARD_CHECK_ITEMS) {
                   const label = item === "Wifi" ? "Wi-Fi" : item;
                   if (!validChecks[item]) {
@@ -1805,7 +1805,7 @@ export default function OrderDetailPage() {
                     checkedItems.push(label);
                   }
                 }
-                
+
                 // Add any non-standard items
                 for (const [k, v] of Object.entries(validChecks)) {
                   if (!STANDARD_CHECK_ITEMS.includes(k)) {
@@ -1813,18 +1813,18 @@ export default function OrderDetailPage() {
                     else checkedItems.push(k);
                   }
                 }
-                
+
                 // 3. Logic to display
                 const totalItems = STANDARD_CHECK_ITEMS.length + Object.keys(validChecks).filter(k => !STANDARD_CHECK_ITEMS.includes(k)).length;
-                
+
                 if (uncheckedItems.length === totalItems) {
                   return <p className="text-sm text-muted-foreground">Kondisi unit belum dapat diverifikasi atau unit tidak dalam kondisi baik saat pemeriksaan.</p>;
                 }
-                
+
                 if (uncheckedItems.length === 0) {
                   return <p className="text-sm text-success-foreground font-medium flex items-center gap-2"><CheckCircle className="h-4 w-4" /> Seluruh kondisi unit telah diperiksa dan dalam kondisi baik.</p>;
                 }
-                
+
                 // Mixed state
                 return (
                   <div className="space-y-4">
@@ -1841,10 +1841,10 @@ export default function OrderDetailPage() {
                         </div>
                       </div>
                     )}
-                    
+
                     {uncheckedItems.length > 0 && (
                       <div className="space-y-2">
-                        <p className="text-sm font-semibold text-amber-600 dark:text-amber-500">Tidak Dapat Diperiksa / Perlu Perhatian</p>
+                        <p className="text-sm font-semibold text-amber-600 dark:text-amber-500">Tidak Dapat Diperiksa / Tidak Berfungsi</p>
                         <div className="flex flex-wrap gap-2">
                           {uncheckedItems.map((item) => (
                             <div key={item} className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 rounded-md px-2.5 py-1 text-xs">

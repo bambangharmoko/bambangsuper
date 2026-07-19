@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { isRunningAsPWA, openInPWA } from "@/utils/pwa-redirect";
 import { supabase } from "@/integrations/supabase/client";
@@ -64,7 +64,7 @@ export default function TrackPage() {
       if (session && ticketId) {
         if (!isRunningAsPWA()) {
           const hasFired = sessionStorage.getItem(`pwa_intent_fired_${ticketId}`);
-          
+
           if (!hasFired) {
             sessionStorage.setItem(`pwa_intent_fired_${ticketId}`, "true");
             // Jika belum di dalam aplikasi PWA (masih di browser), paksa buka PWA
@@ -86,6 +86,7 @@ export default function TrackPage() {
   }, [ticketId, navigate]);
 
   const [order, setOrder] = useState<Order | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null);
   const [updates, setUpdates] = useState<Update[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,6 +94,11 @@ export default function TrackPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  // Use a ref so the channel builder can always call the latest fetchData
+  // without needing fetchData in its dependency array (which would cause
+  // the channel to rebuild on every render).
+  const fetchDataRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   const fetchData = useCallback(async () => {
     if (!ticketId) return;
@@ -110,6 +116,8 @@ export default function TrackPage() {
         return;
       }
       setOrder(orderData as Order);
+      // Store the resolved UUID so realtime can subscribe with a row-level filter.
+      setOrderId((orderData as Order).id);
       setNotFound(false);
 
       const [updatesRes, photosRes] = await Promise.all([
@@ -132,30 +140,57 @@ export default function TrackPage() {
     }
   }, [ticketId]);
 
+  // Keep the ref always pointing to the latest fetchData.
+  useEffect(() => {
+    fetchDataRef.current = fetchData;
+  }, [fetchData]);
+
   useEffect(() => {
     setLoading(true);
+    // Reset orderId when ticketId changes so the old channel is torn down first.
+    setOrderId(null);
     fetchData();
   }, [ticketId, fetchData]);
 
   // ─── Realtime: auto-refresh when order status changes ─────────────────────
+  // The channel is keyed by the resolved order UUID (not ticketId string) so
+  // Supabase can apply row-level filters. This also means the channel only
+  // activates after the first fetch resolves — preventing a race where we
+  // subscribe before we know which row to watch.
   const buildTrackChannel = useCallback(
     () => {
-      const channel = supabase.channel(`track-${ticketId}`);
-      channel.on("postgres_changes", { event: "*", schema: "public", table: "service_orders" }, () => {
-        fetchData();
-      });
-      channel.on("postgres_changes", { event: "*", schema: "public", table: "service_updates" }, () => {
-        fetchData();
-      });
-      channel.on("postgres_changes", { event: "*", schema: "public", table: "service_photos" }, () => {
-        fetchData();
-      });
+      // Use a stable callback via ref so channel builders never capture stale
+      // fetchData closures and don't need fetchData in their dependency array.
+      const onData = () => fetchDataRef.current();
+
+      const channel = supabase.channel(`track-order-${orderId}`);
+      // Filter by the specific order ID so Supabase delivers events even for
+      // unauthenticated/public users (no broad table-scan needed by RLS).
+      channel.on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "service_orders", filter: `id=eq.${orderId}` },
+        onData,
+      );
+      channel.on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "service_updates", filter: `order_id=eq.${orderId}` },
+        onData,
+      );
+      channel.on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "service_photos", filter: `order_id=eq.${orderId}` },
+        onData,
+      );
       return channel;
     },
-    [ticketId, fetchData],
+    // Re-build the channel only when the resolved order UUID changes.
+    // fetchData is intentionally omitted — accessed via fetchDataRef instead.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [orderId],
   );
 
-  useReconnectableChannel(!!ticketId, buildTrackChannel, fetchData);
+  // Activate realtime only after the order UUID is known (i.e. after first fetch).
+  useReconnectableChannel(!!orderId, buildTrackChannel, fetchData);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -463,7 +498,7 @@ export default function TrackPage() {
             <CardContent>
               {(() => {
                 const STANDARD_CHECK_ITEMS = ["Speaker", "Camera", "Touchpad", "Keyboard", "Wifi", "LCD Panel"];
-                
+
                 // 1. Filter out internal keys like _is_linked_customer
                 const validChecks: Record<string, boolean> = {};
                 for (const [k, v] of Object.entries(unitChecks)) {
@@ -471,11 +506,11 @@ export default function TrackPage() {
                     validChecks[k] = Boolean(v);
                   }
                 }
-                
+
                 // 2. Identify checked vs unchecked items
                 const uncheckedItems: string[] = [];
                 const checkedItems: string[] = [];
-                
+
                 for (const item of STANDARD_CHECK_ITEMS) {
                   const label = item === "Wifi" ? "Wi-Fi" : item;
                   if (!validChecks[item]) {
@@ -484,7 +519,7 @@ export default function TrackPage() {
                     checkedItems.push(label);
                   }
                 }
-                
+
                 // Add any non-standard items
                 for (const [k, v] of Object.entries(validChecks)) {
                   if (!STANDARD_CHECK_ITEMS.includes(k)) {
@@ -492,18 +527,18 @@ export default function TrackPage() {
                     else checkedItems.push(k);
                   }
                 }
-                
+
                 // 3. Logic to display
                 const totalItems = STANDARD_CHECK_ITEMS.length + Object.keys(validChecks).filter(k => !STANDARD_CHECK_ITEMS.includes(k)).length;
-                
+
                 if (uncheckedItems.length === totalItems) {
                   return <p className="text-sm text-muted-foreground">Kondisi unit belum dapat diverifikasi atau unit tidak dalam kondisi baik saat pemeriksaan.</p>;
                 }
-                
+
                 if (uncheckedItems.length === 0) {
                   return <p className="text-sm text-success-foreground font-medium flex items-center gap-2"><CheckCircle className="h-4 w-4" /> Seluruh kondisi unit telah diperiksa dan dalam kondisi baik.</p>;
                 }
-                
+
                 // Mixed state
                 return (
                   <div className="space-y-4">
@@ -520,10 +555,10 @@ export default function TrackPage() {
                         </div>
                       </div>
                     )}
-                    
+
                     {uncheckedItems.length > 0 && (
                       <div className="space-y-2">
-                        <p className="text-sm font-semibold text-amber-600 dark:text-amber-500">Tidak Dapat Diperiksa / Perlu Perhatian</p>
+                        <p className="text-sm font-semibold text-amber-600 dark:text-amber-500">Tidak Dapat Diperiksa / Tidak Berfungsi</p>
                         <div className="flex flex-wrap gap-2">
                           {uncheckedItems.map((item) => (
                             <div key={item} className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 rounded-md px-2.5 py-1 text-xs">

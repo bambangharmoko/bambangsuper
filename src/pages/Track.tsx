@@ -484,15 +484,15 @@ export default function TrackPage() {
           <div className="space-y-4 print:hidden">
             {(() => {
               const STANDARD_CHECK_ITEMS = ["Speaker", "Camera", "Touchpad", "Keyboard", "Wifi", "LCD Panel"];
-              const QC_COMPONENTS = ["Speaker", "Camera", "Touchpad", "Keyboard", "Wi-Fi", "USB Port", "LCD Panel", "Lainnya"];
+              const QC_COMPONENTS = ["Speaker", "Camera", "Touchpad", "Keyboard", "Wi-Fi", "USB Port", "LCD Panel"];
               
               const validChecks: Record<string, boolean> = {};
-              const qcChecks: Record<string, boolean> = {};
+              const qcChecks: Record<string, any> = {};
               
               for (const [k, v] of Object.entries(unitChecks)) {
                 if (k.startsWith("_")) continue;
                 if (k.startsWith("qc_")) {
-                  qcChecks[k.replace("qc_", "")] = Boolean(v);
+                  qcChecks[k.replace("qc_", "")] = v;
                 } else {
                   validChecks[k] = Boolean(v);
                 }
@@ -610,7 +610,7 @@ export default function TrackPage() {
 
                               {uncheckedQc.length > 0 && (
                                 <div className="space-y-2">
-                                  <p className="text-sm font-semibold text-amber-600 dark:text-amber-500">Tidak Lolos QC</p>
+                                  <p className="text-sm font-semibold text-amber-600 dark:text-amber-500">Tidak Lolos QC / Perlu Perhatian</p>
                                   <div className="flex flex-wrap gap-2">
                                     {uncheckedQc.map((item) => (
                                       <div key={item} className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 rounded-md px-2.5 py-1 text-xs">
@@ -618,6 +618,16 @@ export default function TrackPage() {
                                         <span>{item}</span>
                                       </div>
                                     ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {qcChecks.note_text && (
+                                <div className="space-y-2 pt-2 border-t border-border mt-2">
+                                  <p className="text-sm font-semibold text-muted-foreground">Komentar Tambahan</p>
+                                  <div className="text-sm flex items-start gap-2">
+                                    <StickyNote className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+                                    <span>{qcChecks.note_text}</span>
                                   </div>
                                 </div>
                               )}

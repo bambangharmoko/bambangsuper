@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -29,6 +29,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 interface OrderResult {
   id: string;
@@ -85,6 +86,13 @@ export default function IndexPage() {
   const [searched, setSearched] = useState(false);
   const navigate = useNavigate();
 
+  // ─── Realtime subscription refs ───────────────────────────────────────────
+  // Track the phone number that produced the current results for refetch.
+  const lastPhoneRef = useRef<string | null>(null);
+  // Hold the active Supabase realtime channel so we can clean it up.
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const retryRef = useRef<number | null>(null);
+
   // Auto-redirect: jika pengguna sudah login, langsung ke dashboard
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -94,6 +102,115 @@ export default function IndexPage() {
     });
   }, [navigate]);
 
+  // ─── Helpers: remove channel & retry ────────────────────────────────────
+  const clearRetry = useCallback(() => {
+    if (retryRef.current !== null) {
+      window.clearTimeout(retryRef.current);
+      retryRef.current = null;
+    }
+  }, []);
+
+  const removeChannel = useCallback(() => {
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+  }, []);
+
+  // ─── Fetch results by phone number ──────────────────────────────────────
+  const fetchByPhone = useCallback(async (phone: string): Promise<OrderResult[]> => {
+    const { data, error } = await (supabase.rpc as any)(
+      "get_public_orders_by_phone",
+      { _phone: phone }
+    );
+    if (error) {
+      console.error("Failed to query service orders by phone number:", error);
+      toast.error("Gagal mencari tiket: " + error.message);
+      return [];
+    }
+    return (data as OrderResult[]) || [];
+  }, []);
+
+  // ─── Subscribe to realtime changes for a set of order IDs ───────────────
+  // When any of the watched orders changes in the DB, we refetch the full
+  // list so the customer sees the latest status without a manual refresh.
+  // Each order gets its own row-level filter so Supabase delivers the event
+  // even for unauthenticated (public) sessions.
+  const subscribeToResults = useCallback((orderIds: string[], phone: string) => {
+    clearRetry();
+    removeChannel();
+    if (orderIds.length === 0) return;
+
+    const channelName = `public-search-${phone.replace(/\D/g, "")}-${Date.now()}`;
+    const channel = supabase.channel(channelName);
+
+    const onchange = async () => {
+      const currentPhone = lastPhoneRef.current;
+      if (!currentPhone) return;
+      const fresh = await fetchByPhone(currentPhone);
+      setResults(fresh);
+    };
+
+    // Attach a listener per order ID with a precise row-level filter.
+    for (const id of orderIds) {
+      channel.on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "service_orders", filter: `id=eq.${id}` },
+        onchange,
+      );
+    }
+
+    channel.subscribe((status) => {
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+        // Retry after 3 s, but only if the search results are still visible.
+        retryRef.current = window.setTimeout(() => {
+          if (lastPhoneRef.current && orderIds.length > 0) {
+            subscribeToResults(orderIds, lastPhoneRef.current);
+          }
+        }, 3000);
+      }
+    });
+
+    channelRef.current = channel;
+  }, [clearRetry, removeChannel, fetchByPhone]);
+
+  // ─── Online / visibility reconnect ──────────────────────────────────────
+  // When the user comes back online or focuses the tab, refetch and re-subscribe
+  // so any changes made while offline / in background are picked up immediately.
+  useEffect(() => {
+    const reconnect = async () => {
+      const phone = lastPhoneRef.current;
+      if (!phone) return;
+      const fresh = await fetchByPhone(phone);
+      setResults(fresh);
+      subscribeToResults(fresh.map((r) => r.id), phone);
+    };
+
+    const handleOnline = () => reconnect();
+    const handleFocus = () => reconnect();
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") reconnect();
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [fetchByPhone, subscribeToResults]);
+
+  // ─── Cleanup on unmount ──────────────────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      clearRetry();
+      removeChannel();
+    };
+  }, [clearRetry, removeChannel]);
+
+  // ─── Search handler ──────────────────────────────────────────────────────
   const handleSearch = async () => {
     const val = searchInput.trim();
     if (!val) return;
@@ -103,20 +220,22 @@ export default function IndexPage() {
       return;
     }
 
+    // Tear down any existing subscription before starting a new search.
+    clearRetry();
+    removeChannel();
+    lastPhoneRef.current = val;
+
     setSearching(true);
     setSearched(true);
 
-    const { data, error } = await (supabase.rpc as any)(
-      "get_public_orders_by_phone",
-      { _phone: val }
-    );
-
-    if (error) {
-      console.error("Failed to query service orders by phone number:", error);
-      toast.error("Gagal mencari tiket: " + error.message);
-    }
-    setResults((data as OrderResult[]) || []);
+    const data = await fetchByPhone(val);
+    setResults(data);
     setSearching(false);
+
+    // Subscribe to realtime updates for every order that was found.
+    if (data.length > 0) {
+      subscribeToResults(data.map((r) => r.id), val);
+    }
   };
 
   return (

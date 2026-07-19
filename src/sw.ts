@@ -143,8 +143,8 @@ self.addEventListener("push", (event: PushEvent) => {
 
   const title = notification.title || data.title || "SUMTRA";
   const body = notification.body || data.body || "";
-  const icon = notification.icon || "/superkomputer.png";
-  const badge = notification.badge || "/superkomputer.png";
+  const icon = notification.icon || "/sumtra.png";
+  const badge = notification.badge || "/sumtra.png";
   const tag = data.order_id
     ? `staff-ticket-${data.order_id}`
     : data.ticket_number || "service-update";

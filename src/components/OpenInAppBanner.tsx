@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { shouldShowOpenInAppBanner, openInPWA, dismissRedirectBanner } from "@/utils/pwa-redirect";
+import { AppLogo } from "./AppLogo";
 
 /**
  * PWA Auto Redirect & Banner
@@ -70,7 +71,7 @@ export function OpenInAppBanner() {
   // Fallback: Jika auto-redirect gagal (dilarang browser dsb), tampilkan tombol
   return (
     <div className="fixed inset-0 z-[99999] bg-background/95 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
-      <img src="/superkomputer.png" alt="SUMTRA" className="w-20 h-20 rounded-2xl mb-6 shadow-xl" />
+      <AppLogo className="w-20 h-20 rounded-2xl mb-6 shadow-xl bg-white p-2" />
       <div className="space-y-2 mb-8">
         <h2 className="text-xl font-bold text-foreground">Buka di Aplikasi</h2>
         <p className="text-sm text-muted-foreground max-w-[280px] mx-auto">

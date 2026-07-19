@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { LogIn, Eye, EyeOff } from "lucide-react";
+import { AppLogo } from "@/components/AppLogo";
 import { ForgotPasswordDialog } from "@/components/ForgotPasswordDialog";
 
 export default function LoginPage() {
@@ -75,7 +76,8 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
+        <CardHeader className="text-center flex flex-col items-center">
+          <AppLogo className="h-12 mb-2" />
           <CardTitle className="text-xl">Login Staff</CardTitle>
           <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight mt-1">Super Ultima Management, Tracking & Real-Time Application</p>
         </CardHeader>

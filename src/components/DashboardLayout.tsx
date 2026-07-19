@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { ProfileDialog } from "@/components/ProfileDialog";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useStaffRealtimeNotifications } from "@/hooks/useStaffRealtimeNotifications";
+import { AppLogo } from "./AppLogo";
 
 const navItems = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard, roles: ["owner", "admin"] as const },
@@ -65,9 +66,12 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         )}
       >
         <div className="p-4 border-b border-sidebar-border">
-          <h1 className="text-lg font-bold text-sidebar-primary-foreground">
-            SUMTRA
-          </h1>
+          <div className="flex items-center gap-2">
+            <AppLogo className="h-6" />
+            <h1 className="text-lg font-bold text-sidebar-primary-foreground hidden lg:block">
+              SUMTRA
+            </h1>
+          </div>
           <p className="text-[10px] leading-tight text-sidebar-foreground/60 mt-0.5">Super Ultima Management, Tracking & Real-Time Application</p>
         </div>
 
@@ -122,7 +126,10 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             <Menu className="h-5 w-5" />
           </Button>
           {!sidebarOpen && (
-            <h1 className="text-sm font-bold transition-all duration-300">SUMTRA</h1>
+            <div className="flex items-center gap-2 transition-all duration-300">
+              <AppLogo className="h-5" />
+              <h1 className="text-sm font-bold hidden sm:block">SUMTRA</h1>
+            </div>
           )}
           <div className="flex-1" />
           <NotificationBell />

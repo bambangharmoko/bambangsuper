@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { UserPlus, Mail, Eye, EyeOff } from "lucide-react";
+import { AppLogo } from "@/components/AppLogo";
 import { getErrorMessage } from "@/lib/utils";
 
 export default function RegisterPage() {
@@ -118,7 +119,8 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
+        <CardHeader className="text-center flex flex-col items-center">
+          <AppLogo className="h-12 mb-2" />
           <CardTitle className="text-xl">Registrasi Staff</CardTitle>
           <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight mt-1">Super Ultima Management, Tracking & Real-Time Application</p>
         </CardHeader>

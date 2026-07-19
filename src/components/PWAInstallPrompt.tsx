@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Download, X, Share, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AppLogo } from "./AppLogo";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -135,11 +136,7 @@ export function PWAInstallPrompt() {
                 {/* App Icon */}
                 <div className="relative shrink-0">
                   <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-0.5 shadow-lg shadow-blue-500/25">
-                    <img
-                      src="/superkomputer.png"
-                      alt="SUMTRA"
-                      className="w-full h-full rounded-[14px] object-cover bg-white"
-                    />
+                    <AppLogo className="w-full h-full rounded-[14px] object-cover bg-white" />
                   </div>
                 </div>
 
@@ -206,11 +203,7 @@ export function PWAInstallPrompt() {
               <div className="flex items-center gap-3.5 mb-3">
                 <div className="relative shrink-0">
                   <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-0.5 shadow-lg shadow-blue-500/25">
-                    <img
-                      src="/superkomputer.png"
-                      alt="SUMTRA"
-                      className="w-full h-full rounded-[14px] object-cover bg-white"
-                    />
+                    <AppLogo className="w-full h-full rounded-[14px] object-cover bg-white" />
                   </div>
                 </div>
                 <div className="flex-1 min-w-0 pr-6">

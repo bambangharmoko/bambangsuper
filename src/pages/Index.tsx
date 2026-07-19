@@ -21,7 +21,9 @@ import {
   Building2,
   Award,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
+import { AppLogo } from "@/components/AppLogo";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -220,8 +222,8 @@ export default function IndexPage() {
       {/* ═══ Navbar ═══ */}
       <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex flex-col">
-            <span className="text-lg font-bold text-primary leading-tight">SUMTRA</span>
+          <div className="flex flex-col items-start gap-1">
+            <AppLogo className="h-8" />
             <span className="text-[10px] text-muted-foreground hidden sm:block leading-tight">Super Ultima Management, Tracking & Real-Time Application</span>
           </div>
           <div className="flex items-center gap-3">

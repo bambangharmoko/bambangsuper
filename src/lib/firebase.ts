@@ -176,6 +176,9 @@ export const registerSwAndGetToken = async (): Promise<string | null> => {
       return null;
     }
 
+    // Simpan ke localStorage agar bisa diakses pasti saat logout tanpa perlu nembak API Firebase lagi
+    localStorage.setItem("active_fcm_token", token);
+
     console.info("[Firebase] FCM token berhasil didapat:", token.substring(0, 20) + "...");
     return token;
   } catch (err) {
@@ -190,14 +193,25 @@ export const unregisterFCMToken = async (): Promise<boolean> => {
     const init = await initFirebase();
     if (!init) return false;
     
+    // 1. Unsubscribe Native PushManager secara paksa
+    const registration = await getMessagingRegistration();
+    if (registration && registration.pushManager) {
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        await subscription.unsubscribe();
+        console.info("[Firebase] PushManager native berhasil di-unsubscribe.");
+      }
+    }
+
+    // 2. Hapus token dari instance Firebase SDK
     if (!messaging) messaging = getMessaging(init.app);
-    
     const success = await deleteToken(messaging);
     if (success) {
-      console.info("[Firebase] FCM token berhasil dihapus dari perangkat.");
+      console.info("[Firebase] FCM token berhasil dihapus dari perangkat (SDK).");
     } else {
-      console.warn("[Firebase] Gagal menghapus FCM token dari perangkat.");
+      console.warn("[Firebase] Gagal menghapus FCM token dari SDK.");
     }
+    
     return success;
   } catch (err) {
     console.error("[Firebase] Error saat menghapus token:", err);

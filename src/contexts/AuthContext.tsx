@@ -299,9 +299,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Hapus FCM Token sebelum logout agar bisa pakai session saat ini untuk RPC
     if (isMessagingSupported()) {
       try {
-        const token = await registerSwAndGetToken().catch(() => null);
-        if (token) {
-          await (supabase.rpc as any)("remove_push_token", { token_to_remove: token });
+        const activeToken = localStorage.getItem("active_fcm_token");
+        if (activeToken) {
+          await (supabase.rpc as any)("remove_push_token", { token_to_remove: activeToken });
+          localStorage.removeItem("active_fcm_token");
         }
         await unregisterFCMToken();
         await closeAllNotifications();

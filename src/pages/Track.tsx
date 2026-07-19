@@ -590,9 +590,7 @@ export default function TrackPage() {
                             }
                           }
 
-                          if (uncheckedQc.length === 0 && checkedQc.length > 0) {
-                            return <p className="text-sm text-success-foreground font-medium flex items-center gap-2"><CheckCircle className="h-4 w-4" /> Seluruh komponen Quality Control telah diperiksa dan dalam kondisi baik.</p>;
-                          }
+
 
                           return (
                             <div className="space-y-4">

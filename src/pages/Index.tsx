@@ -122,6 +122,24 @@ export default function IndexPage() {
     orderIdsRef.current = fresh.map(r => r.id);
   }, [fetchByPhone]);
 
+  // Handle incoming realtime events by updating local state directly
+  // This avoids caching issues and is instant.
+  const handleRealtimeUpdate = useCallback((payload: any) => {
+    const newRecord = payload.new;
+    if (!newRecord || !newRecord.id) return;
+
+    setResults(prevResults => {
+      // Ignore if this ticket is not currently shown
+      const index = prevResults.findIndex(r => r.id === newRecord.id);
+      if (index === -1) return prevResults;
+
+      // Merge the updated fields into the existing record
+      const newResults = [...prevResults];
+      newResults[index] = { ...newResults[index], ...newRecord };
+      return newResults;
+    });
+  }, []);
+
   // Derived stable string to prevent channel rebuild on status change
   const activeOrderIdsStr = orderIdsRef.current.sort().join(',');
 
@@ -133,17 +151,16 @@ export default function IndexPage() {
     // The channel will be named based on the phone number
     const channel = supabase.channel(`public-search-${phone.replace(/\D/g, "")}`);
     
-    // Subscribe to changes for all current ticket IDs
-    ids.forEach(id => {
-      channel.on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "service_orders", filter: `id=eq.${id}` },
-        fetchResults
-      );
-    });
+    // Subscribe to ALL changes in service_orders and filter locally
+    // This avoids the issue where multiple .on() calls for the same table overwrite each other
+    channel.on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "service_orders" },
+      handleRealtimeUpdate
+    );
 
     return channel;
-  }, [activeOrderIdsStr, fetchResults]); // safe to use activeOrderIdsStr since we only want to rebuild if IDs change
+  }, [activeOrderIdsStr, handleRealtimeUpdate]);
 
   // Use the established internal pattern for automatic reconnects and focus/online syncing
   useReconnectableChannel(results.length > 0, buildChannel, fetchResults);

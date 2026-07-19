@@ -126,16 +126,16 @@ export default function IndexPage() {
   // This avoids caching issues and is instant.
   const handleRealtimeUpdate = useCallback((payload: any) => {
     const newRecord = payload.new;
-    if (!newRecord || !newRecord.id) return;
+    if (!newRecord || !newRecord.order_id) return;
 
     setResults(prevResults => {
       // Ignore if this ticket is not currently shown
-      const index = prevResults.findIndex(r => r.id === newRecord.id);
+      const index = prevResults.findIndex(r => r.id === newRecord.order_id);
       if (index === -1) return prevResults;
 
       // Merge the updated fields into the existing record
       const newResults = [...prevResults];
-      newResults[index] = { ...newResults[index], ...newRecord };
+      newResults[index] = { ...newResults[index], status: newRecord.status };
       return newResults;
     });
   }, []);
@@ -151,11 +151,11 @@ export default function IndexPage() {
     // The channel will be named based on the phone number
     const channel = supabase.channel(`public-search-${phone.replace(/\D/g, "")}`);
     
-    // Subscribe to ALL changes in service_orders and filter locally
-    // This avoids the issue where multiple .on() calls for the same table overwrite each other
+    // Subscribe to ALL changes in public_service_updates and filter locally
+    // This proxy table safely bypasses the strict RLS on service_orders for anon users
     channel.on(
       "postgres_changes",
-      { event: "*", schema: "public", table: "service_orders" },
+      { event: "*", schema: "public", table: "public_service_updates" },
       handleRealtimeUpdate
     );
 

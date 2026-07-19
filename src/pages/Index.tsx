@@ -29,6 +29,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useReconnectableChannel } from "@/hooks/useReconnectableChannel";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 interface OrderResult {
@@ -87,11 +89,8 @@ export default function IndexPage() {
   const navigate = useNavigate();
 
   // ─── Realtime subscription refs ───────────────────────────────────────────
-  // Track the phone number that produced the current results for refetch.
   const lastPhoneRef = useRef<string | null>(null);
-  // Hold the active Supabase realtime channel so we can clean it up.
-  const channelRef = useRef<RealtimeChannel | null>(null);
-  const retryRef = useRef<number | null>(null);
+  const orderIdsRef = useRef<string[]>([]);
 
   // Auto-redirect: jika pengguna sudah login, langsung ke dashboard
   useEffect(() => {
@@ -101,21 +100,6 @@ export default function IndexPage() {
       }
     });
   }, [navigate]);
-
-  // ─── Helpers: remove channel & retry ────────────────────────────────────
-  const clearRetry = useCallback(() => {
-    if (retryRef.current !== null) {
-      window.clearTimeout(retryRef.current);
-      retryRef.current = null;
-    }
-  }, []);
-
-  const removeChannel = useCallback(() => {
-    if (channelRef.current) {
-      supabase.removeChannel(channelRef.current);
-      channelRef.current = null;
-    }
-  }, []);
 
   // ─── Fetch results by phone number ──────────────────────────────────────
   const fetchByPhone = useCallback(async (phone: string): Promise<OrderResult[]> => {
@@ -131,84 +115,38 @@ export default function IndexPage() {
     return (data as OrderResult[]) || [];
   }, []);
 
-  // ─── Subscribe to realtime changes for a set of order IDs ───────────────
-  // When any of the watched orders changes in the DB, we refetch the full
-  // list so the customer sees the latest status without a manual refresh.
-  // Each order gets its own row-level filter so Supabase delivers the event
-  // even for unauthenticated (public) sessions.
-  const subscribeToResults = useCallback((orderIds: string[], phone: string) => {
-    clearRetry();
-    removeChannel();
-    if (orderIds.length === 0) return;
+  const fetchResults = useCallback(async () => {
+    if (!lastPhoneRef.current) return;
+    const fresh = await fetchByPhone(lastPhoneRef.current);
+    setResults(fresh);
+    orderIdsRef.current = fresh.map(r => r.id);
+  }, [fetchByPhone]);
 
-    const channelName = `public-search-${phone.replace(/\D/g, "")}-${Date.now()}`;
-    const channel = supabase.channel(channelName);
+  // Derived stable string to prevent channel rebuild on status change
+  const activeOrderIdsStr = orderIdsRef.current.sort().join(',');
 
-    const onchange = async () => {
-      const currentPhone = lastPhoneRef.current;
-      if (!currentPhone) return;
-      const fresh = await fetchByPhone(currentPhone);
-      setResults(fresh);
-    };
+  const buildChannel = useCallback(() => {
+    const ids = orderIdsRef.current;
+    if (ids.length === 0) return supabase.channel('empty-channel');
 
-    // Attach a listener per order ID with a precise row-level filter.
-    for (const id of orderIds) {
+    const phone = lastPhoneRef.current || "";
+    // The channel will be named based on the phone number
+    const channel = supabase.channel(`public-search-${phone.replace(/\D/g, "")}`);
+    
+    // Subscribe to changes for all current ticket IDs
+    ids.forEach(id => {
       channel.on(
         "postgres_changes",
         { event: "*", schema: "public", table: "service_orders", filter: `id=eq.${id}` },
-        onchange,
+        fetchResults
       );
-    }
-
-    channel.subscribe((status) => {
-      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-        // Retry after 3 s, but only if the search results are still visible.
-        retryRef.current = window.setTimeout(() => {
-          if (lastPhoneRef.current && orderIds.length > 0) {
-            subscribeToResults(orderIds, lastPhoneRef.current);
-          }
-        }, 3000);
-      }
     });
 
-    channelRef.current = channel;
-  }, [clearRetry, removeChannel, fetchByPhone]);
+    return channel;
+  }, [activeOrderIdsStr, fetchResults]); // safe to use activeOrderIdsStr since we only want to rebuild if IDs change
 
-  // ─── Online / visibility reconnect ──────────────────────────────────────
-  // When the user comes back online or focuses the tab, refetch and re-subscribe
-  // so any changes made while offline / in background are picked up immediately.
-  useEffect(() => {
-    const reconnect = async () => {
-      const phone = lastPhoneRef.current;
-      if (!phone) return;
-      const fresh = await fetchByPhone(phone);
-      setResults(fresh);
-      subscribeToResults(fresh.map((r) => r.id), phone);
-    };
-
-    const handleOnline = () => reconnect();
-    const handleFocus = () => reconnect();
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") reconnect();
-    };
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("focus", handleFocus);
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("focus", handleFocus);
-      document.removeEventListener("visibilitychange", handleVisibility);
-    };
-  }, [fetchByPhone, subscribeToResults]);
-
-  // ─── Cleanup on unmount ──────────────────────────────────────────────────
-  useEffect(() => {
-    return () => {
-      clearRetry();
-      removeChannel();
-    };
-  }, [clearRetry, removeChannel]);
+  // Use the established internal pattern for automatic reconnects and focus/online syncing
+  useReconnectableChannel(results.length > 0, buildChannel, fetchResults);
 
   // ─── Search handler ──────────────────────────────────────────────────────
   const handleSearch = async () => {
@@ -220,9 +158,7 @@ export default function IndexPage() {
       return;
     }
 
-    // Tear down any existing subscription before starting a new search.
-    clearRetry();
-    removeChannel();
+    // Store the phone number for refetching
     lastPhoneRef.current = val;
 
     setSearching(true);
@@ -230,13 +166,36 @@ export default function IndexPage() {
 
     const data = await fetchByPhone(val);
     setResults(data);
+    orderIdsRef.current = data.map((r) => r.id);
+    
     setSearching(false);
-
-    // Subscribe to realtime updates for every order that was found.
-    if (data.length > 0) {
-      subscribeToResults(data.map((r) => r.id), val);
-    }
   };
+
+  // ─── Categories for Tabs ─────────────────────────────────────────────────
+  const activeTickets = results.filter((o) => ["Diterima", "Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"].includes(o.status));
+  const completedTickets = results.filter((o) => ["Selesai", "Siap diAmbil"].includes(o.status));
+  const historyTickets = results.filter((o) => ["Close", "Cancelled"].includes(o.status));
+
+  const renderCard = (order: OrderResult) => (
+    <Card
+      key={order.id}
+      className="cursor-pointer hover:shadow-md transition-shadow"
+      onClick={() => navigate(`/track/${order.ticket_number}`)}
+    >
+      <CardContent className="p-4">
+        <div className="flex justify-between items-start">
+          <div>
+            <p className="font-semibold">{order.ticket_number}</p>
+            <p className="text-sm text-muted-foreground">{order.customer_name}</p>
+            <p className="text-xs text-muted-foreground">
+              {order.device_brand} — {order.service_type}
+            </p>
+          </div>
+          <StatusBadge status={order.status} />
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -306,28 +265,46 @@ export default function IndexPage() {
           ) : results.length === 0 ? (
             <p className="text-center text-muted-foreground">Tidak ada pesanan ditemukan untuk nomor tersebut.</p>
           ) : (
-            <div className="space-y-3 max-w-lg mx-auto">
+            <div className="space-y-4 max-w-lg mx-auto">
               <h3 className="font-semibold text-lg">Pesanan Ditemukan ({results.length})</h3>
-              {results.map((order) => (
-                <Card
-                  key={order.id}
-                  className="cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => navigate(`/track/${order.ticket_number}`)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-semibold">{order.ticket_number}</p>
-                        <p className="text-sm text-muted-foreground">{order.customer_name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {order.device_brand} — {order.service_type}
-                        </p>
-                      </div>
-                      <StatusBadge status={order.status} />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+              
+              <Tabs defaultValue="active" className="w-full space-y-4">
+                <TabsList className="w-full grid grid-cols-3">
+                  <TabsTrigger value="active" className="text-xs sm:text-sm">
+                    Aktif ({activeTickets.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="completed" className="text-xs sm:text-sm">
+                    Selesai ({completedTickets.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="history" className="text-xs sm:text-sm">
+                    Riwayat ({historyTickets.length})
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="active" className="space-y-3">
+                  {activeTickets.length === 0 ? (
+                    <p className="text-center text-sm text-muted-foreground py-4">Tidak ada tiket aktif.</p>
+                  ) : (
+                    activeTickets.map(renderCard)
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="completed" className="space-y-3">
+                  {completedTickets.length === 0 ? (
+                    <p className="text-center text-sm text-muted-foreground py-4">Tidak ada tiket selesai.</p>
+                  ) : (
+                    completedTickets.map(renderCard)
+                  )}
+                </TabsContent>
+
+                <TabsContent value="history" className="space-y-3">
+                  {historyTickets.length === 0 ? (
+                    <p className="text-center text-sm text-muted-foreground py-4">Tidak ada tiket riwayat.</p>
+                  ) : (
+                    historyTickets.map(renderCard)
+                  )}
+                </TabsContent>
+              </Tabs>
             </div>
           )}
         </section>

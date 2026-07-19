@@ -23,7 +23,7 @@
   <meta name="keywords" content="servis laptop, service center, super komputer, balikpapan" />
 
   <!-- Theme Color (Android Chrome & PC) -->
-  <meta name="theme-color" content="#2563eb" />
+  <meta name="theme-color" content="#050f3b" />
 
   <!-- ── iOS / Safari PWA ──────────────────────────────────────────────── -->
   <!-- Izinkan mode fullscreen di iOS -->
@@ -105,10 +105,10 @@
         setTimeout(function () { splash.remove(); }, 500);
       }
     }
-    // Sembunyikan saat React render selesai (root tidak kosong)
     var observer = new MutationObserver(function () {
       var root = document.getElementById('root');
       if (root && root.children.length > 0) {
+        if (root.querySelector('#app-loading-spinner')) return;
         observer.disconnect();
         hideSplash();
       }

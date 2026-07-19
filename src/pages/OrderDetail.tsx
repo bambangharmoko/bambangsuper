@@ -47,6 +47,7 @@ import {
   AlertTriangle,
   Printer,
   Trash2,
+  StickyNote,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -1053,7 +1054,11 @@ export default function OrderDetailPage() {
     // Only clear downstream data on backward transitions
     if (!isForward) {
       if (targetIndex < activeStatusFlow.indexOf("Selesai")) {
-        updateData.unit_checks = {} as any;
+        const existingChecks = { ...(order.unit_checks as Record<string, boolean> || {}) };
+        for (const k of Object.keys(existingChecks)) {
+          if (k.startsWith("qc_")) delete existingChecks[k];
+        }
+        updateData.unit_checks = existingChecks as any;
       }
       if (targetIndex < activeStatusFlow.indexOf("Siap diAmbil")) {
         updateData.invoice_items = null;
@@ -1085,10 +1090,15 @@ export default function OrderDetailPage() {
       toast.error("Keterangan QC wajib diisi!");
       return;
     }
+    const newUnitChecks = { ...(order.unit_checks as Record<string, boolean> || {}) };
+    for (const [k, v] of Object.entries(qcChecks)) {
+      newUnitChecks[`qc_${k}`] = v;
+    }
+
     await supabase
       .from("service_orders")
       .update({
-        unit_checks: qcChecks as any,
+        unit_checks: newUnitChecks as any,
         status: "Selesai" as any,
       })
       .eq("id", order.id);
@@ -1777,89 +1787,158 @@ export default function OrderDetailPage() {
 
         {/* Unit Checks */}
         {order.unit_checks && (
-          <Card className="print:hidden">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Cek Unit</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {(() => {
-                const STANDARD_CHECK_ITEMS = ["Speaker", "Camera", "Touchpad", "Keyboard", "Wifi", "LCD Panel"];
-
-                // 1. Filter out internal keys like _is_linked_customer
-                const validChecks: Record<string, boolean> = {};
-                for (const [k, v] of Object.entries(unitChecks)) {
-                  if (!k.startsWith("_")) {
-                    validChecks[k] = Boolean(v);
-                  }
+          <div className="space-y-4 print:hidden">
+            {(() => {
+              const STANDARD_CHECK_ITEMS = ["Speaker", "Camera", "Touchpad", "Keyboard", "Wifi", "LCD Panel"];
+              const QC_COMPONENTS = ["Speaker", "Camera", "Touchpad", "Keyboard", "Wi-Fi", "USB Port", "LCD Panel", "Lainnya"];
+              
+              const validChecks: Record<string, boolean> = {};
+              const qcChecksRead: Record<string, boolean> = {};
+              
+              for (const [k, v] of Object.entries(unitChecks)) {
+                if (k.startsWith("_")) continue;
+                if (k.startsWith("qc_")) {
+                  qcChecksRead[k.replace("qc_", "")] = Boolean(v);
+                } else {
+                  validChecks[k] = Boolean(v);
                 }
+              }
 
-                // 2. Identify checked vs unchecked items
-                const uncheckedItems: string[] = [];
-                const checkedItems: string[] = [];
+              // Pengecekan Awal
+              const uncheckedAwal: string[] = [];
+              const checkedAwal: string[] = [];
+              const manualComments: string[] = [];
 
-                for (const item of STANDARD_CHECK_ITEMS) {
-                  const label = item === "Wifi" ? "Wi-Fi" : item;
-                  if (!validChecks[item]) {
-                    uncheckedItems.push(label);
-                  } else {
-                    checkedItems.push(label);
-                  }
+              for (const item of STANDARD_CHECK_ITEMS) {
+                const label = item === "Wifi" ? "Wi-Fi" : item;
+                if (!validChecks[item]) uncheckedAwal.push(label);
+                else checkedAwal.push(label);
+              }
+
+              for (const [k, v] of Object.entries(validChecks)) {
+                if (!STANDARD_CHECK_ITEMS.includes(k) && k !== "Wi-Fi") {
+                  if (v) manualComments.push(k);
                 }
+              }
 
-                // Add any non-standard items
-                for (const [k, v] of Object.entries(validChecks)) {
-                  if (!STANDARD_CHECK_ITEMS.includes(k)) {
-                    if (!v) uncheckedItems.push(k);
-                    else checkedItems.push(k);
-                  }
-                }
+              const hasInitialChecks = STANDARD_CHECK_ITEMS.length > 0;
+              const hasQcChecks = Object.keys(qcChecksRead).length > 0;
 
-                // 3. Logic to display
-                const totalItems = STANDARD_CHECK_ITEMS.length + Object.keys(validChecks).filter(k => !STANDARD_CHECK_ITEMS.includes(k)).length;
-
-                if (uncheckedItems.length === totalItems) {
-                  return <p className="text-sm text-muted-foreground">Kondisi unit belum dapat diverifikasi atau unit tidak dalam kondisi baik saat pemeriksaan.</p>;
-                }
-
-                if (uncheckedItems.length === 0) {
-                  return <p className="text-sm text-success-foreground font-medium flex items-center gap-2"><CheckCircle className="h-4 w-4" /> Seluruh kondisi unit telah diperiksa dan dalam kondisi baik.</p>;
-                }
-
-                // Mixed state
-                return (
-                  <div className="space-y-4">
-                    {checkedItems.length > 0 && (
-                      <div className="space-y-2">
-                        <p className="text-sm font-semibold text-green-700 dark:text-green-500">Kondisi Baik</p>
-                        <div className="flex flex-wrap gap-2">
-                          {checkedItems.map((item) => (
-                            <div key={item} className="flex items-center gap-1.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 rounded-md px-2.5 py-1 text-xs">
-                              <CheckCircle className="h-3.5 w-3.5" />
-                              <span>{item}</span>
+              return (
+                <>
+                  {hasInitialChecks && (
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Pengecekan Awal Unit</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {checkedAwal.length > 0 && (
+                            <div className="space-y-2">
+                              <p className="text-sm font-semibold text-green-700 dark:text-green-500">Kondisi Baik</p>
+                              <div className="flex flex-wrap gap-2">
+                                {checkedAwal.map((item) => (
+                                  <div key={item} className="flex items-center gap-1.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 rounded-md px-2.5 py-1 text-xs">
+                                    <CheckCircle className="h-3.5 w-3.5" />
+                                    <span>{item}</span>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                          )}
 
-                    {uncheckedItems.length > 0 && (
-                      <div className="space-y-2">
-                        <p className="text-sm font-semibold text-amber-600 dark:text-amber-500">Tidak Dapat Diperiksa / Tidak Berfungsi</p>
-                        <div className="flex flex-wrap gap-2">
-                          {uncheckedItems.map((item) => (
-                            <div key={item} className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 rounded-md px-2.5 py-1 text-xs">
-                              <AlertTriangle className="h-3.5 w-3.5" />
-                              <span>{item}</span>
+                          {uncheckedAwal.length > 0 && (
+                            <div className="space-y-2">
+                              <p className="text-sm font-semibold text-amber-600 dark:text-amber-500">Tidak Dapat Diperiksa / Tidak Berfungsi</p>
+                              <div className="flex flex-wrap gap-2">
+                                {uncheckedAwal.map((item) => (
+                                  <div key={item} className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 rounded-md px-2.5 py-1 text-xs">
+                                    <AlertTriangle className="h-3.5 w-3.5" />
+                                    <span>{item}</span>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          ))}
+                          )}
+
+                          {manualComments.length > 0 && (
+                            <div className="space-y-2 pt-2 border-t border-border mt-2">
+                              <p className="text-sm font-semibold text-muted-foreground">Komentar Tambahan</p>
+                              <div className="flex flex-col gap-1.5">
+                                {manualComments.map((comment, i) => (
+                                  <div key={i} className="text-sm flex items-start gap-2">
+                                    <StickyNote className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+                                    <span>{comment}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-            </CardContent>
-          </Card>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {hasQcChecks && (
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Hasil Quality Control Unit</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {(() => {
+                          const uncheckedQc: string[] = [];
+                          const checkedQc: string[] = [];
+                          
+                          for (const item of QC_COMPONENTS) {
+                            if (qcChecksRead[item] !== undefined) {
+                              if (!qcChecksRead[item]) uncheckedQc.push(item);
+                              else checkedQc.push(item);
+                            }
+                          }
+
+                          if (uncheckedQc.length === 0 && checkedQc.length > 0) {
+                            return <p className="text-sm text-success-foreground font-medium flex items-center gap-2"><CheckCircle className="h-4 w-4" /> Seluruh komponen Quality Control telah diperiksa dan dalam kondisi baik.</p>;
+                          }
+
+                          return (
+                            <div className="space-y-4">
+                              {checkedQc.length > 0 && (
+                                <div className="space-y-2">
+                                  <p className="text-sm font-semibold text-green-700 dark:text-green-500">Kondisi Baik</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {checkedQc.map((item) => (
+                                      <div key={item} className="flex items-center gap-1.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 rounded-md px-2.5 py-1 text-xs">
+                                        <CheckCircle className="h-3.5 w-3.5" />
+                                        <span>{item}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {uncheckedQc.length > 0 && (
+                                <div className="space-y-2">
+                                  <p className="text-sm font-semibold text-amber-600 dark:text-amber-500">Tidak Lolos QC</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {uncheckedQc.map((item) => (
+                                      <div key={item} className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 rounded-md px-2.5 py-1 text-xs">
+                                        <AlertTriangle className="h-3.5 w-3.5" />
+                                        <span>{item}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
+              );
+            })()}
+          </div>
         )}
 
         {/* Photos */}

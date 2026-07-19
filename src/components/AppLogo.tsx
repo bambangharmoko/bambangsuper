@@ -7,7 +7,7 @@ interface AppLogoProps extends React.ImgHTMLAttributes<HTMLImageElement> {
 export function AppLogo({ className, alt = "SUMTRA", ...props }: AppLogoProps) {
   return (
     <img
-      src="/sumtra.gif"
+      src="/sumtra_v2.gif"
       alt={alt}
       className={cn("object-contain", className)}
       {...props}

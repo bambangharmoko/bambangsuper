@@ -17,8 +17,6 @@ import { cn } from "@/lib/utils";
 import { ProfileDialog } from "@/components/ProfileDialog";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useStaffRealtimeNotifications } from "@/hooks/useStaffRealtimeNotifications";
-import { AppLogo } from "./AppLogo";
-
 const navItems = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard, roles: ["owner", "admin"] as const },
   { label: "Pesanan", path: "/dashboard/orders", icon: ClipboardList, roles: ["owner", "admin", "technician"] as const },
@@ -67,8 +65,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       >
         <div className="p-4 border-b border-sidebar-border">
           <div className="flex items-center gap-2">
-            <AppLogo className="h-6" />
-            <h1 className="text-lg font-bold text-sidebar-primary-foreground hidden lg:block">
+            <h1 className="text-xl font-extrabold tracking-tight bg-gradient-to-br from-primary to-blue-600 bg-clip-text text-transparent">
               SUMTRA
             </h1>
           </div>
@@ -127,8 +124,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           </Button>
           {!sidebarOpen && (
             <div className="flex items-center gap-2 transition-all duration-300">
-              <AppLogo className="h-5" />
-              <h1 className="text-sm font-bold hidden sm:block">SUMTRA</h1>
+              <h1 className="text-lg font-extrabold tracking-tight bg-gradient-to-br from-primary to-blue-600 bg-clip-text text-transparent hidden sm:block">SUMTRA</h1>
             </div>
           )}
           <div className="flex-1" />

@@ -32,19 +32,19 @@
   "handle_links": "preferred",
   "icons": [
     {
-      "src": "/sumtra.png",
+      "src": "/sumtra_v2.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/sumtra.png",
+      "src": "/sumtra_v2.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/sumtra.png",
+      "src": "/sumtra_v2.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -64,7 +64,7 @@
       "url": "/dashboard/orders",
       "icons": [
         {
-          "src": "/sumtra.png",
+          "src": "/sumtra_v2.png",
           "sizes": "192x192"
         }
       ]
@@ -76,7 +76,7 @@
       "url": "/track",
       "icons": [
         {
-          "src": "/sumtra.png",
+          "src": "/sumtra_v2.png",
           "sizes": "192x192"
         }
       ]

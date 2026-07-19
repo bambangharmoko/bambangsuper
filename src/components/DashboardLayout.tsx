@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { ProfileDialog } from "@/components/ProfileDialog";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useStaffRealtimeNotifications } from "@/hooks/useStaffRealtimeNotifications";
+import { AppLogo } from "./AppLogo";
 const navItems = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard, roles: ["owner", "admin"] as const },
   { label: "Pesanan", path: "/dashboard/orders", icon: ClipboardList, roles: ["owner", "admin", "technician"] as const },
@@ -119,14 +120,18 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         )}
       >
         <header className="sticky top-0 z-30 flex items-center gap-3 p-3 sm:p-4 border-b border-border bg-card/95 backdrop-blur print:hidden">
-          <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)}>
-            <Menu className="h-5 w-5" />
-          </Button>
-          {!sidebarOpen && (
-            <div className="flex items-center gap-2 transition-all duration-300">
-              <h1 className="text-lg font-extrabold tracking-tight bg-gradient-to-br from-primary to-blue-600 bg-clip-text text-transparent hidden sm:block">SUMTRA</h1>
-            </div>
-          )}
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="flex items-center gap-2.5 hover:bg-muted/50 p-1.5 pr-3 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Toggle Navigation"
+          >
+            <AppLogo className="h-7 w-7 sm:h-8 sm:w-8" />
+            {!sidebarOpen && (
+              <h1 className="text-lg sm:text-xl font-extrabold tracking-tight bg-gradient-to-br from-primary to-blue-600 bg-clip-text text-transparent">
+                SUMTRA
+              </h1>
+            )}
+          </button>
           <div className="flex-1" />
           <NotificationBell />
         </header>

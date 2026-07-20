@@ -154,7 +154,7 @@ export default function UserManagementPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-4">
+      <div className="max-w-3xl mx-auto space-y-4">
         <h1 className="text-2xl font-bold">Kelola User</h1>
 
         <div className="space-y-2">

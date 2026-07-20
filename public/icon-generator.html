@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PWA Icon Generator</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin-top: 50px; background: #f4f4f5; }
+        .container { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; max-width: 800px; margin: 0 auto; }
+        .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        canvas { border: 1px solid #e5e7eb; border-radius: 4px; background: #eee; }
+        h3 { margin: 10px 0; font-size: 16px; color: #333; }
+        a { display: inline-block; margin-top: 10px; padding: 8px 16px; background: #2563eb; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; }
+        a:hover { background: #1d4ed8; }
+        .instructions { max-width: 600px; margin: 0 auto 30px; text-align: left; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+    <h2>SUMTRA PWA Icon Generator</h2>
+    <div class="instructions">
+        <h3>Petunjuk:</h3>
+        <ol>
+            <li>Klik semua tombol <b>Download</b> di bawah ini.</li>
+            <li>Pindahkan file-file yang terunduh (<code>pwa-192.png</code>, <code>pwa-512.png</code>, dll) ke dalam folder <b><code>public/</code></b> pada proyek Anda.</li>
+            <li>Timpa file lama jika diminta (sebenarnya menggunakan nama baru jadi tidak akan menimpa, tapi file baru ini akan dipakai oleh manifest).</li>
+            <li>Setelah itu, hapus file <code>icon-generator.html</code> ini.</li>
+        </ol>
+    </div>
+    
+    <div class="container">
+        <div class="card">
+            <h3>Any - 192x192</h3>
+            <canvas id="c-192" width="192" height="192"></canvas><br>
+            <a id="dl-192" download="pwa-192.png">Download 192</a>
+        </div>
+        <div class="card">
+            <h3>Any - 512x512</h3>
+            <canvas id="c-512" width="512" height="512"></canvas><br>
+            <a id="dl-512" download="pwa-512.png">Download 512</a>
+        </div>
+        <div class="card">
+            <h3>Maskable - 192x192</h3>
+            <canvas id="c-192-m" width="192" height="192"></canvas><br>
+            <a id="dl-192-m" download="pwa-192-maskable.png">Download 192 Maskable</a>
+        </div>
+        <div class="card">
+            <h3>Maskable - 512x512</h3>
+            <canvas id="c-512-m" width="512" height="512"></canvas><br>
+            <a id="dl-512-m" download="pwa-512-maskable.png">Download 512 Maskable</a>
+        </div>
+    </div>
+
+    <script>
+        const img = new Image();
+        // Load the existing high-res logo
+        img.src = 'icon-512.png'; 
+        img.onload = () => {
+            function drawIcon(canvasId, linkId, size, scale) {
+                const canvas = document.getElementById(canvasId);
+                const ctx = canvas.getContext('2d');
+                
+                // 1. Fill clean white background
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, size, size);
+                
+                // 2. Calculate aspect ratio and dimensions with padding
+                const targetW = size * scale;
+                const targetH = size * scale;
+                
+                let w = targetW;
+                let h = img.height * (w / img.width);
+                if (h > targetH) {
+                    h = targetH;
+                    w = img.width * (h / img.height);
+                }
+                
+                // 3. Center the logo
+                const x = (size - w) / 2;
+                const y = (size - h) / 2;
+                
+                // Use better smoothing for canvas drawing if supported
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                
+                ctx.drawImage(img, x, y, w, h);
+                
+                // 4. Set download link
+                const link = document.getElementById(linkId);
+                link.href = canvas.toDataURL('image/png');
+            }
+            
+            // "any" icons - 75% scale gives nice padding but keeps it prominent
+            drawIcon('c-192', 'dl-192', 192, 0.75);
+            drawIcon('c-512', 'dl-512', 512, 0.75);
+            
+            // "maskable" icons - Android maskable safe zone is a circle with radius 40% of the image size (80% diameter).
+            // By scaling to 60%, we ensure the entire logo fits perfectly inside the 80% circle safe zone without being cut off.
+            drawIcon('c-192-m', 'dl-192-m', 192, 0.60);
+            drawIcon('c-512-m', 'dl-512-m', 512, 0.60);
+        };
+    </script>
+</body>
+</html>

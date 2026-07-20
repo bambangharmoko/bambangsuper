@@ -1780,20 +1780,21 @@ export default function OrderDetailPage() {
           </CardContent>
         </Card>
 
-        {/* Info Pelanggan */}
-        <Card className="print:hidden">
-          <CardContent className="p-4 space-y-1">
-            <p className="font-semibold text-sm mb-2">Info Pelanggan</p>
-            <p className="text-sm text-muted-foreground">Nama: <span className="text-foreground font-medium">{order.customer_name}</span></p>
-            <p className="text-sm text-muted-foreground">Telepon: <span className="text-foreground font-medium">{order.customer_phone}</span></p>
-            {order.customer_email && (
-              <p className="text-sm text-muted-foreground">Email: <span className="text-foreground font-medium">{order.customer_email}</span></p>
-            )}
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:hidden">
+          {/* Info Pelanggan */}
+          <Card className="h-full">
+            <CardContent className="p-4 space-y-1">
+              <p className="font-semibold text-sm mb-2">Info Pelanggan</p>
+              <p className="text-sm text-muted-foreground">Nama: <span className="text-foreground font-medium">{order.customer_name}</span></p>
+              <p className="text-sm text-muted-foreground">Telepon: <span className="text-foreground font-medium">{order.customer_phone}</span></p>
+              {order.customer_email && (
+                <p className="text-sm text-muted-foreground">Email: <span className="text-foreground font-medium">{order.customer_email}</span></p>
+              )}
+            </CardContent>
+          </Card>
 
-        {/* Info Unit */}
-        <Card className="print:hidden">
+          {/* Info Unit */}
+          <Card className="h-full">
           <CardContent className="p-4 space-y-1">
             <p className="font-semibold text-sm mb-2">Info Unit</p>
             <p className="text-sm text-muted-foreground">Perangkat: <span className="text-foreground font-medium">{[order.device_brand, order.device_model].filter(Boolean).join(" ") || order.device_type || "-"}</span></p>
@@ -1809,6 +1810,7 @@ export default function OrderDetailPage() {
             )}
           </CardContent>
         </Card>
+        </div>
 
         {/* Unit Checks */}
         {order.unit_checks && (

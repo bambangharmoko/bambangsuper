@@ -225,7 +225,7 @@ export default function TrackPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background p-4 max-w-lg mx-auto space-y-4">
+      <div className="min-h-screen bg-background p-4 max-w-2xl mx-auto space-y-4">
         <Skeleton className="h-8 w-32" />
         <Skeleton className="h-40 w-full" />
         <Skeleton className="h-60 w-full" />
@@ -409,7 +409,7 @@ export default function TrackPage() {
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto p-4 space-y-4 print:hidden">
+      <div className="max-w-2xl mx-auto p-4 space-y-4 print:hidden">
         {!isOnline && <div className="rounded-lg bg-warning/10 px-3 py-2 text-sm text-warning">Mode offline. Status akan diperbarui saat koneksi kembali.</div>}
         {/* Detail Unit */}
         <Card>

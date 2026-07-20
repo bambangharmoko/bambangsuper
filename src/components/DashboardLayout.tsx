@@ -35,7 +35,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window !== "undefined") {
-      return window.innerWidth >= 1024;
+      return window.innerWidth >= 768;
     }
     return false;
   });
@@ -53,7 +53,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen flex bg-background print:min-h-0 print:bg-transparent print:block">
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-foreground/20 backdrop-blur-sm z-40 lg:hidden print:hidden"
+          className="fixed inset-0 bg-foreground/20 backdrop-blur-sm z-40 md:hidden print:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -82,7 +82,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
               <Link
                 key={item.path}
                 to={item.path}
-                onClick={() => setSidebarOpen(window.innerWidth >= 1024 ? sidebarOpen : false)}
+                onClick={() => setSidebarOpen(window.innerWidth >= 768 ? sidebarOpen : false)}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                   isActive
@@ -116,7 +116,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       <div
         className={cn(
           "flex-1 flex flex-col min-h-screen min-w-0 transition-all duration-300 print:min-h-0 print:block",
-          sidebarOpen ? "lg:pl-64" : "lg:pl-0"
+          sidebarOpen ? "md:pl-64" : "md:pl-0"
         )}
       >
         <header className="sticky top-0 z-30 flex items-center gap-3 p-3 sm:p-4 border-b border-border bg-card/95 backdrop-blur print:hidden">
@@ -136,7 +136,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           <NotificationBell />
         </header>
 
-        <main className="flex-1 overflow-auto px-3 py-4 sm:px-4 lg:p-6 print:overflow-visible print:p-0">{children}</main>
+        <main className="flex-1 overflow-auto px-3 py-4 sm:px-4 md:p-6 print:overflow-visible print:p-0">{children}</main>
       </div>
     </div>
   );

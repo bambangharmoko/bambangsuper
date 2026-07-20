@@ -557,7 +557,7 @@ export default function CreateOrderPage() {
         try {
           const parsedForm = JSON.parse(savedForm);
           if (parsedForm.customerEmail) setEmailLockedFromDb(true);
-        } catch(e) {}
+        } catch (e) { }
       }
     } else {
       // Jika tidak ada draft form yang disimpan, bersihkan state form ke default

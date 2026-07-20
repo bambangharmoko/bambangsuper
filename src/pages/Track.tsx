@@ -271,7 +271,7 @@ export default function TrackPage() {
 
           <div className="text-center flex-1 px-2">
             <h1 className="text-base font-bold uppercase mb-0.5">Formulir Tanda Terima Servis / Perbaikan</h1>
-            <h2 className="text-sm font-bold">SUPER KOMPUTER</h2>
+            <h2 className="text-sm font-bold">Super Komputer</h2>
             <p className="text-[9px]">Jl Ahmad Yani No 118 | Telp/WA: 0811-5404-999 | IG: @superkomputer | Tokopedia: superkomputer </p>
           </div>
 
@@ -381,7 +381,7 @@ export default function TrackPage() {
               </tr>
               <tr>
                 <td><strong>Nama: {order.customer_name || "................................................."}</strong></td>
-                <td><strong>Nama: SUPER KOMPUTER</strong></td>
+                <td><strong>Nama: Super Komputer</strong></td>
               </tr>
             </tbody>
           </table>
@@ -485,10 +485,10 @@ export default function TrackPage() {
             {(() => {
               const STANDARD_CHECK_ITEMS = ["Speaker", "Camera", "Touchpad", "Keyboard", "Wifi", "LCD Panel"];
               const QC_COMPONENTS = ["Speaker", "Camera", "Touchpad", "Keyboard", "Wi-Fi", "USB Port", "LCD Panel"];
-              
+
               const validChecks: Record<string, boolean> = {};
               const qcChecks: Record<string, any> = {};
-              
+
               for (const [k, v] of Object.entries(unitChecks)) {
                 if (k.startsWith("_")) continue;
                 if (k.startsWith("qc_")) {
@@ -582,7 +582,7 @@ export default function TrackPage() {
                         {(() => {
                           const uncheckedQc: string[] = [];
                           const checkedQc: string[] = [];
-                          
+
                           for (const item of QC_COMPONENTS) {
                             if (qcChecks[item] !== undefined) {
                               if (!qcChecks[item]) uncheckedQc.push(item);

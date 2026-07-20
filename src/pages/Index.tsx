@@ -152,7 +152,7 @@ export default function IndexPage() {
     const phone = lastPhoneRef.current || "";
     // The channel will be named based on the phone number
     const channel = supabase.channel(`public-search-${phone.replace(/\D/g, "")}`);
-    
+
     // Subscribe to ALL changes in public_service_updates and filter locally
     // This proxy table safely bypasses the strict RLS on service_orders for anon users
     channel.on(
@@ -186,7 +186,7 @@ export default function IndexPage() {
     const data = await fetchByPhone(val);
     setResults(data);
     orderIdsRef.current = data.map((r) => r.id);
-    
+
     setSearching(false);
   };
 
@@ -306,7 +306,7 @@ export default function IndexPage() {
                     </TabsTrigger>
                   </TabsList>
                 </div>
-                
+
                 <TabsContent value="belum_dikerjakan" className="space-y-3 mt-0">
                   {belumDikerjakan.length === 0 ? (
                     <p className="text-center text-sm text-muted-foreground py-8">Tidak ada tiket pada kategori ini</p>
@@ -316,7 +316,7 @@ export default function IndexPage() {
                     </div>
                   )}
                 </TabsContent>
-                
+
                 <TabsContent value="sedang_dikerjakan" className="space-y-3 mt-0">
                   {sedangDikerjakan.length === 0 ? (
                     <p className="text-center text-sm text-muted-foreground py-8">Tidak ada tiket pada kategori ini</p>
@@ -355,10 +355,10 @@ export default function IndexPage() {
       {/* ═══ Tentang Kami ═══ */}
       <section className="container mx-auto px-4 py-16 md:py-20">
         <motion.div {...fadeUp} transition={{ duration: 0.5 }} className="max-w-3xl mx-auto text-center">
-          <h2 className="text-2xl md:text-3xl font-bold mb-4">Super Computer Balikpapan</h2>
+          <h2 className="text-2xl md:text-3xl font-bold mb-4">Super Komputer Balikpapan</h2>
           <p className="text-muted-foreground leading-relaxed">
             Dengan pengalaman <strong className="text-foreground">lebih dari 15 tahun</strong> melayani kebutuhan
-            Teknologi Informasi di Kalimantan Timur, Super Computer telah menjadi mitra terpercaya bagi pelanggan retail
+            Teknologi Informasi di Kalimantan Timur, Super Komputer telah menjadi mitra terpercaya bagi pelanggan retail
             maupun korporat. Kami menyediakan solusi IT menyeluruh — mulai dari penjualan perangkat, pemasangan
             infrastruktur jaringan & keamanan, hingga layanan perbaikan profesional sebagai{" "}
             <strong className="text-foreground">Authorized Service Center Lenovo & ASUS</strong>.
@@ -437,7 +437,7 @@ export default function IndexPage() {
           <div className="grid md:grid-cols-3 gap-8">
             {/* Info Perusahaan */}
             <div>
-              <h4 className="text-lg font-bold text-sidebar-primary-foreground mb-3">Super Computer</h4>
+              <h4 className="text-lg font-bold text-sidebar-primary-foreground mb-3">Super Komputer</h4>
               <p className="text-sm text-sidebar-foreground/70 leading-relaxed mb-4">
                 Authorized Service Center Lenovo & ASUS. Solusi lengkap IT untuk kebutuhan personal dan korporat di
                 Kalimantan Timur.
@@ -517,7 +517,7 @@ export default function IndexPage() {
           <Separator className="my-8 bg-sidebar-border" />
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-sidebar-foreground/50">
-            <span>© 2026 Super Computer Balikpapan.</span>
+            <span>© 2026 Super Komputer Balikpapan.</span>
             <span>SUMTRA by Bambang Harmoko</span>
           </div>
         </div>

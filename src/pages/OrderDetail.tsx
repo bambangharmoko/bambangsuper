@@ -994,7 +994,7 @@ export default function OrderDetailPage() {
       `⏱️ *Estimasi Durasi:* ${confirmDuration.trim()}\n\n` +
       `Mohon konfirmasi persetujuan Anda untuk melanjutkan pengerjaan.\n\n` +
       `🔗 Lacak status: ${link}\n\n` +
-      `Salam,\n*Super Computer Service*`,
+      `Salam,\n*Super Komputer Service*`,
     );
     const cleanPhone = order.customer_phone.replace(/\D/g, "");
     const waPhone = cleanPhone.startsWith("0") ? "62" + cleanPhone.slice(1) : cleanPhone;
@@ -1557,7 +1557,7 @@ export default function OrderDetailPage() {
 
             <div className="text-center flex-1 px-2">
               <h1 className="text-base font-bold uppercase mb-0.5">Formulir Tanda Terima Servis / Perbaikan</h1>
-              <h2 className="text-sm font-bold">SUPER KOMPUTER</h2>
+              <h2 className="text-sm font-bold">Super Komputer</h2>
               <p className="text-[9px]">Jl Ahmad Yani No 118 | Telp/WA: 0811-5404-999 | IG: @superkomputer | Tokopedia: superkomputer </p>
             </div>
 
@@ -1795,21 +1795,21 @@ export default function OrderDetailPage() {
 
           {/* Info Unit */}
           <Card className="h-full">
-          <CardContent className="p-4 space-y-1">
-            <p className="font-semibold text-sm mb-2">Info Unit</p>
-            <p className="text-sm text-muted-foreground">Perangkat: <span className="text-foreground font-medium">{[order.device_brand, order.device_model].filter(Boolean).join(" ") || order.device_type || "-"}</span></p>
-            <p className="text-sm text-muted-foreground">Tipe Servis: <span className="text-foreground font-medium">{order.service_type || "-"}</span></p>
-            {order.unit_condition && (
-              <p className="text-sm text-muted-foreground">Kondisi: <span className="text-foreground font-medium">{order.unit_condition}</span></p>
-            )}
-            {order.unit_accessories && (
-              <p className="text-sm text-muted-foreground">Kelengkapan: <span className="text-foreground font-medium">{order.unit_accessories}</span></p>
-            )}
-            {(order as any).damage_description && (
-              <p className="text-sm text-muted-foreground">Deskripsi: <span className="text-foreground font-medium">{(order as any).damage_description}</span></p>
-            )}
-          </CardContent>
-        </Card>
+            <CardContent className="p-4 space-y-1">
+              <p className="font-semibold text-sm mb-2">Info Unit</p>
+              <p className="text-sm text-muted-foreground">Perangkat: <span className="text-foreground font-medium">{[order.device_brand, order.device_model].filter(Boolean).join(" ") || order.device_type || "-"}</span></p>
+              <p className="text-sm text-muted-foreground">Tipe Servis: <span className="text-foreground font-medium">{order.service_type || "-"}</span></p>
+              {order.unit_condition && (
+                <p className="text-sm text-muted-foreground">Kondisi: <span className="text-foreground font-medium">{order.unit_condition}</span></p>
+              )}
+              {order.unit_accessories && (
+                <p className="text-sm text-muted-foreground">Kelengkapan: <span className="text-foreground font-medium">{order.unit_accessories}</span></p>
+              )}
+              {(order as any).damage_description && (
+                <p className="text-sm text-muted-foreground">Deskripsi: <span className="text-foreground font-medium">{(order as any).damage_description}</span></p>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Unit Checks */}

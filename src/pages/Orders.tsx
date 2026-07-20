@@ -133,7 +133,7 @@ export default function OrdersPage() {
       if (activeFilter === "cancel") {
         query = query.eq("status", "Cancelled").eq("is_picked_up", false);
       }
-    
+
       const { data, error } = await query.order(activeFilter === "in_progress" ? "updated_at" : "created_at", { ascending: activeFilter === "in_progress" });
       if (fetchRun !== fetchRunRef.current) return;
       if (error) throw error;
@@ -289,17 +289,17 @@ export default function OrdersPage() {
     const unitName = [order.device_brand, order.device_model].filter(Boolean).join(" ") || order.device_type || "-";
     const msg = encodeURIComponent(
       `Halo *${order.customer_name}*, terima kasih telah mempercayakan perbaikan unit Anda di *Toko Super Komputer*. Berikut adalah rangkuman detail tiket penerimaan servis Anda:\n\n` +
-        `🧾 *Nomor Tiket:* ${order.ticket_number}\n\n` +
-        `📅 *Tanggal Masuk:* ${date}\n\n` +
-        `🔧 *Tipe Servis:* ${order.service_type || "-"}\n\n` +
-        `💻 *Unit:* ${unitName}\n\n` +
-        `⚠️ *Kondisi Unit:* ${order.unit_condition || "-"}\n\n` +
-        `🎒 *Kelengkapan:* ${order.unit_accessories || "-"}\n\n` +
-        `📌 *Status Saat Ini:* ${order.status}\n\n` +
-        `🔍 *Pantau Status Servis:*\n\n` +
-        `Kakak bisa melacak proses pengerjaan secara real-time melalui link berikut:\n\n` +
-        `👉 ${link}\n\n` +
-        `Kami akan segera menginformasikan jika ada update atau pengecekan lebih lanjut. Terima kasih! 🙏`,
+      `🧾 *Nomor Tiket:* ${order.ticket_number}\n\n` +
+      `📅 *Tanggal Masuk:* ${date}\n\n` +
+      `🔧 *Tipe Servis:* ${order.service_type || "-"}\n\n` +
+      `💻 *Unit:* ${unitName}\n\n` +
+      `⚠️ *Kondisi Unit:* ${order.unit_condition || "-"}\n\n` +
+      `🎒 *Kelengkapan:* ${order.unit_accessories || "-"}\n\n` +
+      `📌 *Status Saat Ini:* ${order.status}\n\n` +
+      `🔍 *Pantau Status Servis:*\n\n` +
+      `Kakak bisa melacak proses pengerjaan secara real-time melalui link berikut:\n\n` +
+      `👉 ${link}\n\n` +
+      `Kami akan segera menginformasikan jika ada update atau pengecekan lebih lanjut. Terima kasih! 🙏`,
     );
     const cleanPhone = order.customer_phone.replace(/\D/g, "");
     const waPhone = cleanPhone.startsWith("0") ? "62" + cleanPhone.slice(1) : cleanPhone;
@@ -325,17 +325,17 @@ export default function OrdersPage() {
     const updateResults = await Promise.all([
       regularIds.length
         ? supabase
-            .from("service_orders")
-            .update({ assigned_technician: user.id, status: "Diagnosa" as ServiceStatus })
-            .in("id", regularIds)
-            .is("assigned_technician", null)
+          .from("service_orders")
+          .update({ assigned_technician: user.id, status: "Diagnosa" as ServiceStatus })
+          .in("id", regularIds)
+          .is("assigned_technician", null)
         : Promise.resolve({ error: null }),
       installIds.length
         ? supabase
-            .from("service_orders")
-            .update({ assigned_technician: user.id, status: "Perbaikan" as ServiceStatus })
-            .in("id", installIds)
-            .is("assigned_technician", null)
+          .from("service_orders")
+          .update({ assigned_technician: user.id, status: "Perbaikan" as ServiceStatus })
+          .in("id", installIds)
+          .is("assigned_technician", null)
         : Promise.resolve({ error: null }),
     ]);
 
@@ -385,60 +385,60 @@ export default function OrdersPage() {
     const isLateUpdate = showUpdateAge && Date.now() - new Date(o.updated_at).getTime() > 24 * 60 * 60 * 1000;
 
     return (
-    <Card key={o.id} className="hover:shadow-md transition-all duration-200">
-      <CardContent className="p-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between mb-2">
-          <div className="flex min-w-0 items-center gap-2">
-            {showCheckbox && (
-              <Checkbox
-                checked={selectedIds.has(o.id)}
-                onCheckedChange={() => toggleSelect(o.id)}
-              />
-            )}
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="font-bold text-sm">{o.ticket_number}</p>
-                <StatusBadge status={o.status} />
+      <Card key={o.id} className="hover:shadow-md transition-all duration-200">
+        <CardContent className="p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between mb-2">
+            <div className="flex min-w-0 items-center gap-2">
+              {showCheckbox && (
+                <Checkbox
+                  checked={selectedIds.has(o.id)}
+                  onCheckedChange={() => toggleSelect(o.id)}
+                />
+              )}
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-bold text-sm">{o.ticket_number}</p>
+                  <StatusBadge status={o.status} />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">{o.service_type}</p>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">{o.service_type}</p>
             </div>
+            <span className="text-xs text-muted-foreground sm:text-right">
+              {new Date(o.created_at).toLocaleDateString("id-ID")}
+            </span>
           </div>
-          <span className="text-xs text-muted-foreground sm:text-right">
-            {new Date(o.created_at).toLocaleDateString("id-ID")}
-          </span>
-        </div>
-        <div className="text-sm mb-3">
-          <p className="font-medium">{o.customer_name}</p>
-          <p className="text-muted-foreground text-xs">{o.customer_phone} • {o.device_brand} {o.device_type}</p>
-          {warrantyDaysLeft !== null && (
-            <p className={`text-xs font-medium mt-1 ${warrantyDaysLeft <= 2 ? "text-destructive" : "text-success"}`}>
-              Sisa Garansi: {warrantyDaysLeft} Hari lagi
-            </p>
-          )}
-          {showUpdateAge && (
-            <p className={`text-xs font-medium mt-1 ${isLateUpdate ? "text-destructive" : "text-muted-foreground"}`}>
-              {getUpdateAgeLabel(o.updated_at)}
-            </p>
-          )}
-          {isLateUpdate && !o.update_delay_reason && (
-            <Badge variant="destructive" className="mt-2">Alasan terlambat belum diisi</Badge>
-          )}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => navigate(`/dashboard/orders/${o.ticket_number}`)}>
-            <Eye className="h-3 w-3 mr-1" /> Detail
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => sendWhatsApp(o)}>
-            <MessageCircle className="h-3 w-3" />
-          </Button>
-          {showCancelPickupAction && (
-            <Button variant="secondary" size="sm" onClick={() => markCancelledOrderPickedUp(o.id)}>
-              <PackageCheck className="h-3 w-3 mr-1" /> Sudah Diambil
+          <div className="text-sm mb-3">
+            <p className="font-medium">{o.customer_name}</p>
+            <p className="text-muted-foreground text-xs">{o.customer_phone} • {o.device_brand} {o.device_type}</p>
+            {warrantyDaysLeft !== null && (
+              <p className={`text-xs font-medium mt-1 ${warrantyDaysLeft <= 2 ? "text-destructive" : "text-success"}`}>
+                Sisa Garansi: {warrantyDaysLeft} Hari lagi
+              </p>
+            )}
+            {showUpdateAge && (
+              <p className={`text-xs font-medium mt-1 ${isLateUpdate ? "text-destructive" : "text-muted-foreground"}`}>
+                {getUpdateAgeLabel(o.updated_at)}
+              </p>
+            )}
+            {isLateUpdate && !o.update_delay_reason && (
+              <Badge variant="destructive" className="mt-2">Alasan terlambat belum diisi</Badge>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate(`/dashboard/orders/${o.ticket_number}`)}>
+              <Eye className="h-3 w-3 mr-1" /> Detail
             </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+            <Button variant="ghost" size="sm" onClick={() => sendWhatsApp(o)}>
+              <MessageCircle className="h-3 w-3" />
+            </Button>
+            {showCancelPickupAction && (
+              <Button variant="secondary" size="sm" onClick={() => markCancelledOrderPickedUp(o.id)}>
+                <PackageCheck className="h-3 w-3 mr-1" /> Sudah Diambil
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     );
   };
 
@@ -582,22 +582,22 @@ export default function OrdersPage() {
         {isTechnician ? (
           <Tabs defaultValue="open" className="space-y-4" onValueChange={() => setCurrentPage(1)}>
             <div className="sticky top-16 z-10 -mx-4 overflow-x-auto bg-background/95 px-4 py-2 backdrop-blur lg:-mx-6 lg:px-6">
-            <TabsList className="w-max min-w-full">
-              <TabsTrigger value="open" className="min-w-32 flex-1">
-                Tiket Terbuka ({openPool.length})
-              </TabsTrigger>
-              <TabsTrigger value="mine" className="min-w-44 flex-1">
-                Sedang Dikerjakan ({myTickets.length})
-                {myTickets.filter((o) => ["Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"].includes(o.status) && Date.now() - new Date(o.updated_at).getTime() > 24 * 60 * 60 * 1000).length > 0 && (
-                  <span className="ml-2 rounded-full bg-destructive px-1.5 text-[10px] text-destructive-foreground">
-                    {myTickets.filter((o) => ["Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"].includes(o.status) && Date.now() - new Date(o.updated_at).getTime() > 24 * 60 * 60 * 1000).length}
-                  </span>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="done" className="min-w-36 flex-1">
-                Sudah Selesai ({completedTickets.length})
-              </TabsTrigger>
-            </TabsList>
+              <TabsList className="w-max min-w-full">
+                <TabsTrigger value="open" className="min-w-32 flex-1">
+                  Tiket Terbuka ({openPool.length})
+                </TabsTrigger>
+                <TabsTrigger value="mine" className="min-w-44 flex-1">
+                  Sedang Dikerjakan ({myTickets.length})
+                  {myTickets.filter((o) => ["Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"].includes(o.status) && Date.now() - new Date(o.updated_at).getTime() > 24 * 60 * 60 * 1000).length > 0 && (
+                    <span className="ml-2 rounded-full bg-destructive px-1.5 text-[10px] text-destructive-foreground">
+                      {myTickets.filter((o) => ["Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"].includes(o.status) && Date.now() - new Date(o.updated_at).getTime() > 24 * 60 * 60 * 1000).length}
+                    </span>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="done" className="min-w-36 flex-1">
+                  Sudah Selesai ({completedTickets.length})
+                </TabsTrigger>
+              </TabsList>
             </div>
 
             <TabsContent value="open" className="space-y-2">

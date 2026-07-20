@@ -45,12 +45,12 @@ const sendEmail = async (otp: string, purpose: OtpPurpose, requestedEmail: strin
       Authorization: `Bearer ${RESEND_API_KEY}`,
     },
     body: JSON.stringify({
-      from: "Super Computer Apps <onboarding@resend.dev>",
+      from: "Super Komputer Apps <onboarding@resend.dev>",
       to: [OWNER_AUTH_EMAIL],
-      subject: `Kode OTP ${purposeLabel} - Super Computer Apps`,
+      subject: `Kode OTP ${purposeLabel} - Super Komputer Apps`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; color: #111827;">
-          <h2 style="color: #2563EB; margin: 0 0 16px;">Super Computer Apps</h2>
+          <h2 style="color: #2563EB; margin: 0 0 16px;">Super Komputer Apps</h2>
           <p>Permintaan otorisasi: <strong>${purposeLabel}</strong></p>
           <p>Email akun/form: <strong>${requestedEmail}</strong></p>
           <div style="background: #eff6ff; padding: 22px; text-align: center; border-radius: 8px; margin: 22px 0; border: 1px solid #bfdbfe;">
@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
     const action = body.action as OtpAction;
     const purpose = body.purpose as OtpPurpose;
     if (!['request', 'verify', 'reset-password', 'confirm-email', 'delete-user'].includes(action)) throw new Error("Aksi tidak valid");
-    
+
     if (action !== "delete-user" && !['owner_register', 'password_reset'].includes(purpose)) {
       throw new Error("Tujuan OTP tidak valid");
     }

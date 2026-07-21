@@ -201,7 +201,7 @@ Deno.serve(async (req) => {
                     body: bodyText,
                     ticket_number,
                     status: new_status,
-                    order_id: order_id || "",
+                    
                     url: trackingPath,
                   },
                   webpush: {
@@ -215,7 +215,7 @@ Deno.serve(async (req) => {
                       data: {
                         ticket_number,
                         status: new_status,
-                        order_id: order_id || "",
+                        
                         url: trackingPath,
                       },
                     },

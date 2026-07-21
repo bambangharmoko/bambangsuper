@@ -115,3 +115,30 @@
     margin: 0 !important;
   }
 }
+
+/* â”€â”€ PWA Standalone Mode: Nonaktifkan seleksi teks biasa â”€â”€ */
+@media all and (display-mode: standalone) {
+  body {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    /* Prevent default callout/long-press menu on mobile */
+    -webkit-touch-callout: none;
+  }
+
+  /* Tetap izinkan seleksi pada form input, textarea, editor, kode, dan elemen khusus */
+  input, 
+  textarea, 
+  [contenteditable="true"], 
+  code, 
+  pre,
+  .select-text,
+  .selectable-text {
+    -webkit-user-select: auto;
+    -moz-user-select: auto;
+    -ms-user-select: auto;
+    user-select: auto;
+    -webkit-touch-callout: default;
+  }
+}

@@ -1632,7 +1632,7 @@ export default function CreateOrderPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Pengecekan Awal Unit (Jika Memungkinkan) {hasInstallService("Install Hardware") ? "*" : "(opsional)"}</Label>
+                <Label>Pengecekan Awal Unit (Jika Memungkinkan) {hasInstallService("Install Hardware") && "*"}</Label>
                 <p className="text-xs text-muted-foreground">
                   ✅ Centang = Kondisi Baik | ⬜ Tanpa centang = Tidak Dapat dicek/Tidak Berfungsi
                 </p>
@@ -1776,7 +1776,7 @@ export default function CreateOrderPage() {
                   <p className="font-medium">{unit.unitAccessories || "-"}</p>
                 </div>
 
-                {(checkedItems.length > 0 || uncheckedItems.length > 0) && (
+                {(checkedItems.length > 0 || uncheckedItems.length > 0 || unit.otherCheck) && (
                   <div className="text-xs space-y-1">
                     <span className="text-muted-foreground">Pengecekan Awal Unit:</span>
                     {checkedItems.length > 0 && (
@@ -1788,6 +1788,12 @@ export default function CreateOrderPage() {
                       <p className="font-medium">
                         <span className="text-muted-foreground">⬜ Tidak Dapat dicek/Tidak Berfungsi:</span> {uncheckedItems.join(", ")}
                       </p>
+                    )}
+                    {unit.otherCheck && (
+                      <div className="pt-1 space-y-0.5">
+                        <span className="text-muted-foreground">Komentar Tambahan:</span>
+                        <p className="font-medium whitespace-pre-line">{unit.otherCheck}</p>
+                      </div>
                     )}
                   </div>
                 )}
@@ -1807,13 +1813,6 @@ export default function CreateOrderPage() {
                   <div className="text-xs">
                     <span className="text-muted-foreground">Catatan:</span>
                     <p className="font-medium whitespace-pre-line">{unit.notes}</p>
-                  </div>
-                )}
-
-                {unit.otherCheck && (
-                  <div className="text-xs">
-                    <span className="text-muted-foreground">Komentar Tambahan:</span>
-                    <p className="font-medium whitespace-pre-line">{unit.otherCheck}</p>
                   </div>
                 )}
               </div>

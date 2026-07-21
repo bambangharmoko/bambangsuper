@@ -1632,7 +1632,7 @@ export default function CreateOrderPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Cek Unit {hasInstallService("Install Hardware") ? "*" : "(opsional)"}</Label>
+                <Label>Pengecekan Awal Unit (Jika Memungkinkan) {hasInstallService("Install Hardware") ? "*" : "(opsional)"}</Label>
                 <p className="text-xs text-muted-foreground">
                   ✅ Centang = Kondisi Baik | ⬜ Tanpa centang = Tidak Dapat dicek/Tidak Berfungsi
                 </p>
@@ -1684,7 +1684,6 @@ export default function CreateOrderPage() {
             const checkedItems = Object.entries(unit.unitChecks)
               .filter(([, v]) => v)
               .map(([k]) => k);
-            if (unit.otherCheck) checkedItems.push(unit.otherCheck);
             const uncheckedItems = CHECK_ITEMS.filter((item) => !unit.unitChecks[item]);
             const needsProblemExplanation = NEEDS_PROBLEM_EXPLANATION.includes(unit.unitCondition);
 
@@ -1779,7 +1778,7 @@ export default function CreateOrderPage() {
 
                 {(checkedItems.length > 0 || uncheckedItems.length > 0) && (
                   <div className="text-xs space-y-1">
-                    <span className="text-muted-foreground">Cek Unit:</span>
+                    <span className="text-muted-foreground">Pengecekan Awal Unit:</span>
                     {checkedItems.length > 0 && (
                       <p className="font-medium">
                         <span className="text-green-600">✅ Baik:</span> {checkedItems.join(", ")}
@@ -1808,6 +1807,13 @@ export default function CreateOrderPage() {
                   <div className="text-xs">
                     <span className="text-muted-foreground">Catatan:</span>
                     <p className="font-medium whitespace-pre-line">{unit.notes}</p>
+                  </div>
+                )}
+
+                {unit.otherCheck && (
+                  <div className="text-xs">
+                    <span className="text-muted-foreground">Komentar Tambahan:</span>
+                    <p className="font-medium whitespace-pre-line">{unit.otherCheck}</p>
                   </div>
                 )}
               </div>

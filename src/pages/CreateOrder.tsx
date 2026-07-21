@@ -1346,7 +1346,6 @@ export default function CreateOrderPage() {
                 <Input
                   value={form.devicePassword}
                   onChange={(e) => update("devicePassword", e.target.value)}
-                  placeholder="Akan ditampilkan transparan untuk teknisi"
                 />
               </div>
 

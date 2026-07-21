@@ -286,7 +286,7 @@ export default function IndexPage() {
           {searching ? (
             <p className="text-center text-muted-foreground">Mencari...</p>
           ) : results.length === 0 ? (
-            <p className="text-center text-muted-foreground">Tidak ada pesanan ditemukan untuk nomor tersebut.</p>
+            <p className="text-center text-muted-foreground">Nomor HP tidak ditemukan atau tidak sesuai</p>
           ) : (
             <div className="space-y-6 max-w-4xl mx-auto">
               <Tabs defaultValue="belum_dikerjakan" className="w-full space-y-6">

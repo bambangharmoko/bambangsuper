@@ -39,12 +39,11 @@ BEGIN
          so.device_model, so.service_type, so.status::text, so.created_at
   FROM public.service_orders so
   WHERE 
-    -- Match if clean DB phone equals clean input
-    regexp_replace(so.customer_phone, '\D', '', 'g') = _clean_phone
-    -- Or if clean DB phone contains the local number
-    OR (length(_local_phone) >= 8 AND regexp_replace(so.customer_phone, '\D', '', 'g') LIKE '%' || _local_phone || '%')
-    -- Or if raw DB phone matches variations directly
-    OR so.customer_phone = _phone;
+    CASE 
+      WHEN regexp_replace(so.customer_phone, '\D', '', 'g') LIKE '0%' THEN substring(regexp_replace(so.customer_phone, '\D', '', 'g') from 2)
+      WHEN regexp_replace(so.customer_phone, '\D', '', 'g') LIKE '62%' THEN substring(regexp_replace(so.customer_phone, '\D', '', 'g') from 3)
+      ELSE regexp_replace(so.customer_phone, '\D', '', 'g')
+    END = _local_phone;
 END;
 $$;
 

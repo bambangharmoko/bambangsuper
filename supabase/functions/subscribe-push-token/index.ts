@@ -38,9 +38,8 @@ Deno.serve(async (req) => {
     if (orderError) throw orderError;
     if (!order) return jsonResponse({ error: "Tiket tidak ditemukan" }, 404);
 
-    // Hapus token ini dari semua entitas lain untuk mencegah duplikasi
-    await admin.rpc("remove_push_token", { token_to_remove: fcm_token.trim() });
-
+    // We no longer remove the token from all entities because a customer can subscribe to multiple tickets.
+    // If they unsubscribe from a specific ticket, we will just update the is_active flag for that ticket.
     const { error } = await admin.from("customer_push_tokens").upsert(
       {
         ticket_number: ticket,

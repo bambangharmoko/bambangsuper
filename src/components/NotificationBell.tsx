@@ -131,6 +131,30 @@ export function NotificationBell() {
     }
   };
 
+  const handleEnablePush = async () => {
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === "granted") {
+        const { registerSwAndGetToken } = await import("@/lib/firebase");
+        const fcmToken = await registerSwAndGetToken();
+        if (fcmToken) {
+          const { error } = await supabase.functions.invoke("subscribe-staff-push-token", {
+            body: { fcm_token: fcmToken, user_agent: navigator.userAgent },
+          });
+          if (error) throw error;
+          toast.success("Push Notifikasi berhasil diaktifkan!");
+        } else {
+          toast.error("Gagal mendapatkan FCM Token");
+        }
+      } else {
+        toast.error("Izin notifikasi ditolak oleh browser.");
+      }
+    } catch (e) {
+      console.error("Manual push registration failed:", e);
+      toast.error("Gagal mengaktifkan push notifikasi");
+    }
+  };
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -144,20 +168,27 @@ export function NotificationBell() {
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="end">
-        <div className="flex items-center justify-between p-3 border-b border-border">
-          <p className="font-semibold text-sm">Notifikasi</p>
-          <div className="flex items-center gap-1.5">
-            {unreadCount > 0 && (
-              <Button variant="ghost" size="sm" className="text-xs h-auto py-1 px-2 text-muted-foreground hover:text-foreground" onClick={markAllRead}>
-                Baca Semua
-              </Button>
-            )}
-            {notifications.length > 0 && (
-              <Button variant="ghost" size="sm" className="text-xs h-auto py-1 px-2 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={deleteAllNotifications}>
-                Hapus Semua
-              </Button>
-            )}
+        <div className="flex flex-col p-3 border-b border-border gap-3">
+          <div className="flex items-center justify-between">
+            <p className="font-semibold text-sm">Notifikasi</p>
+            <div className="flex items-center gap-1.5">
+              {unreadCount > 0 && (
+                <Button variant="ghost" size="sm" className="text-xs h-auto py-1 px-2 text-muted-foreground hover:text-foreground" onClick={markAllRead}>
+                  Baca Semua
+                </Button>
+              )}
+              {notifications.length > 0 && (
+                <Button variant="ghost" size="sm" className="text-xs h-auto py-1 px-2 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={deleteAllNotifications}>
+                  Hapus Semua
+                </Button>
+              )}
+            </div>
           </div>
+          {typeof Notification !== "undefined" && Notification.permission !== "granted" && (
+            <Button variant="outline" size="sm" onClick={handleEnablePush} className="w-full text-xs bg-primary/5 border-primary/20 hover:bg-primary/10 transition-colors">
+              <Bell className="h-3.5 w-3.5 mr-2" /> Aktifkan Push Notifikasi
+            </Button>
+          )}
         </div>
         <ScrollArea className="max-h-[300px]">
           {notifications.length === 0 ? (

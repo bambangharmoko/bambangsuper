@@ -222,15 +222,16 @@ const compressImage = (file: File): Promise<File> => {
 
 // IndexedDB for persisting photo File objects across page reloads
 const DB_NAME = "super_komputer_order_drafts";
-const STORE_NAME = "photos";
+const STORE_NAME = "all_photos";
 
 const openDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
+    const request = indexedDB.open(DB_NAME, 2);
     request.onupgradeneeded = () => {
       const db = request.result;
+      if (db.objectStoreNames.contains("photos")) db.deleteObjectStore("photos");
       if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: "label" });
+        db.createObjectStore(STORE_NAME, { keyPath: "id" });
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -238,7 +239,7 @@ const openDB = (): Promise<IDBDatabase> => {
   });
 };
 
-const savePhotosToDB = async (orderPhotos: PhotoFile[]) => {
+const syncAllPhotosToDB = async (pendingUnits: PendingUnit[], currentPhotos: PhotoFile[]) => {
   try {
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, "readwrite");
@@ -250,39 +251,68 @@ const savePhotosToDB = async (orderPhotos: PhotoFile[]) => {
       clearReq.onerror = () => reject(clearReq.error);
     });
 
-    for (const photo of orderPhotos) {
-      await new Promise<void>((resolve, reject) => {
-        const putReq = store.put({ label: photo.label, file: photo.file });
-        putReq.onsuccess = () => resolve();
-        putReq.onerror = () => reject(putReq.error);
+    const promises: Promise<void>[] = [];
+    pendingUnits.forEach((unit, unitIdx) => {
+      unit.photos.forEach((photo) => {
+        promises.push(
+          new Promise((resolve, reject) => {
+            const putReq = store.put({ id: `unit_${unitIdx}_${photo.label}`, unitIdx, label: photo.label, file: photo.file });
+            putReq.onsuccess = () => resolve();
+            putReq.onerror = () => reject(putReq.error);
+          })
+        );
       });
-    }
+    });
+
+    const currentIdx = pendingUnits.length;
+    currentPhotos.forEach((photo) => {
+      promises.push(
+        new Promise((resolve, reject) => {
+          const putReq = store.put({ id: `unit_${currentIdx}_${photo.label}`, unitIdx: currentIdx, label: photo.label, file: photo.file });
+          putReq.onsuccess = () => resolve();
+          putReq.onerror = () => reject(putReq.error);
+        })
+      );
+    });
+
+    await Promise.all(promises);
   } catch (e) {
-    console.error("Failed to save photos to IndexedDB:", e);
+    console.error("Failed to sync photos to IndexedDB:", e);
   }
 };
 
-const loadPhotosFromDB = async (): Promise<PhotoFile[]> => {
+const loadAllPhotosFromDB = async (pendingLength: number): Promise<{ pendingPhotos: Record<number, PhotoFile[]>, currentPhotos: PhotoFile[] }> => {
   try {
     const db = await openDB();
-    return await new Promise<PhotoFile[]>((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readonly");
       const store = tx.objectStore(STORE_NAME);
       const request = store.getAll();
       request.onsuccess = () => {
         const data = request.result || [];
-        const restored: PhotoFile[] = data.map((item: any) => ({
-          file: item.file,
-          label: item.label,
-          preview: URL.createObjectURL(item.file),
-        }));
-        resolve(restored);
+        const pendingPhotos: Record<number, PhotoFile[]> = {};
+        const currentPhotos: PhotoFile[] = [];
+
+        data.forEach((item: any) => {
+          const photo: PhotoFile = {
+            file: item.file,
+            label: item.label,
+            preview: URL.createObjectURL(item.file),
+          };
+          if (item.unitIdx === pendingLength) {
+            currentPhotos.push(photo);
+          } else if (item.unitIdx < pendingLength) {
+            if (!pendingPhotos[item.unitIdx]) pendingPhotos[item.unitIdx] = [];
+            pendingPhotos[item.unitIdx].push(photo);
+          }
+        });
+        resolve({ pendingPhotos, currentPhotos });
       };
       request.onerror = () => reject(request.error);
     });
   } catch (e) {
     console.error("Failed to load photos from IndexedDB:", e);
-    return [];
+    return { pendingPhotos: {}, currentPhotos: [] };
   }
 };
 
@@ -295,8 +325,6 @@ const clearPhotosFromDB = async () => {
       const req = store.clear();
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
     });
   } catch (e) {
     console.error("Failed to clear photos from IndexedDB:", e);
@@ -591,21 +619,34 @@ export default function CreateOrderPage() {
       setStep(1);
     }
 
+    let loadedPendingUnits: PendingUnit[] = [];
     if (savedPendingUnits) {
       try {
-        setPendingUnits(JSON.parse(savedPendingUnits));
+        loadedPendingUnits = JSON.parse(savedPendingUnits);
       } catch (e) {
         console.error("Failed to parse saved pending units", e);
       }
-    } else {
-      setPendingUnits([]);
     }
+    setPendingUnits(loadedPendingUnits);
 
     // Load persisted photos dari IndexedDB
     const loadPhotos = async () => {
-      const restoredPhotos = await loadPhotosFromDB();
-      if (restoredPhotos.length > 0) {
-        setPhotos(restoredPhotos);
+      const { pendingPhotos, currentPhotos } = await loadAllPhotosFromDB(loadedPendingUnits.length);
+      
+      if (loadedPendingUnits.length > 0) {
+        const fixedPendingUnits = loadedPendingUnits.map((u, idx) => {
+          if (pendingPhotos[idx]) {
+            u.photos = pendingPhotos[idx];
+          } else {
+            u.photos = u.photos.map(p => ({ ...p }));
+          }
+          return u;
+        });
+        setPendingUnits(fixedPendingUnits);
+      }
+
+      if (currentPhotos.length > 0) {
+        setPhotos(currentPhotos);
       } else {
         setPhotos([]);
       }
@@ -627,22 +668,21 @@ export default function CreateOrderPage() {
     }
   }, [form, step, pendingUnits, selectedCustomerId]);
 
+  const pendingUnitsRef = useRef<PendingUnit[]>(pendingUnits);
+  useEffect(() => { pendingUnitsRef.current = pendingUnits; }, [pendingUnits]);
+
   // Sync photos to IndexedDB when state changes
   useEffect(() => {
-    if (photos.length > 0) {
-      savePhotosToDB(photos);
-    } else {
-      clearPhotosFromDB();
-    }
-  }, [photos]);
+    syncAllPhotosToDB(pendingUnits, photos);
+  }, [photos, pendingUnits]);
 
   // Persist photos immediately when the user leaves the page (e.g. switching to camera app).
   // Mobile browsers can reload the page when returning from the camera, so we need IndexedDB
   // to have the latest photos before that happens.
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden" && photosRef.current.length > 0) {
-        savePhotosToDB(photosRef.current);
+      if (document.visibilityState === "hidden") {
+        syncAllPhotosToDB(pendingUnitsRef.current, photosRef.current);
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -798,6 +838,15 @@ export default function CreateOrderPage() {
     setStep((s) => s + 1);
   };
 
+  const handlePrevStep = (targetStep?: number) => {
+    const nextS = targetStep !== undefined ? targetStep : Math.max(1, step - 1);
+    if (pendingUnits.length > 0 && nextS < 3) {
+      alert("Saat menambahkan unit, tipe servis dan data pelanggan tidak dapat diubah. Selesaikan atau batalkan penambahan unit terlebih dahulu.");
+      return;
+    }
+    setStep(nextS);
+  };
+
   const selectCustomer = (c: any) => {
     update("customerName", c.customer_name);
     update("customerPhone", c.customer_phone);
@@ -843,7 +892,7 @@ export default function CreateOrderPage() {
     });
 
     // Save raw file to IndexedDB now so it survives any page reload
-    await savePhotosToDB(buildMerged(rawPhoto));
+    await syncAllPhotosToDB(pendingUnitsRef.current, buildMerged(rawPhoto));
     toast.success(`Foto ${label} tersimpan.`);
 
     // ── Step 2: Compress in background (non-blocking) ─────────────────────────
@@ -861,7 +910,7 @@ export default function CreateOrderPage() {
         }
         return copy;
       });
-      await savePhotosToDB(buildMerged(optimizedPhoto));
+      await syncAllPhotosToDB(pendingUnitsRef.current, buildMerged(optimizedPhoto));
     }).catch((e) => console.warn("Background compression failed, keeping raw:", e));
   };
 
@@ -1161,7 +1210,7 @@ export default function CreateOrderPage() {
                 "flex-1 h-1.5 rounded-full transition-colors cursor-pointer",
                 s <= step ? "gradient-primary" : "bg-muted",
               )}
-              onClick={() => s < step && setStep(s)}
+              onClick={() => s < step && handlePrevStep(s)}
             />
           ))}
         </div>
@@ -1869,7 +1918,7 @@ export default function CreateOrderPage() {
 
         {/* Navigation */}
         <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
-          <Button variant="outline" onClick={() => setStep((s) => Math.max(1, s - 1))} disabled={step === 1 || loading}>
+          <Button variant="outline" onClick={() => handlePrevStep()} disabled={step === 1 || loading}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Kembali
           </Button>
           {step < 5 ? (

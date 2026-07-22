@@ -105,11 +105,48 @@ Deno.serve(async (req) => {
     }
 
     if (action === "delete-user") {
-      const userId = body.userId;
-      if (!userId) throw new Error("User ID wajib diisi");
+      const targetUserId = body.userId;
+      if (!targetUserId) return jsonResponse({ error: "User ID target wajib diisi" }, 400);
 
-      const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
-      if (deleteError) throw deleteError;
+      // Verifikasi Autentikasi Caller
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) return jsonResponse({ error: "Akses ditolak. Token tidak ditemukan." }, 401);
+
+      const { data: { user: caller }, error: callerError } = await admin.auth.getUser(authHeader.replace("Bearer ", ""));
+      if (callerError || !caller) return jsonResponse({ error: "Token tidak valid atau kedaluwarsa." }, 401);
+
+      const { data: callerRoles } = await admin.from("user_roles").select("role").eq("user_id", caller.id);
+      const isCallerOwner = callerRoles?.some((r: any) => r.role === "owner");
+      if (!isCallerOwner) return jsonResponse({ error: "Hanya Owner yang dapat melakukan tindakan ini." }, 403);
+
+      if (targetUserId === caller.id) return jsonResponse({ error: "Tidak dapat menghapus akun Anda sendiri." }, 400);
+
+      const { data: targetRoles } = await admin.from("user_roles").select("role").eq("user_id", targetUserId);
+      const isTargetOwner = targetRoles?.some((r: any) => r.role === "owner");
+
+      if (isTargetOwner) {
+        const { data: allOwners, error: countError } = await admin.from("user_roles").select("user_id").eq("role", "owner");
+        if (countError) throw countError;
+        if (allOwners && allOwners.length <= 1) {
+          return jsonResponse({ error: "Tidak dapat menghapus Owner terakhir di sistem." }, 400);
+        }
+      }
+
+      // Reassign FKs to prevent constraint violations
+      await admin.from("service_orders").update({ created_by: caller.id }).eq("created_by", targetUserId);
+      await admin.from("service_orders").update({ updated_by: caller.id }).eq("updated_by", targetUserId);
+      await admin.from("service_orders").update({ assigned_technician: null }).eq("assigned_technician", targetUserId);
+      await admin.from("service_updates").update({ created_by: caller.id }).eq("created_by", targetUserId);
+      await admin.from("saved_customers").update({ created_by: caller.id }).eq("created_by", targetUserId);
+      
+      await admin.from("staff_push_tokens").delete().eq("user_id", targetUserId);
+
+      const { error: deleteError } = await admin.auth.admin.deleteUser(targetUserId);
+      if (deleteError) {
+        console.error("Delete user error:", deleteError);
+        return jsonResponse({ error: "Gagal menghapus user dari database." }, 500);
+      }
+      
       return jsonResponse({ success: true });
     }
 

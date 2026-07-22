@@ -133,18 +133,24 @@ Deno.serve(async (req) => {
       }
 
       // Reassign FKs to prevent constraint violations
-      await admin.from("service_orders").update({ created_by: caller.id }).eq("created_by", targetUserId);
-      await admin.from("service_orders").update({ updated_by: caller.id }).eq("updated_by", targetUserId);
-      await admin.from("service_orders").update({ assigned_technician: null }).eq("assigned_technician", targetUserId);
-      await admin.from("service_updates").update({ created_by: caller.id }).eq("created_by", targetUserId);
-      await admin.from("saved_customers").update({ created_by: caller.id }).eq("created_by", targetUserId);
+      const { error: err1 } = await admin.from("service_orders").update({ created_by: caller.id }).eq("created_by", targetUserId);
+      if (err1) { console.error("Error updating service_orders.created_by:", err1); throw err1; }
+      
+      const { error: err2 } = await admin.from("service_orders").update({ assigned_technician: null }).eq("assigned_technician", targetUserId);
+      if (err2) { console.error("Error updating service_orders.assigned_technician:", err2); throw err2; }
+      
+      const { error: err3 } = await admin.from("service_updates").update({ updated_by: caller.id }).eq("updated_by", targetUserId);
+      if (err3) { console.error("Error updating service_updates.updated_by:", err3); throw err3; }
+      
+      const { error: err4 } = await admin.from("saved_customers").update({ created_by: caller.id }).eq("created_by", targetUserId);
+      if (err4) { console.error("Error updating saved_customers.created_by:", err4); throw err4; }
       
       await admin.from("staff_push_tokens").delete().eq("user_id", targetUserId);
 
       const { error: deleteError } = await admin.auth.admin.deleteUser(targetUserId);
       if (deleteError) {
         console.error("Delete user error:", deleteError);
-        return jsonResponse({ error: "Gagal menghapus user dari database." }, 500);
+        return jsonResponse({ error: "Gagal menghapus user dari database. Kemungkinan masih ada relasi data." }, 500);
       }
       
       return jsonResponse({ success: true });

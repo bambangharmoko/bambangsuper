@@ -318,7 +318,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [fetchUserData]);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     const uid = userRef.current?.id;
     
     // Hapus FCM Token sebelum logout agar bisa pakai session saat ini untuk RPC
@@ -345,10 +345,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setProfile(null);
     setRoles([]);
-  };
+  }, [queryClient]);
 
   const hasRole = useCallback((role: AppRole) => roles.includes(role), [roles]);
   const isApproved = profile?.is_approved === true;
+
+  // Realtime subscription for account deletion or revocation
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const uid = user.id;
+    const channel = supabase.channel(`auth-user-enforcement-${uid}`);
+
+    channel.on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "profiles", filter: `id=eq.${uid}` },
+      (payload) => {
+        if (payload.eventType === "DELETE" || (payload.eventType === "UPDATE" && payload.new.is_approved === false)) {
+          void signOut();
+        }
+      }
+    );
+
+    channel.on(
+      "postgres_changes",
+      { event: "DELETE", schema: "public", table: "user_roles", filter: `user_id=eq.${uid}` },
+      () => {
+        void signOut();
+      }
+    );
+
+    channel.subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id, signOut]);
 
   return (
     <AuthContext.Provider

@@ -44,6 +44,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { useSessionStorageState } from "@/hooks/useSessionStorageState";
 
 interface ClosedOrder {
   id: string;
@@ -141,13 +142,11 @@ export default function ClosedTicketsManager() {
   const [techNames, setTechNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
-
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useSessionStorageState("closed_search", "");
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
-
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useSessionStorageState("closed_page", 1);
 
   // Dialog konfirmasi hapus
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);

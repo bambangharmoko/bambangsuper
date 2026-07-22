@@ -9,11 +9,11 @@
 
 const STACK_PREFIX = "sk-navstack-";
 
-function stackKey(userId: string) {
+export function stackKey(userId: string) {
   return `${STACK_PREFIX}${userId}`;
 }
 
-function readStack(userId: string): string[] {
+export function readStack(userId: string): string[] {
   try {
     const raw = sessionStorage.getItem(stackKey(userId));
     return raw ? JSON.parse(raw) : [];
@@ -22,7 +22,7 @@ function readStack(userId: string): string[] {
   }
 }
 
-function writeStack(userId: string, stack: string[]) {
+export function writeStack(userId: string, stack: string[]) {
   try {
     sessionStorage.setItem(stackKey(userId), JSON.stringify(stack));
   } catch {

@@ -12,7 +12,7 @@ import {
   Archive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { ProfileDialog } from "@/components/ProfileDialog";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -39,6 +39,16 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     }
     return false;
   });
+
+  useEffect(() => {
+    (window as any).sidebarOpen = sidebarOpen;
+  }, [sidebarOpen]);
+
+  useEffect(() => {
+    const handleCloseSidebar = () => setSidebarOpen(false);
+    window.addEventListener("close-sidebar", handleCloseSidebar);
+    return () => window.removeEventListener("close-sidebar", handleCloseSidebar);
+  }, []);
 
   const handleSignOut = async () => {
     await signOut();

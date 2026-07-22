@@ -448,7 +448,7 @@ Kakak bisa melacak proses pengerjaan secara real-time melalui link berikut:
 Kami akan segera menginformasikan jika ada update atau pengecekan lebih lanjut. Terima kasih! 🙏`;
 
   const waLink = `https://wa.me/${formatWhatsAppPhone(customerPhone)}?text=${encodeURIComponent(message)}`;
-  window.open(waLink, "_blank");
+  return waLink;
 };
 
 interface MultiUnitTicketSummary {
@@ -498,7 +498,7 @@ Kakak bisa melacak proses pengerjaan setiap unit secara real-time melalui link m
 Kami akan segera menginformasikan jika ada update atau pengecekan lebih lanjut. Terima kasih! 🙏`;
 
   const waLink = `https://wa.me/${formatWhatsAppPhone(customerPhone)}?text=${encodeURIComponent(message)}`;
-  window.open(waLink, "_blank");
+  return waLink;
 };
 
 export default function CreateOrderPage() {
@@ -1134,13 +1134,13 @@ export default function CreateOrderPage() {
       localStorage.removeItem(LOCAL_STORAGE_KEY_STEP);
       localStorage.removeItem(LOCAL_STORAGE_KEY_PENDING_UNITS);
       localStorage.removeItem(LOCAL_STORAGE_KEY_CUSTOMER_ID);
-      await clearPhotosFromDB(); // await so IndexedDB is clean before navigating away
+      await clearPhotosFromDB();
       setPhotos([]);
       setPendingUnits([]);
 
       if (createdTickets.length === 1) {
         const only = createdTickets[0];
-        openTicketWhatsAppMessage({
+        const waLink = openTicketWhatsAppMessage({
           customerName: form.customerName,
           customerPhone: form.customerPhone,
           ticketNumber: only.ticket_number,
@@ -1152,10 +1152,24 @@ export default function CreateOrderPage() {
           unitAccessories: only.unit.unitAccessories || "-",
           currentStatus: initialStatus,
         });
-        toast.success(`Pesanan berhasil dibuat! Tiket: ${only.ticket_number}`);
-        navigate(`/dashboard/orders/${only.ticket_number}`);
+        
+        const intentLink = waLink.replace("https://wa.me/", "whatsapp://send?phone=").replace("?text=", "&text=");
+        setTimeout(() => {
+          try {
+            window.location.assign(intentLink);
+          } catch (e) {}
+        }, 500);
+
+        toast.success(`Pesanan berhasil dibuat! Tiket: ${only.ticket_number}`, {
+          duration: 10000,
+          action: {
+            label: "Kirim WA",
+            onClick: () => window.open(waLink, "_blank"),
+          },
+        });
+        navigate(`/dashboard/orders/${only.ticket_number}`, { replace: true });
       } else {
-        openMultiTicketWhatsAppMessage({
+        const waLink = openMultiTicketWhatsAppMessage({
           customerName: form.customerName,
           customerPhone: form.customerPhone,
           entryDate,
@@ -1169,8 +1183,22 @@ export default function CreateOrderPage() {
             currentStatus: initialStatus,
           })),
         });
-        toast.success(`${createdTickets.length} tiket berhasil dibuat!`);
-        navigate(`/dashboard/orders`);
+
+        const intentLink = waLink.replace("https://wa.me/", "whatsapp://send?phone=").replace("?text=", "&text=");
+        setTimeout(() => {
+          try {
+            window.location.assign(intentLink);
+          } catch (e) {}
+        }, 500);
+
+        toast.success(`${createdTickets.length} tiket berhasil dibuat!`, {
+          duration: 10000,
+          action: {
+            label: "Kirim WA",
+            onClick: () => window.open(waLink, "_blank"),
+          },
+        });
+        navigate(`/dashboard/orders`, { replace: true });
       }
     } catch (err: any) {
       console.error("Create order submit failed:", err);

@@ -36,6 +36,7 @@ import {
 import { toast } from "sonner";
 import { Search, Edit, Trash2, ArrowLeft, Filter, ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useSessionStorageState } from "@/hooks/useSessionStorageState";
 
 interface SavedCustomer {
   id: string;
@@ -50,9 +51,9 @@ export default function CustomerManagementPage() {
   const { user, hasRole } = useAuth();
   const navigate = useNavigate();
   const [customers, setCustomers] = useState<SavedCustomer[]>([]);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useSessionStorageState("customers_search", "");
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useSessionStorageState("customers_page", 1);
   const itemsPerPage = 10;
 
   // Edit

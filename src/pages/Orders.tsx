@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Enums } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useReconnectableChannel } from "@/hooks/useReconnectableChannel";
+import { useSessionStorageState } from "@/hooks/useSessionStorageState";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -100,10 +101,11 @@ function PaginationControls({ currentPage, totalPages, onPageChange }: { current
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useSessionStorageState("orders_search", "");
   const [scannerOpen, setScannerOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useSessionStorageState("orders_page", 1);
+  const [activeTab, setActiveTab] = useSessionStorageState("orders_tab", "open");
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
@@ -580,7 +582,7 @@ export default function OrdersPage() {
         </Dialog>
 
         {isTechnician ? (
-          <Tabs defaultValue="open" className="space-y-4" onValueChange={() => setCurrentPage(1)}>
+          <Tabs value={activeTab} className="space-y-4" onValueChange={(v) => { setActiveTab(v); setCurrentPage(1); }}>
             <div className="sticky top-16 z-10 -mx-4 overflow-x-auto bg-background/95 px-4 py-2 backdrop-blur lg:-mx-6 lg:px-6">
               <TabsList className="w-max min-w-full">
                 <TabsTrigger value="open" className="min-w-32 flex-1">

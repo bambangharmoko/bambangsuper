@@ -9,7 +9,8 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle, CalendarIcon, Download, FileSpreadsheet, Filter, RefreshCw, Search } from "lucide-react";
+import { Download, Search, RefreshCw, Eye, EyeOff, AlertTriangle, CalendarIcon, FileSpreadsheet, Filter } from "lucide-react";
+import { useSessionStorageState } from "@/hooks/useSessionStorageState";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import { id as idLocale } from "date-fns/locale";
@@ -48,13 +49,13 @@ export default function Reports() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useSessionStorageState("reports_page", 1);
   const itemsPerPage = 10;
 
   const [techProfiles, setTechProfiles] = useState<Record<string, string>>({});
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useSessionStorageState<string>("reports_status", "all");
 
   const [closeTimestamps, setCloseTimestamps] = useState<Record<string, string>>({});
 

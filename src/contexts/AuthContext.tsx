@@ -181,9 +181,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (session?.user) {
           extendSessionHint();
-          setLoading(true);
+          const shouldBlockUI = !initializedRef.current || event === "SIGNED_IN";
+          if (shouldBlockUI) setLoading(true);
+          
           void fetchUserData(session.user.id).finally(() => {
-            if (mounted) setLoading(false);
+            if (mounted && shouldBlockUI) {
+              setLoading(false);
+              initializedRef.current = true;
+            }
           });
         } else if (event === "SIGNED_OUT") {
           // Explicit sign-out: hapus semua cache
@@ -206,8 +211,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const checkSession = async () => {
       try {
-        if (!initializedRef.current) setLoading(true);
         const persistedSession = getPersistedSession();
+        
+        // Optimistic UI Release (Offline First)
+        if (!initializedRef.current) {
+          if (persistedSession?.user && hasRecentSessionHint()) {
+            const cachedProfile = getCachedProfile();
+            const cachedRoles = getCachedRoles();
+            if (cachedProfile) {
+              setSession(persistedSession);
+              setUser(persistedSession.user);
+              setProfile(cachedProfile);
+              setRoles(cachedRoles);
+              setLoading(false);
+              initializedRef.current = true;
+            } else {
+              setLoading(true);
+            }
+          } else {
+            setLoading(true);
+          }
+        }
+
         if (persistedSession?.user && !sessionRef.current) {
           setSession(persistedSession);
           setUser(persistedSession.user);

@@ -542,6 +542,7 @@ export default function CreateOrderPage() {
   const [pendingUnits, setPendingUnits] = useState<PendingUnit[]>([]);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [duplicateAlertOpen, setDuplicateAlertOpen] = useState(false);
+  const [addUnitAlertOpen, setAddUnitAlertOpen] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -841,7 +842,7 @@ export default function CreateOrderPage() {
   const handlePrevStep = (targetStep?: number) => {
     const nextS = targetStep !== undefined ? targetStep : Math.max(1, step - 1);
     if (pendingUnits.length > 0 && nextS < 3) {
-      alert("Saat menambahkan unit, tipe servis dan data pelanggan tidak dapat diubah. Selesaikan atau batalkan penambahan unit terlebih dahulu.");
+      setAddUnitAlertOpen(true);
       return;
     }
     setStep(nextS);
@@ -1967,6 +1968,22 @@ export default function CreateOrderPage() {
       </AlertDialog>
 
       {/* Duplicate Customer Alert Dialog */}
+      <AlertDialog open={addUnitAlertOpen} onOpenChange={setAddUnitAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tidak Dapat Kembali</AlertDialogTitle>
+            <AlertDialogDescription>
+              Saat menambahkan unit, tipe servis dan data pelanggan dari tiket pertama tidak dapat diubah. Selesaikan atau batalkan proses tambah unit terlebih dahulu.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setAddUnitAlertOpen(false)}>
+              Mengerti
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={duplicateAlertOpen} onOpenChange={setDuplicateAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

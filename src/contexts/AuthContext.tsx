@@ -130,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserData = useCallback(async (userId: string) => {
     try {
-      const [profileRes, rolesRes] = await Promise.all([
+      const [profileRes, rolesRes] = await withTimeout(Promise.all([
         supabase
           .from("profiles")
           .select("full_name, email, is_approved, requested_role, username")
@@ -140,7 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .from("user_roles")
           .select("role")
           .eq("user_id", userId),
-      ]);
+      ]), SESSION_CHECK_TIMEOUT_MS);
 
       if (profileRes.error) throw profileRes.error;
       if (rolesRes.error) throw rolesRes.error;

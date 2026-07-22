@@ -10,6 +10,7 @@ import { AppLoading } from "@/components/AppLoading";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { OpenInAppBanner } from "@/components/OpenInAppBanner";
 import { BackButtonHandler } from "@/components/BackButtonHandler";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const Index = lazy(() => import("./pages/Index"));
 const Track = lazy(() => import("./pages/Track"));
@@ -38,25 +39,27 @@ const App = () => (
           {/* Banner "Buka di Aplikasi" — muncul jika PWA sudah terinstall tapi user buka di browser */}
           <OpenInAppBanner />
           <BackButtonHandler />
-          <Suspense fallback={<AppLoading />}>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/track" element={<Navigate to="/" replace />} />
-              <Route path="/track/:ticketId" element={<Track />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/dashboard" element={<ProtectedRoute><NonTechnicianRoute><Dashboard /></NonTechnicianRoute></ProtectedRoute>} />
-              <Route path="/dashboard/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
-              <Route path="/dashboard/orders/create" element={<ProtectedRoute><CreateOrder /></ProtectedRoute>} />
-              <Route path="/dashboard/orders/:ticketId" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
-              <Route path="/dashboard/reports" element={<ProtectedRoute><AdminRoute><Reports /></AdminRoute></ProtectedRoute>} />
-              <Route path="/dashboard/workload" element={<ProtectedRoute><AdminRoute><TechnicianWorkload /></AdminRoute></ProtectedRoute>} />
-              <Route path="/dashboard/customers" element={<ProtectedRoute><NonTechnicianRoute><CustomerManagement /></NonTechnicianRoute></ProtectedRoute>} />
-              <Route path="/dashboard/users" element={<ProtectedRoute><OwnerRoute><UserManagement /></OwnerRoute></ProtectedRoute>} />
-              <Route path="/dashboard/closed-tickets" element={<ProtectedRoute><OwnerRoute><ClosedTicketsManager /></OwnerRoute></ProtectedRoute>} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={<AppLoading />}>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/track" element={<Navigate to="/" replace />} />
+                <Route path="/track/:ticketId" element={<Track />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/dashboard" element={<ProtectedRoute><NonTechnicianRoute><Dashboard /></NonTechnicianRoute></ProtectedRoute>} />
+                <Route path="/dashboard/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
+                <Route path="/dashboard/orders/create" element={<ProtectedRoute><CreateOrder /></ProtectedRoute>} />
+                <Route path="/dashboard/orders/:ticketId" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
+                <Route path="/dashboard/reports" element={<ProtectedRoute><AdminRoute><Reports /></AdminRoute></ProtectedRoute>} />
+                <Route path="/dashboard/workload" element={<ProtectedRoute><AdminRoute><TechnicianWorkload /></AdminRoute></ProtectedRoute>} />
+                <Route path="/dashboard/customers" element={<ProtectedRoute><NonTechnicianRoute><CustomerManagement /></NonTechnicianRoute></ProtectedRoute>} />
+                <Route path="/dashboard/users" element={<ProtectedRoute><OwnerRoute><UserManagement /></OwnerRoute></ProtectedRoute>} />
+                <Route path="/dashboard/closed-tickets" element={<ProtectedRoute><OwnerRoute><ClosedTicketsManager /></OwnerRoute></ProtectedRoute>} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </ErrorBoundary>
         </AuthProvider>
       </BrowserRouter>
       {/* PWA install prompt — muncul di semua halaman jika PWA belum terinstall */}

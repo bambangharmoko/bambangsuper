@@ -136,13 +136,8 @@ self.addEventListener("push", (event: PushEvent) => {
     return;
   }
 
-  // Jika Firebase atau OS sudah menangani (payload memiliki format FCM dengan 'notification'),
-  // browser akan otomatis menampilkannya. Kita TIDAK boleh memanggil showNotification lagi 
-  // agar tidak terjadi notifikasi ganda (double notifications).
-  if (payload.notification) {
-    return;
-  }
-
+  // Kita harus selalu memanggil showNotification karena jika tidak, 
+  // browser akan menampilkan peringatan "The site has been updated in the background".
   const notification = payload.notification || {};
   const data = payload.data || {};
 

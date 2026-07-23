@@ -6,6 +6,7 @@ import type { Enums } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useReconnectableChannel } from "@/hooks/useReconnectableChannel";
 import { useSessionStorageState } from "@/hooks/useSessionStorageState";
+import { useUpdateEffect } from "@/hooks/useUpdateEffect";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -196,7 +197,7 @@ export default function OrdersPage() {
   }, [fetchOrders]);
 
   // Reset page when search or filter changes
-  useEffect(() => { setCurrentPage(1); }, [search, activeFilter]);
+  useUpdateEffect(() => { setCurrentPage(1); }, [search, activeFilter]);
 
   const clearFilter = () => {
     searchParams.delete("filter");

@@ -1214,7 +1214,7 @@ export default function CreateOrderPage() {
       <div className="max-w-2xl mx-auto space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard/orders")}>
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <h1 className="text-xl font-bold">Buat Pesanan</h1>

@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { Search, Edit, Trash2, ArrowLeft, Filter, ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useSessionStorageState } from "@/hooks/useSessionStorageState";
+import { useUpdateEffect } from "@/hooks/useUpdateEffect";
 
 interface SavedCustomer {
   id: string;
@@ -112,7 +113,7 @@ export default function CustomerManagementPage() {
     );
   });
 
-  useEffect(() => {
+  useUpdateEffect(() => {
     setPage(1);
   }, [search]);
 

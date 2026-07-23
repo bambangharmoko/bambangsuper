@@ -45,6 +45,7 @@ import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useSessionStorageState } from "@/hooks/useSessionStorageState";
+import { useUpdateEffect } from "@/hooks/useUpdateEffect";
 
 interface ClosedOrder {
   id: string;
@@ -244,7 +245,7 @@ export default function ClosedTicketsManager() {
   useReconnectableChannel(!!user, buildClosedTicketsChannel, fetchOrders);
 
   // Reset halaman saat search/filter berubah
-  useEffect(() => {
+  useUpdateEffect(() => {
     setCurrentPage(1);
     setSelectedIds(new Set());
   }, [search, dateFrom, dateTo]);

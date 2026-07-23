@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Download, Search, RefreshCw, Eye, EyeOff, AlertTriangle, CalendarIcon, FileSpreadsheet, Filter } from "lucide-react";
 import { useSessionStorageState } from "@/hooks/useSessionStorageState";
+import { useUpdateEffect } from "@/hooks/useUpdateEffect";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import { id as idLocale } from "date-fns/locale";
@@ -167,7 +168,7 @@ export default function Reports() {
     totalRevenue: filtered.filter(o => o.status !== "Cancelled").reduce((sum, o) => sum + (o.final_cost || 0), 0),
   };
 
-  useEffect(() => {
+  useUpdateEffect(() => {
     setPage(1);
   }, [filtered]);
 

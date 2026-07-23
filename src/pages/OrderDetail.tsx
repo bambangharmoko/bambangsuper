@@ -342,89 +342,6 @@ export default function OrderDetailPage() {
     return { profileMap, roleMap };
   };
 
-  const createInternalNotification = async (
-    action: string,
-    orderId: string,
-    ticketNumber: string,
-    deviceStr: string,
-    actorName: string,
-    statusStr: string,
-    desc: string,
-    assignedTech: string | null
-  ) => {
-    if (!user) return;
-    try {
-      const { data: staffRoles } = await supabase.from("user_roles").select("user_id, role").in("role", ["admin", "owner", "technician"]);
-      const { data: approvedProfiles } = await supabase.from("profiles").select("id").eq("is_approved", true);
-
-      if (!staffRoles || !approvedProfiles) return;
-
-      const userRolesMap: Record<string, string[]> = {};
-      for (const row of staffRoles) {
-        if (!userRolesMap[row.user_id]) userRolesMap[row.user_id] = [];
-        userRolesMap[row.user_id].push(row.role);
-      }
-
-      const approvedIds = new Set(approvedProfiles.map(p => p.id));
-      const targetUserIds = Object.keys(userRolesMap).filter(userId => {
-        if (!approvedIds.has(userId)) return false;
-        if (userId === user.id) return false;
-
-        const roles = userRolesMap[userId];
-        const isAdminOrOwner = roles.includes("admin") || roles.includes("owner");
-        const isTechnician = roles.includes("technician");
-
-        if (isTechnician && !isAdminOrOwner) {
-          return assignedTech === userId;
-        }
-        return true;
-      });
-
-      if (targetUserIds.length === 0) return;
-
-      const dbNotifications = targetUserIds.map(userId => {
-        const isAssignedTech = userId === assignedTech;
-        let userTitle = "Update Tiket";
-        let userBody = `Ada perubahan pada tiket ${ticketNumber}.`;
-
-        if (action === "status_update") {
-          userTitle = isAssignedTech ? "Update Tugas Anda" : "Update Status Tiket";
-          userBody = isAssignedTech
-            ? `${actorName} mengubah status tiket ${ticketNumber} (Tugas Anda) menjadi ${statusStr}.`
-            : `Tiket ${ticketNumber} (${deviceStr}): ${actorName} mengubah status menjadi ${statusStr}.`;
-        } else if (action === "delay_reason") {
-          userTitle = "Alasan Keterlambatan Update";
-          userBody = isAssignedTech
-            ? `${actorName} menambahkan alasan keterlambatan pada tiket ${ticketNumber} (Tugas Anda).`
-            : `Tiket ${ticketNumber} (${deviceStr}): ${actorName} menambahkan alasan keterlambatan: ${desc.replace("[ALASAN TERLAMBAT]", "").trim()}`;
-        } else if (action === "edit_data") {
-          userTitle = "Data Tiket Diperbarui";
-          const editDesc = desc.replace("[EDIT DATA]", "").trim();
-          userBody = isAssignedTech
-            ? `${actorName} memperbarui data tiket ${ticketNumber} (Tugas Anda): ${editDesc}`
-            : `Tiket ${ticketNumber} (${deviceStr}): ${actorName} memperbarui data tiket.`;
-        } else if (action === "note_create") {
-          userTitle = "Memo Baru Tiket";
-          userBody = isAssignedTech
-            ? `${actorName} menambahkan memo pada tiket ${ticketNumber} (Tugas Anda).`
-            : `Tiket ${ticketNumber} (${deviceStr}): ${actorName} menambahkan memo.`;
-        }
-
-        return {
-          user_id: userId,
-          title: userTitle,
-          message: userBody,
-          order_id: orderId,
-          is_read: false
-        };
-      });
-
-      await supabase.from("notifications").insert(dbNotifications);
-    } catch (err) {
-      console.error("Gagal insert internal notification", err);
-    }
-  };
-
   const insertServiceUpdate = async (payload: any) => {
     const { data, error } = await supabase.from("service_updates").insert(payload).select("id").single();
     if (error) throw error;
@@ -448,19 +365,7 @@ export default function OrderDetailPage() {
       }
     }).catch(console.error);
 
-    if (order) {
-      const actorName = hasRole("admin") ? "Admin" : hasRole("owner") ? "Owner" : profile?.full_name || "Teknisi";
-      createInternalNotification(
-        actionType,
-        order.id,
-        order.ticket_number,
-        `${order.device_brand} ${order.device_model}`,
-        actorName,
-        payload.status,
-        desc,
-        order.assigned_technician
-      );
-    }
+
 
     return { data, error };
   };
@@ -616,19 +521,7 @@ export default function OrderDetailPage() {
           },
         }).catch((err) => console.error("Failed to send notepad notification", err));
 
-        if (order) {
-          const actorName = hasRole("admin") ? "Admin" : hasRole("owner") ? "Owner" : profile?.full_name || "Teknisi";
-          createInternalNotification(
-            "note_create",
-            order.id,
-            order.ticket_number,
-            `${order.device_brand} ${order.device_model}`,
-            actorName,
-            order.status,
-            content,
-            order.assigned_technician
-          );
-        }
+
       }
     } else {
       toast.error("Gagal menambahkan catatan");

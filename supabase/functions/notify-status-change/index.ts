@@ -204,24 +204,6 @@ Deno.serve(async (req) => {
                     
                     url: trackingPath,
                   },
-                  webpush: {
-                    notification: {
-                      title,
-                      body: bodyText,
-                      icon: "/icon-192.png",
-                      badge: "/icon-192.png",
-                      vibrate: [200, 100, 200],
-                      tag: ticket_number,
-                      requireInteraction: true,
-                      data: {
-                        ticket_number,
-                        status: new_status,
-                        
-                        url: trackingPath,
-                      },
-                    },
-                    fcm_options: { link: trackingUrl },
-                  },
                 },
               }),
             }

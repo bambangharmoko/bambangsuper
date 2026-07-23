@@ -292,24 +292,6 @@ Deno.serve(async (req) => {
                 status: status || "",
                 url: targetPath,
               },
-              webpush: {
-                notification: {
-                  title: userTitle,
-                  body: userBody,
-                  icon: "/icon-192.png",
-                  badge: "/icon-192.png",
-                  vibrate: [200, 100, 200],
-                  tag: `staff-ticket-${order_id}`,
-                  requireInteraction: true,
-                  data: {
-                    order_id,
-                    ticket_number: order.ticket_number,
-                    status: status || "",
-                    url: targetPath,
-                  },
-                },
-                fcm_options: { link: `${APP_ORIGIN}${targetPath}` },
-              },
             },
           }),
         });

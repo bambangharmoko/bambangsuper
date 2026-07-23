@@ -41,6 +41,12 @@ const hasConfig = (config) =>
 // Tampilkan notifikasi dari payload FCM
 const showMessageNotification = (payload) => {
   try {
+    // Jika payload memiliki field 'notification', browser akan menampilkannya secara otomatis.
+    // Jangan panggil showNotification lagi agar tidak dobel.
+    if (payload.notification) {
+      return;
+    }
+
     const notification = payload.notification || {};
     const data = payload.data || {};
 
@@ -66,8 +72,9 @@ const showMessageNotification = (payload) => {
     self.registration
       .showNotification(title, {
         body,
-        icon: notification.icon || "/superkomputer.png",
-        badge: "/superkomputer.png",
+        icon: notification.icon || "/icon-192.png",
+        badge: "/icon-192.png",
+        vibrate: [200, 100, 200],
         tag,
         data: { ...data, url: targetPath },
         requireInteraction: true,

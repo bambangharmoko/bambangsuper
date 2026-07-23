@@ -136,8 +136,13 @@ self.addEventListener("push", (event: PushEvent) => {
     return;
   }
 
-  // Jika Firebase sudah menangani (payload memiliki format FCM dengan 'notification'),
-  // kita cukup tampilkan notifikasi dari data field sebagai backup.
+  // Jika Firebase atau OS sudah menangani (payload memiliki format FCM dengan 'notification'),
+  // browser akan otomatis menampilkannya. Kita TIDAK boleh memanggil showNotification lagi 
+  // agar tidak terjadi notifikasi ganda (double notifications).
+  if (payload.notification) {
+    return;
+  }
+
   const notification = payload.notification || {};
   const data = payload.data || {};
 
@@ -163,6 +168,7 @@ self.addEventListener("push", (event: PushEvent) => {
       body,
       icon,
       badge,
+      vibrate: [200, 100, 200],
       tag,
       data: { ...data, url: targetUrl },
       requireInteraction: true,

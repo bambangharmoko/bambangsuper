@@ -296,8 +296,9 @@ Deno.serve(async (req) => {
                 notification: {
                   title: userTitle,
                   body: userBody,
-                  icon: "/superkomputer.png",
-                  badge: "/superkomputer.png",
+                  icon: "/icon-192.png",
+                  badge: "/icon-192.png",
+                  vibrate: [200, 100, 200],
                   tag: `staff-ticket-${order_id}`,
                   requireInteraction: true,
                   data: {

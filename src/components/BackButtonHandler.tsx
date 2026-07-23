@@ -50,6 +50,12 @@ export function BackButtonHandler() {
   const handlePopState = useCallback(() => {
     window.history.pushState(null, "", window.location.href);
 
+    const dialogs = document.querySelectorAll('[role="dialog"], [role="alertdialog"]');
+    if (dialogs.length > 0) {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      return;
+    }
+
     if ((window as any).sidebarOpen) {
       window.dispatchEvent(new Event("close-sidebar"));
       return;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -34,48 +34,64 @@ export function StaleTicketsAlert() {
 
   const isAdminOrOwner = hasRole("admin") || hasRole("owner");
 
-  useEffect(() => {
+  const checkStaleTickets = useCallback(async (manual = false) => {
     if (!isAdminOrOwner) return;
 
-    const checkStaleTickets = async () => {
-      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const activeStatuses = ["Diterima", "Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"] as const;
+    if (!manual && sessionStorage.getItem("stale_alert_shown")) {
+      return;
+    }
 
-      const { data: orders } = await supabase
-        .from("service_orders")
-        .select("id, ticket_number, customer_name, status, updated_at, assigned_technician")
-        .is("deleted_at", null)
-        .in("status", activeStatuses)
-        .lt("updated_at", oneDayAgo);
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const activeStatuses = ["Diterima", "Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"] as const;
 
-      if (!orders || orders.length === 0) return;
+    const { data: orders } = await supabase
+      .from("service_orders")
+      .select("id, ticket_number, customer_name, status, updated_at, assigned_technician")
+      .is("deleted_at", null)
+      .in("status", activeStatuses)
+      .lt("updated_at", oneDayAgo);
 
-      // Get technician names
-      const techIds = [...new Set(orders.filter(o => o.assigned_technician).map(o => o.assigned_technician!))];
-      let techMap: Record<string, string> = {};
-      if (techIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", techIds);
-        if (profiles) {
-          techMap = Object.fromEntries(profiles.map(p => [p.id, p.full_name]));
-        }
+    if (!orders || orders.length === 0) {
+      if (manual) toast.info("Tidak ada tiket tertunda lebih dari 24 jam.");
+      return;
+    }
+
+    // Get technician names
+    const techIds = [...new Set(orders.filter(o => o.assigned_technician).map(o => o.assigned_technician!))];
+    let techMap: Record<string, string> = {};
+    if (techIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", techIds);
+      if (profiles) {
+        techMap = Object.fromEntries(profiles.map(p => [p.id, p.full_name]));
       }
+    }
 
-      const enriched = orders.map(o => ({
-        ...o,
-        technician_name: o.assigned_technician ? techMap[o.assigned_technician] || "Tidak diketahui" : undefined,
-      }));
+    const enriched = orders.map(o => ({
+      ...o,
+      technician_name: o.assigned_technician ? techMap[o.assigned_technician] || "Tidak diketahui" : undefined,
+    }));
 
-      setStaleOrders(enriched);
-      setOpen(true);
-    };
+    setStaleOrders(enriched);
+    setOpen(true);
 
-    // Small delay to let dashboard render first
-    const timer = setTimeout(checkStaleTickets, 1500);
-    return () => clearTimeout(timer);
+    if (!manual) {
+      sessionStorage.setItem("stale_alert_shown", "true");
+    }
   }, [isAdminOrOwner]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => checkStaleTickets(false), 1500);
+    return () => clearTimeout(timer);
+  }, [checkStaleTickets]);
+
+  useEffect(() => {
+    const handleManualOpen = () => checkStaleTickets(true);
+    window.addEventListener("open-stale-alert", handleManualOpen);
+    return () => window.removeEventListener("open-stale-alert", handleManualOpen);
+  }, [checkStaleTickets]);
 
   const sendNotification = async (order: StaleOrder) => {
     if (!order.assigned_technician || !user) {

@@ -203,6 +203,20 @@ export default function DashboardHome() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+          {(hasRole("admin") || hasRole("owner")) && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 border-destructive/20 text-destructive hover:bg-destructive/10"
+              onClick={() => window.dispatchEvent(new Event("open-stale-alert"))}
+            >
+              <AlertTriangle className="h-4 w-4" />
+              Cek Tiket Tertunda
+            </Button>
+          )}
+        </div>
         <StaleTicketsAlert />
         {!isOnline && <div className="rounded-lg bg-warning/10 px-3 py-2 text-sm text-warning">Mode offline. Data akan disinkronkan saat koneksi kembali.</div>}
         {fetchError && !loading && (

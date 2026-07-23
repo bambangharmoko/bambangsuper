@@ -196,13 +196,25 @@ Deno.serve(async (req) => {
               body: JSON.stringify({
                 message: {
                   token: fcm_token,
+                  notification: {
+                    title,
+                    body: bodyText,
+                  },
                   data: {
                     title,
                     body: bodyText,
                     ticket_number,
                     status: new_status,
-                    
                     url: trackingPath,
+                  },
+                  webpush: {
+                    notification: {
+                      icon: "/icon-192.png",
+                      badge: "/icon-192.png",
+                    },
+                    fcm_options: {
+                      link: trackingUrl,
+                    },
                   },
                 },
               }),

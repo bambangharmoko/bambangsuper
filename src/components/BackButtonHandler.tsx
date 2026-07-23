@@ -1,109 +1,70 @@
 import { useEffect, useRef, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  pushPage,
-  initStack,
-  clearNavStack,
-  readStack,
-  writeStack
-} from "@/hooks/useNavigationStack";
-
-const MAIN_PAGES = [
-  "/dashboard/orders",
-  "/dashboard/workload",
-  "/dashboard/reports",
-  "/dashboard/closed-tickets",
-  "/dashboard/customers",
-  "/dashboard/users",
-  "/dashboard/profile"
-];
 
 export function BackButtonHandler() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const location = useLocation();
   const lastBackPressRef = useRef<number | null>(null);
-  const userId = user?.id ?? null;
+  const isNavigatingBackRef = useRef(false);
 
-  // Track navigation into the per-user stack
+  // We only want to push a dummy state when we are on the dashboard 
+  // so we can intercept the BACK action to prevent exiting the app immediately.
   useEffect(() => {
-    if (!userId) return;
-    const path = location.pathname + location.search;
-    initStack(userId, path);
+    if (!user) return;
     
-    if (MAIN_PAGES.some(p => location.pathname === p)) {
-      writeStack(userId, ["/dashboard", path]);
-    } else if (location.pathname === "/dashboard") {
-      writeStack(userId, ["/dashboard"]);
-    } else {
-      pushPage(userId, path);
+    if (location.pathname === "/dashboard") {
+      // Push dummy state for the first back press
+      if (!window.history.state || window.history.state.preventExit !== true) {
+        const currentState = window.history.state || {};
+        window.history.pushState({ ...currentState, preventExit: true }, "", window.location.href);
+      }
     }
-  }, [location.pathname, location.search, userId]);
+  }, [location.pathname, user]);
 
-  useEffect(() => {
-    if (!userId) return;
-    return () => clearNavStack(userId);
-  }, [userId]);
+  const handlePopState = useCallback((event: PopStateEvent) => {
+    if (!user) return;
 
-  const handlePopState = useCallback(() => {
-    window.history.pushState(null, "", window.location.href);
+    if (isNavigatingBackRef.current) {
+      isNavigatingBackRef.current = false;
+      return;
+    }
 
     const dialogs = document.querySelectorAll('[role="dialog"], [role="alertdialog"]');
     if (dialogs.length > 0) {
+      // A modal is open, we want to close it, BUT the browser already navigated natively!
+      // Since PWAs usually expect back to just close the modal, if we didn't push a dummy state, 
+      // the URL HAS changed. We will dispatch Escape just in case, but native navigation continues.
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-      return;
+      // We don't return here so native navigation proceeds if there was no dummy state
     }
 
     if ((window as any).sidebarOpen && window.innerWidth < 768) {
       window.dispatchEvent(new Event("close-sidebar"));
-      return;
+      // We don't return here so native navigation proceeds if there was no dummy state
     }
 
-    if (!userId) return;
-
     const path = location.pathname;
-
+    
     if (path === "/dashboard") {
       const now = Date.now();
       if (lastBackPressRef.current !== null && now - lastBackPressRef.current < 2000) {
         lastBackPressRef.current = null;
-        window.close();
-        window.history.go(-(window.history.length));
+        window.history.go(-(window.history.length)); // Exit app
       } else {
         lastBackPressRef.current = now;
         toast.info("Tekan lagi untuk keluar", { duration: 2000 });
+        // Push state again so the next back press triggers popstate again
+        const currentState = window.history.state || {};
+        window.history.pushState({ ...currentState, preventExit: true }, "", window.location.href);
       }
-    } else if (MAIN_PAGES.some(p => path === p)) {
-      navigate("/dashboard", { replace: true });
-    } else {
-      lastBackPressRef.current = null;
-      const stack = readStack(userId);
-      
-      if (stack.length > 1) {
-        stack.pop(); // remove current
-        
-        while (stack.length > 1) {
-          const topPath = stack[stack.length - 1];
-          if (topPath.includes("/orders/create")) {
-            stack.pop();
-          } else {
-            break;
-          }
-        }
-        
-        writeStack(userId, stack);
-        const destination = stack[stack.length - 1];
-        navigate(destination, { replace: true });
-      } else {
-        navigate("/dashboard", { replace: true });
-      }
+      return;
     }
-  }, [userId, navigate, location.pathname]);
+    
+  }, [location.pathname, user]);
 
   useEffect(() => {
-    window.history.pushState(null, "", window.location.href);
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, [handlePopState]);

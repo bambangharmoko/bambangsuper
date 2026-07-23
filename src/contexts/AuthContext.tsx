@@ -1,7 +1,6 @@
 import { createContext, useContext, useCallback, useEffect, useState, useRef, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { clearNavStack } from "@/hooks/useNavigationStack";
 import { registerSwAndGetToken, unregisterFCMToken, closeAllNotifications, isMessagingSupported } from "@/lib/firebase";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -183,6 +182,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           extendSessionHint();
           const shouldBlockUI = !initializedRef.current || event === "SIGNED_IN";
           if (shouldBlockUI) setLoading(true);
+
+          if (event === "SIGNED_IN") {
+            localStorage.removeItem(`stale_alert_shown_${session.user.id}`);
+          }
           
           void fetchUserData(session.user.id).finally(() => {
             if (mounted && shouldBlockUI) {
@@ -339,7 +342,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.clear();
     clearSessionHint();
     clearCachedProfileAndRoles();
-    if (uid) clearNavStack(uid);
     setUser(null);
     setSession(null);
     setProfile(null);

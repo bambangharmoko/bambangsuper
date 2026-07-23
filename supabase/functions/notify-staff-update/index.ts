@@ -50,15 +50,47 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const {
-      update_id,
-      order_id,
-      status: bodyStatus,
-      updated_by,
-      action: bodyAction,
-      note_content,
-      delay_reason: bodyDelayReason
-    } = await req.json();
+    const rawJson = await req.json();
+    
+    // 1. Deteksi apakah payload berasal dari Supabase Database Webhook native
+    let isWebhook = false;
+    let webhookRecord = null;
+    let webhookOldRecord = null;
+    let webhookTable = "";
+    
+    if (rawJson.type && rawJson.table && rawJson.record) {
+      isWebhook = true;
+      webhookRecord = rawJson.record;
+      webhookOldRecord = rawJson.old_record || null;
+      webhookTable = rawJson.table;
+      
+      // Jika ini adalah webhook dari internal_notes, kita harus CANCELL process jika HANYA "is_read_by" yang berubah
+      if (webhookTable === "internal_notes" && rawJson.type === "UPDATE") {
+        if (webhookOldRecord && webhookRecord.content === webhookOldRecord.content) {
+          console.log("[Webhook] internal_notes update diabaikan karena content tidak berubah (kemungkinan event read/unread).");
+          return new Response(JSON.stringify({ ok: true, sent: 0, message: "ignored read event" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+      }
+    }
+
+    // 2. Ekstrak data dari payload (mendukung format manual invoke ATAU webhook native)
+    const update_id = isWebhook ? webhookRecord.id : rawJson.update_id;
+    const order_id = isWebhook ? webhookRecord.order_id : rawJson.order_id;
+    const bodyStatus = isWebhook ? webhookRecord.status : rawJson.status;
+    const updated_by = isWebhook ? (webhookRecord.user_id || webhookRecord.updated_by) : rawJson.updated_by;
+    
+    // Tentukan action berdasarkan konteks webhook jika tidak dikirim dari frontend
+    let bodyAction = rawJson.action;
+    if (isWebhook && !bodyAction) {
+      if (webhookTable === "internal_notes") {
+        bodyAction = rawJson.type === "INSERT" ? "note_create" : "note_update";
+      } else if (webhookTable === "service_updates") {
+        bodyAction = "status_update";
+      }
+    }
+    
+    const note_content = isWebhook && webhookTable === "internal_notes" ? webhookRecord.content : rawJson.note_content;
+    const bodyDelayReason = rawJson.delay_reason;
 
     if (!order_id || !updated_by) {
       return new Response(JSON.stringify({ error: "order_id and updated_by required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });

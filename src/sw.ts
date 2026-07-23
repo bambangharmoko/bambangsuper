@@ -118,6 +118,9 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+// Global set untuk melacak pesan push (deduplikasi khusus untuk iOS)
+const processedPushMessages = new Set<string>();
+
 // ── Push Notification Handler ──────────────────────────────────────────────
 // SW utama (Workbox) juga meng-handle push event sebagai fallback
 // untuk kasus di mana firebase-messaging-sw.js tidak terdaftar sebagai SW aktif.
@@ -128,9 +131,22 @@ self.addEventListener("push", (event: PushEvent) => {
   // Handler ini adalah fallback untuk payload yang tidak ditangani Firebase.
   if (!event.data) return;
 
+  const payloadStr = event.data.text();
+  
+  // Deduplikasi sederhana berdasarkan payload exact string (menyelesaikan bug FCM ganda iOS)
+  if (processedPushMessages.has(payloadStr)) {
+    console.log("[SW] Push event duplicate diabaikan.");
+    return;
+  }
+  processedPushMessages.add(payloadStr);
+  if (processedPushMessages.size > 50) {
+    const firstKey = processedPushMessages.keys().next().value;
+    if (firstKey) processedPushMessages.delete(firstKey);
+  }
+
   let payload: Record<string, any> = {};
   try {
-    payload = event.data.json();
+    payload = JSON.parse(payloadStr);
   } catch {
     // Payload bukan JSON — abaikan
     return;
@@ -145,9 +161,9 @@ self.addEventListener("push", (event: PushEvent) => {
   const body = notification.body || data.body || "";
   const icon = notification.icon || "/icon-192.png";
   const badge = notification.badge || "/icon-192.png";
-  const tag = data.order_id
-    ? `staff-ticket-${data.order_id}`
-    : data.ticket_number || "service-update";
+  
+  // Tag penting agar OS (Android/iOS) bisa meng-overwrite notifikasi ganda
+  const tag = data.order_id ? `staff-ticket-${data.order_id}` : (data.ticket_number || "sumtra-push");
 
   // Tentukan URL target berdasarkan konteks notifikasi
   const targetUrl =

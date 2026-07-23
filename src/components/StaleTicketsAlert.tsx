@@ -35,9 +35,11 @@ export function StaleTicketsAlert() {
   const isAdminOrOwner = hasRole("admin") || hasRole("owner");
 
   const checkStaleTickets = useCallback(async (manual = false) => {
-    if (!isAdminOrOwner) return;
+    if (!isAdminOrOwner || !user) return;
 
-    if (!manual && sessionStorage.getItem("stale_alert_shown")) {
+    const cacheKey = `stale_alert_shown_${user.id}`;
+
+    if (!manual && localStorage.getItem(cacheKey)) {
       return;
     }
 
@@ -78,9 +80,9 @@ export function StaleTicketsAlert() {
     setOpen(true);
 
     if (!manual) {
-      sessionStorage.setItem("stale_alert_shown", "true");
+      localStorage.setItem(cacheKey, "true");
     }
-  }, [isAdminOrOwner]);
+  }, [isAdminOrOwner, user]);
 
   useEffect(() => {
     const timer = setTimeout(() => checkStaleTickets(false), 1500);

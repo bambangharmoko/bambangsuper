@@ -4,20 +4,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { onForegroundMessage, registerSwAndGetToken, showForegroundNotification } from "@/lib/firebase";
 
-type OrderRow = {
-  id: string;
-  ticket_number: string;
-  device_brand: string;
-  device_model: string;
-  status: string;
-  assigned_technician: string | null;
-};
-
-type ProfileMap = Record<string, { full_name: string | null; role: string | null }>;
-type RealtimePayload<T> = { eventType: "INSERT" | "UPDATE" | "DELETE"; new: T };
-type ServiceUpdateRow = { id: string; order_id: string; status: string; updated_by: string; description?: string | null };
-type InternalNoteRow = { id: string; order_id: string; user_id: string; created_at: string; updated_at?: string | null };
-
 const STAFF_NOTIFICATION_PROMPT_KEY = "staff-notifications-permission-prompted";
 
 const isInIframe = () => {
@@ -34,26 +20,8 @@ const canUseNotifications = () =>
   "serviceWorker" in navigator &&
   !isInIframe();
 
-const actorLabel = (actorId: string | null | undefined, profiles: ProfileMap, currentUserId?: string) => {
-  if (!actorId) return "Sistem";
-  if (actorId === currentUserId) return "Anda";
-  const profile = profiles[actorId];
-  if (!profile) return "Staff";
-  if (profile.role === "admin") return "Admin";
-  if (profile.role === "owner") return "Owner";
-  return profile.full_name || "Teknisi";
-};
-
-const notify = async (title: string, body: string, orderId: string, ticketNumber: string) => {
-  toast(title, { description: body });
-
-  if (!canUseNotifications() || Notification.permission !== "granted") return;
-  await showForegroundNotification(title, body, { order_id: orderId, url: `/dashboard/orders/${ticketNumber}` });
-};
-
 export function useStaffRealtimeNotifications() {
   const { user, roles, loading, isApproved } = useAuth();
-  const lastSeenRef = useRef<Set<string>>(new Set());
   // Simpan timestamp terakhir registrasi token untuk rate-limit re-registration
   const lastTokenRegRef = useRef<number>(0);
 
@@ -71,7 +39,7 @@ export function useStaffRealtimeNotifications() {
       try {
         const fcmToken = await registerSwAndGetToken();
         if (!fcmToken) {
-          console.warn("[Staff-SW] FCM token kosong — push notification tidak akan berfungsi");
+          console.warn("[Staff-SW] FCM token kosong - push notification tidak akan berfungsi");
           return;
         }
         const { data, error } = await supabase.functions.invoke("subscribe-staff-push-token", {
@@ -98,6 +66,7 @@ export function useStaffRealtimeNotifications() {
     };
 
     requestOnce().catch((error) => console.warn("[Staff-SW] Permission request gagal:", error));
+
     registerStaffPushToken().catch((error) => console.warn("[Staff-SW] Push token registration gagal:", error));
 
     // Re-register token saat app kembali aktif (untuk handle token refresh FCM)
@@ -139,104 +108,6 @@ export function useStaffRealtimeNotifications() {
   useEffect(() => {
     if (loading || !user || !isApproved || roles.length === 0) return;
 
-    const isAdminOrOwner = roles.includes("admin") || roles.includes("owner");
-    const isTechnicianOnly = roles.includes("technician") && !isAdminOrOwner;
-
-    const getOrders = async (ids: string[]) => {
-      const uniqueIds = [...new Set(ids.filter(Boolean))];
-      if (uniqueIds.length === 0) return {} as Record<string, OrderRow>;
-      const { data, error } = await supabase
-        .from("service_orders")
-        .select("id, ticket_number, device_brand, device_model, status, assigned_technician")
-        .in("id", uniqueIds);
-      if (error) throw error;
-      return Object.fromEntries((data || []).map((order) => [order.id, order as OrderRow]));
-    };
-
-    const getProfiles = async (userIds: string[]) => {
-      const ids = [...new Set(userIds.filter(Boolean))];
-      if (ids.length === 0) return {} as ProfileMap;
-      const { data, error } = await supabase.rpc("get_staff_identities", { _user_ids: ids });
-      if (error) throw error;
-      return Object.fromEntries(
-        (data || []).map((item) => [item.user_id, { full_name: item.full_name, role: item.role }])
-      ) as ProfileMap;
-    };
-
-    const handleStatusUpdate = async (payload: RealtimePayload<ServiceUpdateRow>) => {
-      if (payload.eventType !== "INSERT") return;
-      const eventKey = `status:${payload.new.id}`;
-      if (lastSeenRef.current.has(eventKey)) return;
-      lastSeenRef.current.add(eventKey);
-
-      const update = payload.new;
-      if (update.updated_by === user.id) return;
-      if (update.description && update.description.startsWith("[ALASAN TERLAMBAT]")) {
-        // Skip status update toast since it is already notified as a notepad memo
-        return;
-      }
-
-      // Count status updates to detect if it's the initial ticket creation
-      const { count, error: countError } = await supabase
-        .from("service_updates")
-        .select("id", { count: "exact", head: true })
-        .eq("order_id", update.order_id);
-      if (countError) {
-        console.error("Failed to count status updates", countError);
-        return;
-      }
-      if (count !== null && count <= 1) {
-        // Initial creation, do not notify
-        return;
-      }
-
-      const orders = await getOrders([update.order_id]);
-      const order = orders[update.order_id];
-      if (!order) return;
-
-      if (isTechnicianOnly && order.assigned_technician !== user.id) {
-        return;
-      }
-
-      const profiles = await getProfiles([update.updated_by]);
-      const actor = actorLabel(update.updated_by, profiles, user.id);
-
-      const isMyAssignedTicket = order.assigned_technician === user.id;
-      const title = isMyAssignedTicket ? "Update Tugas Anda" : "Update Status Tiket";
-      const body = isMyAssignedTicket
-        ? `${actor} mengubah status tiket ${order.ticket_number} (Tugas Anda) menjadi ${update.status}.`
-        : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actor} mengubah status menjadi ${update.status}.`;
-
-      await notify(title, body, order.id, order.ticket_number);
-    };
-
-    const handleInternalNote = async (payload: RealtimePayload<InternalNoteRow>) => {
-      if (!payload.new || payload.new.user_id === user.id) return;
-      const eventKey = `note:${payload.eventType}:${payload.new.id}:${payload.new.updated_at || payload.new.created_at}`;
-      if (lastSeenRef.current.has(eventKey)) return;
-      lastSeenRef.current.add(eventKey);
-
-      const note = payload.new;
-      const orders = await getOrders([note.order_id]);
-      const order = orders[note.order_id];
-      if (!order) return;
-
-      if (isTechnicianOnly && order.assigned_technician !== user.id) {
-        return;
-      }
-
-      const profiles = await getProfiles([note.user_id]);
-      const actor = actorLabel(note.user_id, profiles, user.id);
-
-      const action = payload.eventType === "UPDATE" ? "memperbarui memo" : "menambahkan memo";
-      const isMyAssignedTicket = order.assigned_technician === user.id;
-      const body = isMyAssignedTicket
-        ? `${actor} ${action} pada tiket ${order.ticket_number} (Tugas Anda).`
-        : `Tiket ${order.ticket_number} (${order.device_brand} ${order.device_model}): ${actor} ${action}.`;
-
-      await notify("Update Memo Tiket", body, order.id, order.ticket_number);
-    };
-
     let disposed = false;
     let retryId: number | null = null;
     let channel: ReturnType<typeof supabase.channel> | null = null;
@@ -250,15 +121,12 @@ export function useStaffRealtimeNotifications() {
         .channel(`staff-push-${user.id}`)
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "service_updates" }, (payload) => {
           window.dispatchEvent(new Event("staff-data-refresh"));
-          handleStatusUpdate(payload as unknown as RealtimePayload<ServiceUpdateRow>).catch((error) => console.error("Status notification failed", error));
         })
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "internal_notes" }, (payload) => {
           window.dispatchEvent(new Event("staff-data-refresh"));
-          handleInternalNote(payload as unknown as RealtimePayload<InternalNoteRow>).catch((error) => console.error("Note notification failed", error));
         })
         .on("postgres_changes", { event: "UPDATE", schema: "public", table: "internal_notes" }, (payload) => {
           window.dispatchEvent(new Event("staff-data-refresh"));
-          handleInternalNote(payload as unknown as RealtimePayload<InternalNoteRow>).catch((error) => console.error("Note notification failed", error));
         });
 
       channel.subscribe((status) => {

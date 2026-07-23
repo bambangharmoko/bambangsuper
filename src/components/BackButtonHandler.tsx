@@ -56,7 +56,7 @@ export function BackButtonHandler() {
       return;
     }
 
-    if ((window as any).sidebarOpen) {
+    if ((window as any).sidebarOpen && window.innerWidth < 768) {
       window.dispatchEvent(new Event("close-sidebar"));
       return;
     }

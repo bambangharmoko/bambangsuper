@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Bell, BellOff, BellRing, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { registerSwAndGetToken, isMessagingSupported, onForegroundMessage, showForegroundNotification } from "@/lib/firebase";
+import { registerSwAndGetToken, isMessagingSupported, onForegroundMessage } from "@/lib/firebase";
 
 interface Props {
   ticketNumber: string;
@@ -58,9 +58,6 @@ export const NotificationSubscribeButton = ({ ticketNumber }: Props) => {
       const title = payload?.notification?.title || payload?.data?.title || "Update Tiket";
       const body = payload?.notification?.body || payload?.data?.body || "";
       toast({ title, description: body });
-      showForegroundNotification(title, body, payload?.data || {}).catch((error) => {
-        console.warn("Foreground notification display failed:", error);
-      });
     });
     return () => {
       try {

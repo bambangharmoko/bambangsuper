@@ -244,8 +244,8 @@ export const showForegroundNotification = async (title: string, body: string, da
 
   await registration.showNotification(title, {
     body,
-    icon: "/superkomputer.png",
-    badge: "/superkomputer.png",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
     tag,
     data,
     requireInteraction: true,

@@ -38,17 +38,37 @@ Deno.serve(async (req) => {
     if (orderError) throw orderError;
     if (!order) return jsonResponse({ error: "Tiket tidak ditemukan" }, 404);
 
-    // We no longer remove the token from all entities because a customer can subscribe to multiple tickets.
-    // If they unsubscribe from a specific ticket, we will just update the is_active flag for that ticket.
-    const { error } = await admin.from("customer_push_tokens").upsert(
-      {
-        ticket_number: ticket,
-        fcm_token: fcm_token.trim(),
-        user_agent: typeof user_agent === "string" ? user_agent.slice(0, 500) : null,
-        is_active: action !== "unsubscribe",
-      },
-      { onConflict: "ticket_number,fcm_token" }
-    );
+    // Use select and update/insert to handle missing unique constraints safely
+    const { data: existingToken, error: selectError } = await admin
+      .from("customer_push_tokens")
+      .select("id")
+      .eq("ticket_number", ticket)
+      .eq("fcm_token", fcm_token.trim())
+      .maybeSingle();
+
+    if (selectError) throw selectError;
+
+    let error;
+    if (existingToken) {
+      const { error: updateError } = await admin
+        .from("customer_push_tokens")
+        .update({
+          user_agent: typeof user_agent === "string" ? user_agent.slice(0, 500) : null,
+          is_active: action !== "unsubscribe",
+        })
+        .eq("id", existingToken.id);
+      error = updateError;
+    } else {
+      const { error: insertError } = await admin
+        .from("customer_push_tokens")
+        .insert({
+          ticket_number: ticket,
+          fcm_token: fcm_token.trim(),
+          user_agent: typeof user_agent === "string" ? user_agent.slice(0, 500) : null,
+          is_active: action !== "unsubscribe",
+        });
+      error = insertError;
+    }
 
     if (error) throw error;
     return jsonResponse({ ok: true });

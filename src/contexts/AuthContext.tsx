@@ -329,7 +329,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await (supabase.rpc as any)("remove_push_token", { token_to_remove: activeToken });
           localStorage.removeItem("active_fcm_token");
         }
-        await unregisterFCMToken();
         await closeAllNotifications();
       } catch (err) {
         console.warn("Gagal membersihkan FCM token saat logout:", err);

@@ -172,7 +172,7 @@ self.addEventListener("push", (event: PushEvent) => {
       tag,
       data: { ...data, url: targetUrl },
       requireInteraction: true,
-    })
+    } as any)
   );
 });
 

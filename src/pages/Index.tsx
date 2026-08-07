@@ -74,7 +74,7 @@ const partners = [
   "GRAND TJOKRO HOTEL",
   "PT. Energy Logistic",
   "PT. ESCO Weir Indonesia",
-  "SD Maria GoretTi",
+  "SD Maria Goretti",
   "SKH F Asisi",
 ];
 

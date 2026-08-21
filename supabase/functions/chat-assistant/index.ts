@@ -7,56 +7,6 @@ const corsHeaders = {
 };
 
 // ============================================================================
-// HELPER: QUERY REAL-TIME LENOVO OFFICIAL WARRANTY API
-// ============================================================================
-async function fetchLenovoOfficialWarranty(serialNumber: string) {
-  try {
-    const cleanSN = serialNumber.trim().toUpperCase();
-    const res = await fetch("https://pcsupport.lenovo.com/us/en/api/v4/upsell/redport/getIbaseInfo", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-      },
-      body: JSON.stringify({
-        serialNumber: cleanSN,
-        country: "id",
-        language: "id",
-      }),
-    });
-
-    if (!res.ok) return null;
-    const json = await res.json();
-
-    if (json.code === 0 && json.data?.machineInfo) {
-      const info = json.data.machineInfo;
-      const currentW = json.data.currentWarranty || json.data.baseWarranties?.[0];
-      const hasADP = (json.data.upgradeWarranties || []).some(
-        (u: any) => u.deliveryType === "ADP" || (u.name || "").includes("Accidental Damage")
-      );
-
-      return {
-        found: true,
-        brand: "Lenovo",
-        productName: info.productName || "Lenovo Device",
-        serial: info.serial || cleanSN,
-        productModel: info.product || info.model || "",
-        warrantyStatus: json.data.warrantyStatus === "In warranty" ? "Aktif (Masih Bergaransi Resmi)" : "Habis (Out of Warranty)",
-        isInWarranty: json.data.warrantyStatus === "In warranty",
-        endDate: currentW?.endDate || "Tidak diketahui",
-        warrantyName: currentW?.deliveryTypeName || currentW?.name || "Garansi Standar Pabrikan",
-        hasADP: hasADP,
-        adpInfo: hasADP ? "Tercakup Accidental Damage Protection (ADP)" : "Tidak ada ADP",
-      };
-    }
-    return null;
-  } catch (err: any) {
-    console.warn("Lenovo warranty lookup error:", err.message);
-    return null;
-  }
-}
-
-// ============================================================================
 // RAG KNOWLEDGE BASE: SUPER KOMPUTER BALIKPAPAN & SUMTRA
 // ============================================================================
 const KNOWLEDGE_BASE = `
@@ -72,23 +22,27 @@ const KNOWLEDGE_BASE = `
   * Senin s/d Sabtu: Pukul 09.00 - 20.00 WITA
   * Minggu & Hari Libur Nasional: Tutup
 
-# LAYANAN AUTHORIZED SERVICE & KLAIM GARANSI RESMI
-1. KUALIFIKASI AUTHORIZED SERVICE CENTER RESMI:
-   - Super Komputer adalah Service Center Resmi (Authorized Service Center) di Balikpapan untuk merek **Lenovo** & **ASUS** (Laptop LOQ, Legion, IdeaPad, ThinkPad, Yoga, ASUS ROG, TUF Gaming, ZenBook, VivoBook, PC Desktop & All-in-One).
-   - Melayani klaim garansi resmi pabrikan (gratis penggantian sparepart original jika masih dalam masa garansi resmi dan memenuhi syarat garansi).
-   - Melayani perbaikan non-garansi / out-of-warranty dengan suku cadang original.
+# LAYANAN AUTHORIZED SERVICE CENTER & KLAIM GARANSI
+1. AUTHORIZED SERVICE CENTER RESMI ASUS:
+   - Super Komputer adalah **Authorized Service Center Resmi ASUS di Balikpapan**.
+   - Melayani klaim garansi resmi dan perbaikan produk ASUS (Laptop ASUS ROG, TUF Gaming, ZenBook, VivoBook, ExpertBook, PC Desktop & All-in-One).
+   - GRATIS 100% biaya jasa dan penggantian sparepart original jika unit masih dalam masa garansi resmi ASUS dan memenuhi syarat garansi.
+   - Pengecekan Garansi Resmi ASUS Mandiri: https://www.asus.com/id/support/warranty-status-inquiry/
+   - Bantuan Pengecekan Garansi ASUS: Pelanggan dapat mengirimkan foto Serial Number (SN) ke WhatsApp CS 0811-540-4999 untuk dicekkan langsung oleh staff via sistem internal ASUS Service Partner.
 
-2. PENGECEKAN GARANSI RESMI:
-   - Lenovo: Sistem SuperBot terhubung langsung ke API resmi Lenovo Global untuk mengecek status Serial Number (SN) secara akurat.
-   - ASUS: Melayani klaim garansi resmi ASUS di toko (Jl. Ahmad Yani No. 118 Balikpapan) dan via CS WhatsApp 08115404999. Link portal mandiri resmi ASUS: https://www.asus.com/id/support/warranty-status-inquiry/
+2. MULTI-BRAND REPAIR (SEMUA MEREK LAPTOP & PC):
+   - Acer, HP, Dell, MSI, Lenovo, Toshiba, Axioo, Apple MacBook, dll.
+   - Melayani perbaikan profesional non-garansi (out-of-warranty) dan upgrade hardware:
+     * Mati total (matot), short circuit motherboard, reballing/ganti IC power, BIOS corrupt.
+     * Penggantian LCD/LED panel, keyboard, engsel/casing pecah, baterai original.
+     * Cleaning fan & repaste thermal paste premium (Arctic / Noctua).
+     * Upgrade SSD NVMe/SATA & RAM DDR4/DDR5.
 
-3. MULTI-BRAND REPAIR (SEMUA MEREK):
-   - Acer, HP, Dell, MSI, Toshiba, Axioo, Apple MacBook, dll.
-   - Penanganan level komponen motherboard: Mati total (matot), korsleting (short circuit), reballing/ganti IC power, BIOS corrupt, ganti keyboard, engsel/casing pecah, ganti layar LCD/LED, penggantian baterai original, cleaning fan & ganti thermal paste premium.
-
-4. SERVIS PRINTER, SCANNER, CCTV & JARINGAN:
-   - Epson, Canon, HP, Brother (head buntu, blinking/waste pad, paper jam, mekanik).
-   - Pengadaan & Instalasi CCTV Online/Offline, Mesin Absensi Biometrik, Jaringan LAN/WiFi UniFi/Mikrotik.
+3. SERVIS PRINTER, CCTV, & SOLUSI IT KORPORAT:
+   - Printer Epson, Canon, HP, Brother (head buntu, blinking waste ink pad, paper jam, sistem infus).
+   - Pengadaan & Instalasi CCTV Online/Offline (Hikvision, Dahua).
+   - Mesin Absensi Biometrik (Fingerprint & Face Recognition).
+   - Infrastruktur Jaringan (LAN Cabling, Mikrotik, Cisco, WiFi Ubiquiti UniFi).
 
 # PROSEDUR SERVIS TOKO & SLA
 - Alur Pengerjaan: Unit Diterima -> Diagnosa Teknisi -> Konfirmasi Biaya & Kerusakan ke Pelanggan -> Pengerjaan / Penggantian Part -> Quality Control (QC) -> Selesai / Siap Diambil.
@@ -131,38 +85,10 @@ Deno.serve(async (req) => {
 
     let liveDynamicContext = "";
 
-    // 1. CEK APAKAH ADA SERIAL NUMBER LENOVO PADA PESAN PENGGUNA
-    // Format SN Lenovo umumnya 8 karakter alfanumerik (contoh: MP2YMGW0, PF123456, YM001234, 8-10 karakter)
-    const snMatch = userText.match(/\b([A-Z0-9]{8,10})\b/i);
-    const hasLenovoKeyword = /lenovo/i.test(userText);
-
-    if (snMatch) {
-      const candidateSN = snMatch[1].toUpperCase();
-      // Jangan salah deteksi nomor tiket SUMTRA (yang berformat F26xxx atau G26xxx atau SK-xxx)
-      const isSumtraTicket = /^([FG]\d{5}|\d{5})$/i.test(candidateSN);
-
-      if (!isSumtraTicket || hasLenovoKeyword) {
-        const lenovoData = await fetchLenovoOfficialWarranty(candidateSN);
-        if (lenovoData && lenovoData.found) {
-          liveDynamicContext += `
-[HASIL PENGECEKAN RESMI REAL-TIME PORTAL LENOVO GLOBAL]
-- Merek: Lenovo
-- Tipe Laptop / Produk: ${lenovoData.productName} (Model: ${lenovoData.productModel})
-- Serial Number (S/N): ${lenovoData.serial}
-- Status Garansi: ${lenovoData.warrantyStatus}
-- Tanggal Berakhir Garansi Resmi: ${lenovoData.endDate}
-- Jenis Garansi: ${lenovoData.warrantyName}
-- Perlindungan Tambahan: ${lenovoData.adpInfo}
-- Klaim di Toko: Super Komputer adalah Authorized Service Center Resmi Lenovo di Balikpapan. Pelanggan dapat mengklaim garansi resmi unit ini di Super Komputer secara GRATIS (Part Original & Jasa Rp 0) selama kerusakan bukan akibat kelalaian (atau jika ada ADP maka tercover).
-`;
-        }
-      }
-    }
-
-    // 2. CEK APAKAH ADA NOMOR TIKET SUMTRA PADA PESAN PENGGUNA
+    // 1. CEK APAKAH ADA NOMOR TIKET SUMTRA PADA PESAN PENGGUNA
     const ticketMatch = userText.match(/\b([FG]\d{5}|SK-\d{4}|\d{5})\b/i);
 
-    if (ticketMatch && !liveDynamicContext) {
+    if (ticketMatch) {
       const extractedTicket = ticketMatch[1].toUpperCase();
 
       const { data: orderData, error: orderErr } = await supabase
@@ -254,23 +180,18 @@ ${timelineStr || "- Belum ada catatan timeline tambahan"}
 Kamu adalah "SuperBot", AI Customer Care & Technical Assistant resmi dari "Super Komputer Balikpapan" (aplikasi SUMTRA).
 
 PEDOMAN UTAMA:
-1. **PENGECEKAN GARANSI RESMI LENOVO (TERHUBUNG KE API LENOVO)**:
-   - Jika terdapat data [HASIL PENGECEKAN RESMI REAL-TIME PORTAL LENOVO GLOBAL], WAJIB tampilkan data resmi tersebut dengan jelas dan rapi:
-     * **Tipe Perangkat**: (misal: LOQ 15IRX9 - Type 83DV)
-     * **Serial Number**: {SN}
-     * **Status Garansi**: Aktif / Expired
-     * **Tanggal Berakhir Garansi**: {tanggal}
-     * **Jenis Layanan Garansi**: {jenis garansi} (misal: 2Y PremiumCare, ADP, dll.)
-     * **Klaim Garansi di Super Komputer**: Jelaskan bahwa Super Komputer adalah **Authorized Service Center Resmi Lenovo di Balikpapan** dan pelanggan dapat langsung membawa unit ke toko di Jl. Ahmad Yani No. 118 Balikpapan untuk klaim garansi resmi (Gratis jasa & part original).
+1. **LAYANAN SERVICE CENTER RESMI ASUS**:
+   - Super Komputer adalah **Authorized Service Center Resmi ASUS di Balikpapan**.
+   - Melayani klaim garansi resmi dan perbaikan untuk seluruh lini produk ASUS (ROG, TUF Gaming, ZenBook, VivoBook, ExpertBook, PC Desktop, All-in-One).
+   - Jika pelanggan menanyakan cara cek garansi ASUS atau memberikan Serial Number (SN) ASUS:
+     * Jelaskan bahwa karena portal publik ASUS menerapkan proteksi captcha, sediakan 3 opsi resmi:
+       1) **Cek Mandiri Cepat**: Arahkan ke [Portal Cek Status Garansi ASUS Indonesia](https://www.asus.com/id/support/warranty-status-inquiry/)
+       2) **Kirim Foto SN ke CS WhatsApp**: Pelanggan cukup mengirimkan foto Serial Number (SN) di bawah laptop ke WhatsApp CS **[0811-540-4999](https://wa.me/628115404999)** untuk dicekkan langsung oleh staff di portal internal ASUS Service Partner.
+       3) **Bawa ke Toko Fisik**: Jl. Ahmad Yani No. 118, Balikpapan (Senin - Sabtu: 09.00 - 20.00 WITA) untuk klaim garansi langsung secara GRATIS (Part Original & Jasa Rp 0).
 
-2. **PENGECEKAN GARANSI RESMI ASUS**:
-   - Jika pelanggan menanyakan status garansi laptop/produk ASUS (ROG, TUF, ZenBook, VivoBook, PC):
-     * Konfirmasikan bahwa Super Komputer adalah **Authorized Service Center Resmi ASUS di Balikpapan** dan melayani klaim garansi resmi (Gratis jasa dan sparepart original jika memenuhi syarat garansi).
-     * Jelaskan bahwa portal konsumen ASUS Indonesia menerapkan sistem proteksi keamanan interaktif (reCAPTCHA verifikasi 'Saya bukan robot').
-     * Berikan 3 opsi praktis untuk pelanggan:
-       1) **Cek Mandiri Cepat di Portal Resmi ASUS**: Tautkan link resmi [Portal Cek Status Garansi ASUS Indonesia](https://www.asus.com/id/support/warranty-status-inquiry/)
-       2) **Kirim Foto SN ke CS WhatsApp**: Pelanggan cukup mengirim foto label Serial Number di bawah unit ke WhatsApp CS **[0811-540-4999](https://wa.me/628115404999)** untuk dicekkan langsung oleh staff di portal internal ASUS Service Partner.
-       3) **Bawa ke Toko Super Komputer**: Jl. Ahmad Yani No. 118, Balikpapan (Senin - Sabtu: 09.00 - 20.00 WITA) untuk klaim garansi langsung.
+2. **PERBAIKAN MULTI-BRAND (NON-GARANSI / OUT OF WARRANTY)**:
+   - Untuk merek lain (Acer, HP, Dell, MSI, Lenovo, MacBook, dll.), Super Komputer melayani perbaikan profesional non-garansi dengan suku cadang berkualitas dan garansi toko.
+   - Jika ada yang menanyakan garansi resmi merek selain ASUS (misal Lenovo/Acer), jelaskan bahwa Super Komputer adalah Authorized Service Center resmi khusus untuk **ASUS**, sedangkan untuk merek lain dilayani sebagai servis multi-brand non-garansi.
 
 3. **PENGECEKAN TIKET SERVIS SUMTRA**:
    - Jika terdapat data [HASIL QUERY DATABASE RESMI SUMTRA UNTUK TIKET ...], gunakan data tersebut secara akurat dan sertakan tombol [Buka Pelacakan Tiket #{nomor_tiket}](/track/{nomor_tiket}).

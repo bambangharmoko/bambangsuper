@@ -32,14 +32,14 @@ interface ChatMessage {
 const INITIAL_GREETING: ChatMessage = {
   id: "welcome-msg",
   sender: "bot",
-  text: `Halo! 👋 Selamat datang di **Super Komputer Balikpapan** (SUMTRA). Saya **SuperBot**, asisten AI pintar Anda.\n\nSaya bisa membantu Anda:\n- 🔍 **Cek Status Servis Real-time** (sebutkan nomor tiket Anda, contoh: *F26001*)\n- 💻 **Konsultasi Troubleshooting** Komputer, Laptop, Printer, & CCTV\n- 🛡️ **Info Layanan Authorized Service** Lenovo & ASUS\n- ⏱️ **Jam Operasional, Lokasi, & Biaya Servis**\n\nAda yang bisa saya bantu hari ini?`,
+  text: `Halo! 👋 Selamat datang di **Super Komputer Balikpapan** (SUMTRA). Saya **SuperBot**, asisten AI pintar Anda.\n\nSaya bisa membantu Anda:\n- 🔍 **Cek Status Servis Real-time** (sebutkan nomor tiket Anda, contoh: *F26001*)\n- 💻 **Konsultasi Troubleshooting** Komputer, Laptop, Printer, & CCTV\n- 🛡️ **Info Layanan Authorized Service** ASUS\n- ⏱️ **Jam Operasional, Lokasi, & Biaya Servis**\n\nAda yang bisa saya bantu hari ini?`,
   timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
 };
 
 const QUICK_PROMPTS = [
   { label: "🔍 Cek Status Servis", prompt: "Saya ingin mengecek status pengerjaan tiket servis saya." },
   { label: "💻 Solusi Laptop Lambat", prompt: "Laptop saya terasa sangat lemot dan lambat, apa solusinya?" },
-  { label: "🛡️ Garansi Lenovo & ASUS", prompt: "Bagaimana prosedur klaim garansi resmi Lenovo dan ASUS di Super Komputer?" },
+  { label: "🛡️ Garansi Resmi ASUS", prompt: "Bagaimana prosedur klaim garansi resmi ASUS di Super Komputer?" },
   { label: "📍 Jam Buka & Lokasi", prompt: "Dimana alamat toko Super Komputer Balikpapan dan jam operasionalnya?" },
   { label: "🖨️ Servis Printer", prompt: "Apakah melayani perbaikan printer Epson/Canon yang blinking dan head buntu?" },
 ];

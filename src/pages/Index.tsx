@@ -67,7 +67,7 @@ const services = [
     title: "Service Centre Solution",
     icon: Wrench,
     color: "from-amber-500 to-amber-600",
-    items: ["Authorized Service Lenovo & ASUS", "Perbaikan All Brand PC & Laptop", "Servis Printer & Proyektor"],
+    items: ["Authorized Service Center ASUS", "Perbaikan All Brand PC & Laptop", "Servis Printer & Proyektor"],
   },
 ];
 
@@ -365,7 +365,7 @@ export default function IndexPage() {
             Teknologi Informasi di Kalimantan Timur, Super Komputer telah menjadi mitra terpercaya bagi pelanggan retail
             maupun korporat. Kami menyediakan solusi IT menyeluruh — mulai dari penjualan perangkat, pemasangan
             infrastruktur jaringan & keamanan, hingga layanan perbaikan profesional sebagai{" "}
-            <strong className="text-foreground">Authorized Service Center Lenovo & ASUS</strong>.
+            <strong className="text-foreground">Authorized Service Center ASUS</strong>.
           </p>
         </motion.div>
       </section>
@@ -455,7 +455,7 @@ export default function IndexPage() {
                 Konsultasi & Cek Servis Instan dengan <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-sky-300 to-indigo-300">SuperBot AI</span>
               </h2>
               <p className="text-slate-300 text-sm sm:text-base mb-6 leading-relaxed">
-                Didukung oleh arsitektur <strong>Hybrid RAG + Tool Calling</strong> dan Google Gemini AI. Dapatkan jawaban cepat seputar kendala teknis laptop/PC Anda, biaya perbaikan, garansi resmi ASUS & Lenovo, serta pengecekan status tiket secara real-time.
+                Didukung oleh arsitektur <strong>Hybrid RAG + Real-time Query</strong> dan Google Gemini AI. Dapatkan jawaban cepat seputar kendala teknis laptop/PC Anda, biaya perbaikan, garansi resmi ASUS, serta pengecekan status tiket secara real-time.
               </p>
               <div className="flex flex-wrap gap-3">
                 <Button
@@ -490,12 +490,12 @@ export default function IndexPage() {
                 <p className="text-xs text-slate-400">Konsultasi laptop matot, blue screen, atau lemot</p>
               </div>
               <div
-                onClick={() => window.dispatchEvent(new CustomEvent("open-superbot-chat", { detail: { prompt: "Apakah Super Komputer menerima klaim garansi resmi ASUS dan Lenovo?" } }))}
+                onClick={() => window.dispatchEvent(new CustomEvent("open-superbot-chat", { detail: { prompt: "Apakah Super Komputer melayani klaim garansi resmi ASUS?" } }))}
                 className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-primary/50 hover:bg-white/10 transition-all cursor-pointer group"
               >
                 <ShieldCheck className="h-5 w-5 text-emerald-400 mb-2 group-hover:scale-110 transition-transform" />
                 <h4 className="font-semibold text-sm text-white mb-1">Authorized Center</h4>
-                <p className="text-xs text-slate-400">Garansi & perbaikan resmi Lenovo & ASUS</p>
+                <p className="text-xs text-slate-400">Garansi & perbaikan resmi ASUS</p>
               </div>
               <div
                 onClick={() => window.dispatchEvent(new CustomEvent("open-superbot-chat", { detail: { prompt: "Berapa estimasi biaya ganti SSD, RAM, dan pasang thermal paste?" } }))}
@@ -526,7 +526,7 @@ export default function IndexPage() {
             <div>
               <h4 className="text-lg font-bold text-sidebar-primary-foreground mb-3">Super Komputer</h4>
               <p className="text-sm text-sidebar-foreground/70 leading-relaxed mb-4">
-                Authorized Service Center Lenovo & ASUS. Solusi lengkap IT untuk kebutuhan personal dan korporat di
+                Authorized Service Center ASUS. Solusi lengkap IT untuk kebutuhan personal dan korporat di
                 Kalimantan Timur.
               </p>
               <div className="flex gap-3">

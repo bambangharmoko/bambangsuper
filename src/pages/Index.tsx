@@ -22,6 +22,9 @@ import {
   Award,
   ChevronRight,
   Loader2,
+  Bot,
+  Sparkles,
+  MessageSquare,
 } from "lucide-react";
 import { AppLogo } from "@/components/AppLogo";
 import { Input } from "@/components/ui/input";
@@ -34,6 +37,7 @@ import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useReconnectableChannel } from "@/hooks/useReconnectableChannel";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { ChatAssistant } from "@/components/ChatAssistant";
 
 interface OrderResult {
   id: string;
@@ -431,6 +435,89 @@ export default function IndexPage() {
         </div>
       </section>
 
+      {/* ═══ SuperBot AI Spotlight ═══ */}
+      <section className="container mx-auto px-4 py-12">
+        <motion.div
+          {...fadeUp}
+          transition={{ duration: 0.5 }}
+          className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 text-white p-8 md:p-12 shadow-2xl"
+        >
+          <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 grid md:grid-cols-2 gap-8 items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 bg-primary/20 border border-primary/40 rounded-full px-3.5 py-1 mb-4 text-xs font-semibold text-blue-300">
+                <Sparkles className="h-3.5 w-3.5 text-blue-400" />
+                <span>AI Technical & Customer Assistant</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-4 leading-tight">
+                Konsultasi & Cek Servis Instan dengan <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-sky-300 to-indigo-300">SuperBot AI</span>
+              </h2>
+              <p className="text-slate-300 text-sm sm:text-base mb-6 leading-relaxed">
+                Didukung oleh arsitektur <strong>Hybrid RAG + Tool Calling</strong> dan Google Gemini AI. Dapatkan jawaban cepat seputar kendala teknis laptop/PC Anda, biaya perbaikan, garansi resmi ASUS & Lenovo, serta pengecekan status tiket secara real-time.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent("open-superbot-chat", { detail: { prompt: "Halo SuperBot, tolong jelaskan layanan apa saja yang ada di Super Komputer." } }));
+                  }}
+                  size="lg"
+                  className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/25 px-6 font-semibold"
+                >
+                  <Bot className="h-4 w-4 mr-2" /> Tanya SuperBot Sekarang
+                </Button>
+                <Button
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent("open-superbot-chat", { detail: { prompt: "Saya ingin mengecek status pengerjaan tiket servis saya." } }));
+                  }}
+                  variant="outline"
+                  size="lg"
+                  className="border-slate-700 bg-slate-900/60 hover:bg-slate-800 text-slate-200"
+                >
+                  <Search className="h-4 w-4 mr-2" /> Cek Tiket via AI
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div
+                onClick={() => window.dispatchEvent(new CustomEvent("open-superbot-chat", { detail: { prompt: "Laptop saya mati total dan tidak mau hidup, apa yang harus dicek?" } }))}
+                className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-primary/50 hover:bg-white/10 transition-all cursor-pointer group"
+              >
+                <Cpu className="h-5 w-5 text-blue-400 mb-2 group-hover:scale-110 transition-transform" />
+                <h4 className="font-semibold text-sm text-white mb-1">Troubleshooting HW</h4>
+                <p className="text-xs text-slate-400">Konsultasi laptop matot, blue screen, atau lemot</p>
+              </div>
+              <div
+                onClick={() => window.dispatchEvent(new CustomEvent("open-superbot-chat", { detail: { prompt: "Apakah Super Komputer menerima klaim garansi resmi ASUS dan Lenovo?" } }))}
+                className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-primary/50 hover:bg-white/10 transition-all cursor-pointer group"
+              >
+                <ShieldCheck className="h-5 w-5 text-emerald-400 mb-2 group-hover:scale-110 transition-transform" />
+                <h4 className="font-semibold text-sm text-white mb-1">Authorized Center</h4>
+                <p className="text-xs text-slate-400">Garansi & perbaikan resmi Lenovo & ASUS</p>
+              </div>
+              <div
+                onClick={() => window.dispatchEvent(new CustomEvent("open-superbot-chat", { detail: { prompt: "Berapa estimasi biaya ganti SSD, RAM, dan pasang thermal paste?" } }))}
+                className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-primary/50 hover:bg-white/10 transition-all cursor-pointer group"
+              >
+                <Wrench className="h-5 w-5 text-amber-400 mb-2 group-hover:scale-110 transition-transform" />
+                <h4 className="font-semibold text-sm text-white mb-1">Estimasi Biaya</h4>
+                <p className="text-xs text-slate-400">Transparansi harga sparepart & jasa servis</p>
+              </div>
+              <div
+                onClick={() => window.dispatchEvent(new CustomEvent("open-superbot-chat", { detail: { prompt: "Toko Super Komputer buka jam berapa dan dimana alamat lengkapnya?" } }))}
+                className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-primary/50 hover:bg-white/10 transition-all cursor-pointer group"
+              >
+                <Clock className="h-5 w-5 text-sky-400 mb-2 group-hover:scale-110 transition-transform" />
+                <h4 className="font-semibold text-sm text-white mb-1">Jam & Lokasi</h4>
+                <p className="text-xs text-slate-400">Info operasional Jl. Ahmad Yani Balikpapan</p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </section>
+
       {/* ═══ Footer ═══ */}
       <footer className="bg-sidebar text-sidebar-foreground">
         <div className="container mx-auto px-4 py-12">
@@ -522,6 +609,9 @@ export default function IndexPage() {
           </div>
         </div>
       </footer>
+
+      {/* Floating Chat Assistant (SuperBot AI) */}
+      <ChatAssistant />
     </div>
   );
 }

@@ -80,7 +80,7 @@ const KNOWLEDGE_BASE = `
 
 2. PENGECEKAN GARANSI RESMI:
    - Lenovo: Sistem SuperBot terhubung langsung ke API resmi Lenovo Global untuk mengecek status Serial Number (SN) secara akurat.
-   - ASUS: Melayani klaim garansi resmi ASUS di toko (Jl. Ahmad Yani No. 118 Balikpapan) dan via CS WhatsApp 08115404999. Link portal mandiri ASUS: https://www.asus.com/id/support/warranty-status/
+   - ASUS: Melayani klaim garansi resmi ASUS di toko (Jl. Ahmad Yani No. 118 Balikpapan) dan via CS WhatsApp 08115404999. Link portal mandiri resmi ASUS: https://www.asus.com/id/support/warranty-status-inquiry/
 
 3. MULTI-BRAND REPAIR (SEMUA MEREK):
    - Acer, HP, Dell, MSI, Toshiba, Axioo, Apple MacBook, dll.
@@ -263,10 +263,14 @@ PEDOMAN UTAMA:
      * **Jenis Layanan Garansi**: {jenis garansi} (misal: 2Y PremiumCare, ADP, dll.)
      * **Klaim Garansi di Super Komputer**: Jelaskan bahwa Super Komputer adalah **Authorized Service Center Resmi Lenovo di Balikpapan** dan pelanggan dapat langsung membawa unit ke toko di Jl. Ahmad Yani No. 118 Balikpapan untuk klaim garansi resmi (Gratis jasa & part original).
 
-2. **PENGECEKAN GARANSI ASUS**:
-   - Jika pelanggan menanyakan garansi ASUS via Serial Number:
-     * Jelaskan bahwa Super Komputer adalah Authorized Service Center ASUS resmi di Balikpapan.
-     * Portal garansi ASUS memerlukan verifikasi interaktif, sehingga pelanggan disarankan mengirimkan foto SN ke WhatsApp CS [0811-540-4999](https://wa.me/628115404999) atau membawa laptop ke toko, atau cek di [Portal Garansi ASUS](https://www.asus.com/id/support/warranty-status/).
+2. **PENGECEKAN GARANSI RESMI ASUS**:
+   - Jika pelanggan menanyakan status garansi laptop/produk ASUS (ROG, TUF, ZenBook, VivoBook, PC):
+     * Konfirmasikan bahwa Super Komputer adalah **Authorized Service Center Resmi ASUS di Balikpapan** dan melayani klaim garansi resmi (Gratis jasa dan sparepart original jika memenuhi syarat garansi).
+     * Jelaskan bahwa portal konsumen ASUS Indonesia menerapkan sistem proteksi keamanan interaktif (reCAPTCHA verifikasi 'Saya bukan robot').
+     * Berikan 3 opsi praktis untuk pelanggan:
+       1) **Cek Mandiri Cepat di Portal Resmi ASUS**: Tautkan link resmi [Portal Cek Status Garansi ASUS Indonesia](https://www.asus.com/id/support/warranty-status-inquiry/)
+       2) **Kirim Foto SN ke CS WhatsApp**: Pelanggan cukup mengirim foto label Serial Number di bawah unit ke WhatsApp CS **[0811-540-4999](https://wa.me/628115404999)** untuk dicekkan langsung oleh staff di portal internal ASUS Service Partner.
+       3) **Bawa ke Toko Super Komputer**: Jl. Ahmad Yani No. 118, Balikpapan (Senin - Sabtu: 09.00 - 20.00 WITA) untuk klaim garansi langsung.
 
 3. **PENGECEKAN TIKET SERVIS SUMTRA**:
    - Jika terdapat data [HASIL QUERY DATABASE RESMI SUMTRA UNTUK TIKET ...], gunakan data tersebut secara akurat dan sertakan tombol [Buka Pelacakan Tiket #{nomor_tiket}](/track/{nomor_tiket}).

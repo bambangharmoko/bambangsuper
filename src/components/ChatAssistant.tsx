@@ -143,13 +143,40 @@ export function ChatAssistant() {
         parts: [{ text: m.text }],
       }));
 
-      const { data, error } = await supabase.functions.invoke("chat-assistant", {
-        body: { messages: geminiMessages },
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-      if (error) throw error;
+      let botReply = "";
 
-      const botReply = data?.reply || "Maaf, saya tidak menerima balasan. Silakan coba lagi.";
+      try {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://wytbkueaymkpbwmbvkul.supabase.co";
+        const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+        const res = await fetch(`${supabaseUrl}/functions/v1/chat-assistant`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": anonKey,
+            "Authorization": `Bearer ${anonKey}`,
+          },
+          body: JSON.stringify({ messages: geminiMessages }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || `HTTP ${res.status}`);
+        }
+        botReply = data?.reply || "Maaf, saya tidak menerima balasan. Silakan coba lagi.";
+      } catch (fetchErr: any) {
+        clearTimeout(timeoutId);
+        if (fetchErr.name === "AbortError") {
+          throw new Error("Waktu koneksi habis (Timeout). Silakan kirim ulang pesan Anda.");
+        }
+        throw fetchErr;
+      }
 
       const botMsg: ChatMessage = {
         id: `bot-${Date.now()}`,
@@ -164,7 +191,7 @@ export function ChatAssistant() {
       const errMsg: ChatMessage = {
         id: `bot-err-${Date.now()}`,
         sender: "bot",
-        text: `Maaf, terjadi gangguan saat menghubungkan ke AI assistant (${err.message || "Koneksi terputus"}).\n\nJika butuh bantuan mendesak, Anda dapat langsung menghubungi WhatsApp Customer Service kami di [0811-540-4999](https://wa.me/628115404999).`,
+        text: `Maaf, terjadi kendala saat memproses jawaban: **${err.message || "Koneksi terputus"}**\n\nSilakan coba tanyakan kembali, atau hubungi Customer Service kami di WhatsApp: [0811-540-4999](https://wa.me/628115404999).`,
         timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
       };
       setMessages((prev) => [...prev, errMsg]);

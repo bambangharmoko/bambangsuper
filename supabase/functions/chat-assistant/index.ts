@@ -227,12 +227,13 @@ ${KNOWLEDGE_BASE}
       });
     }
 
-    // Model yang tersedia
+    // Model yang didukung dan direkomendasikan resmi oleh Google Gemini API
     const MODEL_CANDIDATES = [
-      "gemini-flash-latest",
-      "gemini-2.5-flash-lite",
+      "gemini-3.6-flash",
       "gemini-3.7-flash",
-      "gemini-2.5-flash",
+      "gemini-3.5-flash",
+      "gemini-3.1-flash-lite",
+      "gemini-flash-latest",
     ];
 
     let data: any = null;
@@ -250,6 +251,9 @@ ${KNOWLEDGE_BASE}
             generationConfig: {
               maxOutputTokens: 2048,
               temperature: 0.7,
+              thinkingConfig: {
+                thinkingBudget: 0,
+              },
             },
           }),
         });

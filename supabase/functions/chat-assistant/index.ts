@@ -60,41 +60,6 @@ const KNOWLEDGE_BASE = `
 - Printer Hasil Putus-Putus: Lakukan Head Cleaning 1-2 kali melalui driver maintenance di komputer. Jangan head cleaning berlebihan karena bisa membuat waste pad cepat penuh.
 `;
 
-// ============================================================================
-// SYSTEM INSTRUCTION PROMPT
-// ============================================================================
-const SYSTEM_INSTRUCTION = `
-Kamu adalah "SuperBot", AI Customer Care & Technical Assistant resmi dari "Super Komputer Balikpapan" (aplikasi SUMTRA).
-
-Karakter & Gaya Komunikasi:
-1. Bahasa Indonesia yang ramah, sopan, profesional, membantu, dan solutif.
-2. Gunakan format Markdown yang rapi (bold, bullet points, emoji yang sesuai) agar pesan mudah dibaca di smartphone maupun desktop.
-3. Selalu prioritaskan kepuasan dan kejelasan informasi bagi pelanggan.
-
-Kemampuan & Tugas Utama:
-1. Menjawab pertanyaan teknis (troubleshooting) seputar komputer, laptop, PC rakitan, printer, CCTV, jaringan, dan software berdasarkan Knowledge Base.
-2. Memberikan informasi profil toko, jam operasional, kontak WhatsApp (08115404999), alamat di Balikpapan, dan link toko online Tokopedia.
-3. Memberikan informasi estimasi biaya, garansi, alur servis, dan SLA pengerjaan.
-4. **Pengecekan Status Servis (Hybrid Function Calling)**:
-   - Jika pengguna menyebutkan atau menanyakan nomor tiket servis (misal: F26001, SK-1002, 26012, dll) atau menanyakan progress servisnya, **KAMU WAJIB MEMANGGIL TOOL check_ticket_status**.
-   - Jangan pernah mengarang nomor tiket atau status tiket tanpa data nyata dari tool.
-   - Setelah mendapatkan data dari tool, tampilkan ringkasan status tiket dengan sangat rapi:
-     * Nomor Tiket & Nama Pelanggan
-     * Perangkat (Brand, Model, Jenis)
-     * Status Pengerjaan (misal: Diterima, Diagnosa, Perbaikan, Menunggu Sparepart, Selesai, Siap diAmbil)
-     * Keluhan & Hasil Diagnosa
-     * Rincian Biaya (jika ada)
-     * Garansi (jika selesai)
-     * Log/Timeline progres terbaru
-     * Tautkan tautan ke halaman pelacakan detail: [Buka Pelacakan Tiket #{nomor_tiket}](/track/{nomor_tiket})
-
-Knowledge Base Toko:
-${KNOWLEDGE_BASE}
-`;
-
-// ============================================================================
-// EDGE FUNCTION ENTRYPOINT
-// ============================================================================
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -118,64 +83,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Inisialisasi Supabase client dengan Service Role Key untuk akses tool
+    // Inisialisasi Supabase client dengan Service Role Key
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Deklarasi Tool / Function Calling untuk AI
-    const tools = [
-      {
-        function_declarations: [
-          {
-            name: "check_ticket_status",
-            description: "Mengecek informasi lengkap status pengerjaan unit servis pelanggan berdasarkan nomor tiket (contoh: F26001, SK-1002, 26012).",
-            parameters: {
-              type: "OBJECT",
-              properties: {
-                ticket_number: {
-                  type: "STRING",
-                  description: "Nomor tiket servis pelanggan (misal: F26001, SK-1002)",
-                },
-              },
-              required: ["ticket_number"],
-            },
-          },
-        ],
-      },
-    ];
+    // Ambil pesan terakhir dari user
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user" || m.sender === "user");
+    const userText = String(lastUserMsg?.parts?.[0]?.text || lastUserMsg?.text || "");
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // 1. HYBRID RAG PRE-RETRIEVAL: Deteksi otomatis nomor tiket dari teks percakapan
+    let liveTicketContext = "";
+    const ticketMatch = userText.match(/\b([A-Za-z]\d{4,5}|\d{5})\b/i);
 
-    // 1. Panggilan Pertama ke Gemini
-    const firstRes = await fetch(geminiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-        contents: messages,
-        tools: tools,
-      }),
-    });
+    if (ticketMatch) {
+      const extractedTicket = ticketMatch[1].toUpperCase();
 
-    let data = await firstRes.json();
-
-    if (data.error) {
-      throw new Error(`Gemini API Error: ${data.error.message || JSON.stringify(data.error)}`);
-    }
-
-    const candidate = data.candidates?.[0]?.content;
-    const functionCall = candidate?.parts?.find((p: any) => p.functionCall);
-
-    // 2. Jika AI meminta eksekusi Function Calling (check_ticket_status)
-    if (functionCall && functionCall.functionCall.name === "check_ticket_status") {
-      let rawTicket = String(functionCall.functionCall.args.ticket_number || "").trim();
-      // Bersihkan tanda # jika ada
-      rawTicket = rawTicket.replace(/^#/, "").trim().toUpperCase();
-
-      let toolResult: Record<string, any> = { found: false, ticket_number: rawTicket };
-
-      // Cari tiket di tabel service_orders
       const { data: orderData, error: orderErr } = await supabase
         .from("service_orders")
         .select(`
@@ -186,7 +109,9 @@ Deno.serve(async (req) => {
           device_brand,
           device_model,
           service_type,
+          damage_description,
           unit_condition,
+          unit_accessories,
           status,
           notes,
           unit_checks,
@@ -194,99 +119,171 @@ Deno.serve(async (req) => {
           updated_at,
           invoice_items,
           final_cost,
+          estimated_cost,
           warranty_duration,
           warranty_unit,
           warranty_expiry,
           warranty_notes
         `)
-        .ilike("ticket_number", rawTicket)
+        .ilike("ticket_number", extractedTicket)
         .is("deleted_at", null)
         .maybeSingle();
 
-      if (orderErr) {
-        toolResult = {
-          found: false,
-          ticket_number: rawTicket,
-          message: `Gagal mencari tiket: ${orderErr.message}`,
-        };
-      } else if (!orderData) {
-        toolResult = {
-          found: false,
-          ticket_number: rawTicket,
-          message: `Nomor tiket '${rawTicket}' tidak ditemukan dalam sistem kami. Pastikan nomor tiket sudah sesuai (contoh: F26001).`,
-        };
-      } else {
-        // Ambil riwayat timeline progres jika ada
+      if (!orderErr && orderData) {
         const { data: updatesData } = await supabase
           .from("service_updates")
           .select("status, notes, created_at")
           .eq("order_id", orderData.id)
           .order("created_at", { ascending: false })
-          .limit(5);
+          .limit(4);
 
-        toolResult = {
-          found: true,
-          ticket_number: orderData.ticket_number,
-          customer_name: orderData.customer_name,
-          device: `${orderData.device_brand || ""} ${orderData.device_model || ""} (${orderData.device_type || "Perangkat"})`.trim(),
-          service_type: orderData.service_type,
-          status: orderData.status,
-          unit_condition: orderData.unit_condition,
-          notes: orderData.notes,
-          diagnosa_unit_checks: orderData.unit_checks,
-          invoice_items: orderData.invoice_items,
-          final_cost: orderData.final_cost,
-          warranty_info: orderData.warranty_expiry
-            ? `Garansi sampai ${new Date(orderData.warranty_expiry).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })} (${orderData.warranty_notes || ""})`
-            : orderData.warranty_duration
-            ? `${orderData.warranty_duration} ${orderData.warranty_unit || "hari"}`
-            : "Tidak ada garansi khusus",
-          recent_timeline: updatesData || [],
-          tracking_url: `/track/${orderData.ticket_number}`,
-        };
+        const timelineStr = (updatesData || [])
+          .map(
+            (u) =>
+              `- [${new Date(u.created_at).toLocaleDateString("id-ID")}] ${u.status}: ${u.notes || "-"}`
+          )
+          .join("\n");
+
+        const costStr =
+          orderData.final_cost != null
+            ? `Rp ${Number(orderData.final_cost).toLocaleString("id-ID")}`
+            : orderData.estimated_cost != null
+            ? `Estimasi Rp ${Number(orderData.estimated_cost).toLocaleString("id-ID")}`
+            : "Belum ada rincian final";
+
+        const warrantyStr = orderData.warranty_expiry
+          ? `Aktif sampai ${new Date(orderData.warranty_expiry).toLocaleDateString("id-ID", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}`
+          : orderData.warranty_duration
+          ? `${orderData.warranty_duration} ${orderData.warranty_unit || "hari"}`
+          : "Tidak ada garansi khusus";
+
+        liveTicketContext = `
+[HASIL QUERY REAL-TIME DATABASE UNTUK TIKET ${orderData.ticket_number}]
+- Nomor Tiket: ${orderData.ticket_number}
+- Nama Pelanggan: ${orderData.customer_name}
+- Perangkat: ${orderData.device_brand || ""} ${orderData.device_model || ""} (${orderData.device_type || "Unit"})
+- Status Terkini: ${orderData.status}
+- Tipe Servis: ${orderData.service_type}
+- Keluhan Awal: ${orderData.damage_description || orderData.unit_condition || "-"}
+- Catatan Teknisi: ${orderData.notes || "-"}
+- Total Biaya: ${costStr}
+- Garansi: ${warrantyStr}
+- Riwayat Progres:
+${timelineStr || "- Belum ada catatan timeline tambahan"}
+- Link Pelacakan Detail: [Buka Pelacakan Tiket #${orderData.ticket_number}](/track/${orderData.ticket_number})
+`;
+      } else if (!orderErr && !orderData) {
+        liveTicketContext = `
+[HASIL QUERY REAL-TIME DATABASE UNTUK TIKET ${extractedTicket}]
+- Status: Nomor tiket '${extractedTicket}' TIDAK DITEMUKAN di database Super Komputer. Beritahukan pelanggan secara sopan dan sarankan cek kembali nomor tiket di nota/tanda terima.
+`;
       }
+    }
 
-      // Kirim balik hasil function call ke Gemini untuk disintesis menjadi bahasa natural
-      const followUpMessages = [
-        ...messages,
-        candidate,
-        {
-          role: "function",
-          parts: [
-            {
-              functionResponse: {
-                name: "check_ticket_status",
-                response: { result: toolResult },
-              },
-            },
-          ],
-        },
-      ];
+    const dynamicSystemInstruction = `
+Kamu adalah "SuperBot", AI Customer Care & Technical Assistant resmi dari "Super Komputer Balikpapan" (aplikasi SUMTRA).
 
-      const secondRes = await fetch(geminiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-          contents: followUpMessages,
-        }),
+Karakter & Gaya Komunikasi:
+1. Gunakan Bahasa Indonesia yang ramah, sopan, solutif, dan profesional.
+2. Format output menggunakan Markdown yang menarik (gunakan bold, bullet points, emoji yang sesuai).
+3. Jika terdapat informasi [HASIL QUERY REAL-TIME DATABASE UNTUK TIKET ...], WAJIB gunakan data tersebut untuk memberikan jawaban yang sangat akurat, rinci, dan terpercaya kepada pelanggan.
+4. Format rincian status tiket yang rapi:
+   - **Nomor Tiket**: #{nomor_tiket}
+   - **Nama Pelanggan**: {nama}
+   - **Perangkat**: {perangkat}
+   - **Status Pengerjaan**: {status} (Jelaskan artinya secara singkat: jika 'Siap diAmbil', beritahu pelanggan bahwa unit sudah selesai diperbaiki dan siap diambil di toko Jl. Ahmad Yani Balikpapan; jika 'Close', beritahu bahwa tiket telah selesai dan unit sudah diserahkan; jika 'Diagnosa'/'Perbaikan', berikan semangat dan estimasi waktu).
+   - **Keluhan / Hasil Diagnosa**: {keluhan}
+   - **Biaya**: {biaya}
+   - **Garansi**: {garansi}
+   - Sertakan tombol/link pelacakan: [Buka Pelacakan Tiket #{nomor_tiket}](/track/{nomor_tiket})
+
+${liveTicketContext}
+
+Knowledge Base Toko:
+${KNOWLEDGE_BASE}
+`;
+
+    // Filter messages: pastikan pesan pertama adalah 'user'
+    const cleanContents: any[] = [];
+    for (const m of messages) {
+      if (cleanContents.length === 0 && m.role === "model") {
+        continue;
+      }
+      cleanContents.push({
+        role: m.role === "user" ? "user" : "model",
+        parts: m.parts || [{ text: m.text || "" }],
       });
+    }
 
-      data = await secondRes.json();
+    if (cleanContents.length === 0) {
+      cleanContents.push({
+        role: "user",
+        parts: [{ text: "Halo" }],
+      });
+    }
+
+    // Model yang tersedia
+    const MODEL_CANDIDATES = [
+      "gemini-flash-latest",
+      "gemini-2.5-flash-lite",
+      "gemini-3.7-flash",
+      "gemini-2.5-flash",
+    ];
+
+    let data: any = null;
+    let lastError: any = null;
+
+    for (const modelName of MODEL_CANDIDATES) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: dynamicSystemInstruction }] },
+            contents: cleanContents,
+            generationConfig: {
+              maxOutputTokens: 2048,
+              temperature: 0.7,
+            },
+          }),
+        });
+
+        const resJson = await res.json();
+        if (!resJson.error) {
+          data = resJson;
+          break;
+        }
+        lastError = resJson.error;
+        console.warn(`Model ${modelName} error:`, resJson.error.message);
+      } catch (e: any) {
+        lastError = e;
+      }
+    }
+
+    if (!data) {
+      throw new Error(`Gemini API Error: ${lastError?.message || JSON.stringify(lastError)}`);
     }
 
     const reply =
       data.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "Maaf, saat ini saya tidak dapat merespons pertanyaan Anda. Silakan hubungi Customer Service kami di 08115404999.";
+      "Maaf, saya tidak dapat merespons saat ini. Silakan hubungi WhatsApp CS Super Komputer di 08115404999.";
 
     return new Response(JSON.stringify({ reply }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
     console.error("Chatbot Edge Function Error:", err);
-    return new Response(JSON.stringify({ error: err.message || "Terjadi kesalahan internal pada server AI." }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: err.message || "Terjadi kesalahan internal pada server AI." }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
 });

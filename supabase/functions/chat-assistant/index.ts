@@ -22,43 +22,35 @@ const KNOWLEDGE_BASE = `
   * Senin s/d Sabtu: Pukul 09.00 - 20.00 WITA
   * Minggu & Hari Libur Nasional: Tutup
 
-# LAYANAN SERVICE CENTER & KUALIFIKASI
-1. AUTHORIZED SERVICE CENTER:
-   - Resmi melayani perbaikan dan klaim garansi produk **Lenovo** & **ASUS** (Laptop IdeaPad, Legion, ThinkPad, ASUS ROG, TUF Gaming, ZenBook, VivoBook, PC Desktop & All-in-One).
-2. MULTI-BRAND REPAIR (SEMUA MEREK):
-   - Acer, HP, Dell, MSI, Toshiba, Axioo, Apple MacBook, dll.
-   - Penanganan hardware level komponen: Mati total (matot), korsleting (short circuit), reballing/ganti IC power, charging controller, BIOS corrupt, ganti keyboard, engsel/casing pecah, ganti layar LCD/LED, penggantian baterai original, penggantian kipas pendingin & thermal paste premium (Arctic / Noctua).
-3. SERVIS PRINTER & SCANNER:
-   - Epson, Canon, HP, Brother.
-   - Kerusakan: Head buntu (clogged), blinking / waste ink pad full (reset counter), paper jam terus-menerus, mekanik patah, pasang/servis sistem infus CISS.
-4. UPGRADE & RAKIT PC:
-   - Upgrade SSD NVMe / SATA (kecepatan booting & aplikasi 5x - 10x lebih cepat).
-   - Upgrade RAM DDR4 / DDR5 (multitasking lancar, editing video, gaming).
-   - Rakit PC Custom Gaming, Content Creation, Office/Admin, Server lokal.
-5. IT SOLUTIONS & KORPORAT:
-   - Pengadaan & Instalasi CCTV Online / Offline (Hikvision, Dahua, dll).
-   - Mesin Absensi Biometrik (Fingerprint & Face Recognition).
-   - Infrastruktur Jaringan (LAN Cabling, Mikrotik, Cisco, WiFi Ubiquiti UniFi).
-   - Maintenance contract untuk kantor, perhotelan, sekolah, dan perusahaan tambang/migas.
+# LAYANAN AUTHORIZED SERVICE & KLAIM GARANSI RESMI
+1. KUALIFIKASI AUTHORIZED SERVICE CENTER RESMI:
+   - Super Komputer adalah Service Center Resmi (Authorized Service Center) di Balikpapan untuk merek **Lenovo** & **ASUS** (Laptop LOQ, Legion, IdeaPad, ThinkPad, Yoga, ASUS ROG, TUF Gaming, ZenBook, VivoBook, PC Desktop & All-in-One).
+   - Melayani klaim garansi resmi pabrikan (gratis penggantian sparepart original jika masih dalam masa garansi resmi dan memenuhi syarat garansi).
+   - Melayani perbaikan non-garansi / out-of-warranty dengan suku cadang original.
 
-# PROSEDUR SERVIS, SLA & BIAYA
+2. ATURAN PENGECEKAN SERIAL NUMBER (SN) PABRIKAN:
+   - AI SuperBot TIDAK memiliki akses langsung ke server internal portal pabrikan global Lenovo / ASUS secara real-time.
+   - DILARANG KERAS MENGARANG tipe laptop, status garansi, tanggal berakhir, atau jenis garansi dari Serial Number (SN).
+   - Jika pelanggan menanyakan garansi pabrikan dari Serial Number (SN / S/N):
+     * Jelaskan dengan jujur bahwa Super Komputer bisa menerima klaim garansi resmi Lenovo & ASUS.
+     * Minta pelanggan membawa unit ke toko Super Komputer di Jl. Ahmad Yani No. 118 Balikpapan, atau hubungi CS WhatsApp 08115404999 untuk dicekkan langsung ke portal resmi Lenovo/ASUS oleh staff.
+     * Sediakan link resmi untuk pengecekan mandiri:
+       - Portal Garansi Lenovo: https://pcsupport.lenovo.com/id/id/warranty-lookup
+       - Portal Garansi ASUS: https://www.asus.com/id/support/warranty-status/
+
+3. MULTI-BRAND REPAIR (SEMUA MEREK):
+   - Acer, HP, Dell, MSI, Toshiba, Axioo, Apple MacBook, dll.
+   - Penanganan level komponen motherboard: Mati total (matot), korsleting (short circuit), reballing/ganti IC power, BIOS corrupt, ganti keyboard, engsel/casing pecah, ganti layar LCD/LED, penggantian baterai original, cleaning fan & ganti thermal paste premium.
+
+4. SERVIS PRINTER, SCANNER, CCTV & JARINGAN:
+   - Epson, Canon, HP, Brother (head buntu, blinking/waste pad, paper jam, mekanik).
+   - Pengadaan & Instalasi CCTV Online/Offline, Mesin Absensi Biometrik, Jaringan LAN/WiFi UniFi/Mikrotik.
+
+# PROSEDUR SERVIS TOKO & SLA
 - Alur Pengerjaan: Unit Diterima -> Diagnosa Teknisi -> Konfirmasi Biaya & Kerusakan ke Pelanggan -> Pengerjaan / Penggantian Part -> Quality Control (QC) -> Selesai / Siap Diambil.
 - Estimasi Waktu Diagnosa: 1 - 2 hari kerja.
 - Estimasi Waktu Pengerjaan: 2 - 4 hari kerja (tergantung ketersediaan sparepart).
-- Garansi Servis: Setiap perbaikan mendapatkan garansi (umumnya 1 bulan hingga 3 bulan tergantung jenis part dan pengerjaan).
-- Estimasi Biaya Umum:
-  * Pengecekan / Diagnosa Awal: Gratis jika dilanjutkan perbaikan.
-  * Install Ulang OS + Basic App: Mulai Rp 100.000 - Rp 150.000.
-  * Cleaning Fan & Repaste Thermal Premium: Mulai Rp 100.000 - Rp 150.000.
-  * Servis Motherboard / IC Power: Mulai Rp 350.000 (disesuaikan dengan hasil diagnosa).
-  * Upgrade SSD / RAM: Biaya part + jasa pasang/kloning transparan.
-  * Servis Printer Ringan (Blinking/Reset/Paper Jam): Mulai Rp 75.000 - Rp 150.000.
-
-# PANDUAN TROUBLESHOOTING CEPAT
-- Laptop Lemot / Lelet: Sarankan upgrade ke SSD dan tambah kapasitas RAM, serta pembersihan sistem pendingin (thermal paste).
-- Laptop Mati Total / Tidak Mau Hidup: Lakukan 'Hard Reset' (Cabut charger & baterai jika removable, tekan tahan tombol power 30 detik, pasang kembali charger lalu nyalakan). Jika tetap mati, bawa ke Super Komputer untuk cek adaptor/IC power.
-- Layar Blank / Bergaris: Sambungkan laptop ke monitor eksternal via kabel HDMI. Jika monitor eksternal menampilkan gambar normal, kendala ada pada kabel fleksibel atau panel LCD laptop.
-- Printer Hasil Putus-Putus: Lakukan Head Cleaning 1-2 kali melalui driver maintenance di komputer. Jangan head cleaning berlebihan karena bisa membuat waste pad cepat penuh.
+- Garansi Servis Toko: Setiap perbaikan mendapatkan garansi (1 bulan hingga 3 bulan sesuai jenis perbaikan/part).
 `;
 
 Deno.serve(async (req) => {
@@ -93,9 +85,10 @@ Deno.serve(async (req) => {
     const lastUserMsg = [...messages].reverse().find((m) => m.role === "user" || m.sender === "user");
     const userText = String(lastUserMsg?.parts?.[0]?.text || lastUserMsg?.text || "");
 
-    // 1. HYBRID RAG PRE-RETRIEVAL: Deteksi otomatis nomor tiket dari teks percakapan
+    // 1. HYBRID RAG PRE-RETRIEVAL: Deteksi otomatis nomor tiket dari database SUMTRA
     let liveTicketContext = "";
-    const ticketMatch = userText.match(/\b([A-Za-z]\d{4,5}|\d{5})\b/i);
+    // Format tiket SUMTRA: misal F26001, G26002, SK-1002, 26001
+    const ticketMatch = userText.match(/\b([FG]\d{5}|SK-\d{4}|\d{5})\b/i);
 
     if (ticketMatch) {
       const extractedTicket = ticketMatch[1].toUpperCase();
@@ -163,7 +156,7 @@ Deno.serve(async (req) => {
           : "Tidak ada garansi khusus";
 
         liveTicketContext = `
-[HASIL QUERY REAL-TIME DATABASE UNTUK TIKET ${orderData.ticket_number}]
+[HASIL QUERY DATABASE RESMI SUMTRA UNTUK TIKET ${orderData.ticket_number}]
 - Nomor Tiket: ${orderData.ticket_number}
 - Nama Pelanggan: ${orderData.customer_name}
 - Perangkat: ${orderData.device_brand || ""} ${orderData.device_model || ""} (${orderData.device_type || "Unit"})
@@ -179,8 +172,8 @@ ${timelineStr || "- Belum ada catatan timeline tambahan"}
 `;
       } else if (!orderErr && !orderData) {
         liveTicketContext = `
-[HASIL QUERY REAL-TIME DATABASE UNTUK TIKET ${extractedTicket}]
-- Status: Nomor tiket '${extractedTicket}' TIDAK DITEMUKAN di database Super Komputer. Beritahukan pelanggan secara sopan dan sarankan cek kembali nomor tiket di nota/tanda terima.
+[HASIL QUERY DATABASE RESMI SUMTRA UNTUK TIKET ${extractedTicket}]
+- Status: Nomor tiket '${extractedTicket}' TIDAK DITEMUKAN di database Super Komputer. Beritahukan pelanggan secara sopan dan sarankan cek kembali nomor tiket di nota/tanda terima servis.
 `;
       }
     }
@@ -188,19 +181,26 @@ ${timelineStr || "- Belum ada catatan timeline tambahan"}
     const dynamicSystemInstruction = `
 Kamu adalah "SuperBot", AI Customer Care & Technical Assistant resmi dari "Super Komputer Balikpapan" (aplikasi SUMTRA).
 
-Karakter & Gaya Komunikasi:
-1. Gunakan Bahasa Indonesia yang ramah, sopan, solutif, dan profesional.
-2. Format output menggunakan Markdown yang menarik (gunakan bold, bullet points, emoji yang sesuai).
-3. Jika terdapat informasi [HASIL QUERY REAL-TIME DATABASE UNTUK TIKET ...], WAJIB gunakan data tersebut untuk memberikan jawaban yang sangat akurat, rinci, dan terpercaya kepada pelanggan.
-4. Format rincian status tiket yang rapi:
-   - **Nomor Tiket**: #{nomor_tiket}
-   - **Nama Pelanggan**: {nama}
-   - **Perangkat**: {perangkat}
-   - **Status Pengerjaan**: {status} (Jelaskan artinya secara singkat: jika 'Siap diAmbil', beritahu pelanggan bahwa unit sudah selesai diperbaiki dan siap diambil di toko Jl. Ahmad Yani Balikpapan; jika 'Close', beritahu bahwa tiket telah selesai dan unit sudah diserahkan; jika 'Diagnosa'/'Perbaikan', berikan semangat dan estimasi waktu).
-   - **Keluhan / Hasil Diagnosa**: {keluhan}
-   - **Biaya**: {biaya}
-   - **Garansi**: {garansi}
-   - Sertakan tombol/link pelacakan: [Buka Pelacakan Tiket #{nomor_tiket}](/track/{nomor_tiket})
+PEDOMAN INTEGRITAS & KETEPATAN DATA (SANGAT PENTING):
+1. **DILARANG KERAS MENGARANG (HALUSINASI) DATA**:
+   - Jangan pernah mengarang tipe laptop, tanggal garansi, atau status garansi pabrikan dari Serial Number (SN / S/N).
+   - Jika pelanggan memberikan Serial Number (SN) laptop pabrikan (contoh: SN Lenovo 'MP2YMGW0', SN ASUS, dsb):
+     * Jelaskan bahwa Super Komputer adalah **Authorized Service Center resmi Lenovo & ASUS di Balikpapan** dan melayani klaim garansi resmi.
+     * Jelaskan dengan jujur bahwa untuk memvalidasi tanggal garansi resmi dan spesifikasi tipe unit secara akurat dari Serial Number, pelanggan dapat:
+       1) Membawa unit laptop ke toko Super Komputer di Jl. Ahmad Yani No. 118 Balikpapan untuk dicek langsung oleh tim kami di portal resmi Lenovo/ASUS Service.
+       2) Menghubungi Admin CS WhatsApp kami di **0811-540-4999** dengan mengirimkan foto Serial Number/nota.
+       3) Mengecek mandiri di portal resmi garansi: [Portal Cek Garansi Lenovo](https://pcsupport.lenovo.com/id/id/warranty-lookup) atau [Portal Garansi ASUS](https://www.asus.com/id/support/warranty-status/).
+2. **PENGECEKAN NOMOR TIKET SUMTRA**:
+   - Jika terdapat data di [HASIL QUERY DATABASE RESMI SUMTRA UNTUK TIKET ...], WAJIB gunakan data nyata tersebut.
+   - Format rincian status tiket:
+     * **Nomor Tiket**: #{nomor_tiket}
+     * **Nama Pelanggan**: {nama}
+     * **Perangkat**: {perangkat}
+     * **Status Pengerjaan**: {status} (Jelaskan arti status: 'Siap diAmbil' = sudah selesai dan bisa diambil; 'Close' = tiket selesai dan unit sudah diserahkan; 'Diagnosa' = sedang diperiksa; 'Perbaikan' = sedang dikerjakan).
+     * **Keluhan / Diagnosa**: {keluhan}
+     * **Biaya**: {biaya}
+     * **Garansi**: {garansi}
+     * Tombol link: [Buka Pelacakan Tiket #{nomor_tiket}](/track/{nomor_tiket})
 
 ${liveTicketContext}
 
@@ -227,7 +227,7 @@ ${KNOWLEDGE_BASE}
       });
     }
 
-    // Model yang didukung dan direkomendasikan resmi oleh Google Gemini API
+    // Model yang didukung
     const MODEL_CANDIDATES = [
       "gemini-3.6-flash",
       "gemini-3.7-flash",
@@ -250,7 +250,7 @@ ${KNOWLEDGE_BASE}
             contents: cleanContents,
             generationConfig: {
               maxOutputTokens: 2048,
-              temperature: 0.7,
+              temperature: 0.2,
               thinkingConfig: {
                 thinkingBudget: 0,
               },

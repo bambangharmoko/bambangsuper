@@ -87,6 +87,16 @@ function getDeviceName(o: any): string {
   return o.device_type || "Perangkat";
 }
 
+function safeEncodeURIComponent(str: string): string {
+  return encodeURIComponent(str)
+    .replace(/\(/g, "%28")
+    .replace(/\)/g, "%29")
+    .replace(/\!/g, "%21")
+    .replace(/\'/g, "%27")
+    .replace(/\*/g, "%2A")
+    .replace(/\~/g, "%7E");
+}
+
 let cachedModelsList: string[] = [];
 
 Deno.serve(async (req) => {
@@ -195,18 +205,9 @@ Deno.serve(async (req) => {
         isStaleTicket = category === "Belum Dikerjakan" && diffHours >= 24;
 
         const waAdminPhone = "628115404999";
-        const waMessageText = `Halo Admin Super Komputer, saya ingin menanyakan progres tiket servis saya yang belum ditangani teknisi:
+        const waMessageText = `Halo Admin Super Komputer, saya ingin menanyakan progres tiket servis saya yang belum ditangani teknisi:\n\n* Nomor Tiket: #${orderData.ticket_number}\n* Nama: ${orderData.customer_name}\n* Unit: ${getDeviceName(orderData)}\n* Status: Belum Dikerjakan (${orderData.status})\n* Waktu Tunggu: ${staleDurationStr}\n* Keluhan: ${orderData.damage_description || orderData.unit_condition || "-"}\n\nMohon bantuannya untuk menindaklanjuti unit saya. Terima kasih!`;
 
-* Nomor Tiket: #${orderData.ticket_number}
-* Nama: ${orderData.customer_name}
-* Unit: ${getDeviceName(orderData)}
-* Status: Belum Dikerjakan (${orderData.status})
-* Waktu Tunggu: ${staleDurationStr}
-* Keluhan: ${orderData.damage_description || orderData.unit_condition || "-"}
-
-Mohon bantuannya untuk menindaklanjuti unit saya. Terima kasih!`;
-
-        staleWaDirectLink = `https://wa.me/${waAdminPhone}?text=${encodeURIComponent(waMessageText)}`;
+        staleWaDirectLink = `https://wa.me/${waAdminPhone}?text=${safeEncodeURIComponent(waMessageText)}`;
 
         let staleWarningText = "";
         if (isStaleTicket) {
@@ -214,9 +215,9 @@ Mohon bantuannya untuk menindaklanjuti unit saya. Terima kasih!`;
 - STATUS PENANGANAN KHUSUS (> 24 JAM BELUM DIKERJAKAN):
   * Tiket ini berstatus "Belum Dikerjakan" dan sudah masuk selama ${staleDurationStr}.
   * Tautan Direct Chat WhatsApp Admin: [Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})
-  * PETUNJUK RESEPON:
+  * PETUNJUK RESPON:
     1. Jika pengguna baru menanyakan tiket ini: Tampilkan detail tiket, sertakan info bahwa unit belum di-handle teknisi selama ${staleDurationStr}, lalu tanyakan opsi: "Apakah Anda mau saya buatkan tautan chat langsung ke WhatsApp Admin Super Komputer untuk menindaklanjuti tiket ini?"
-    2. JIKA pengguna menjawab setuju/iya/mau/buatkan: Berikan LANGSUNG tombol tautan direct WhatsApp [Chat WhatsApp Admin Super Komputer](${staleWaDirectLink}) tanpa memperlihatkan teks mentah format chatnya!
+    2. JIKA pengguna menjawab setuju/iya/mau/buatkan/hubungi: Berikan LANGSUNG link markdown [Chat WhatsApp Admin Super Komputer](${staleWaDirectLink}) (JANGAN menambahkan tanda bintang ganda ** di luar link markdown).
 `;
         }
 
@@ -319,23 +320,25 @@ ${formatGroup("4. Unit Close", unitClose)}
     const systemInstruction = `
 Kamu adalah "SuperBot", asisten AI resmi dari Super Komputer Balikpapan (SUMTRA).
 
-ATURAN PENTING & GAYA KOMUNIKASI:
-1. **PENANGANAN TIKET STATUS 'BELUM DIKERJAKAN' YANG LEBIH DARI 24 JAM**:
-   - Jika tiket berstatus "Belum Dikerjakan" (status Diterima) dan sudah masuk lebih dari 24 jam:
-     * Tampilkan detail tiket secara lengkap dan sertakan catatan bahwa unit belum di-handle teknisi selama durasi waktu tunggu (misal: "Unit servis ini tercatat belum ditangani teknisi selama [X hari Y jam]").
-     * Berikan pilihan/saran kepada pengguna:
-       "**Apakah Anda mau saya buatkan chat langsung ke WhatsApp Admin Super Komputer untuk menindaklanjuti tiket ini?**"
-   - JIKA pengguna menjawab setuju / iya / mau / buatkan / hubungi admin:
-     * Segera berikan tautan direct chat WhatsApp dengan tombol:
-       👉 **[Chat WhatsApp Admin Super Komputer]({link_wa_dari_data})**
-     * JANGAN memperlihatkan atau mengeja format teks chat mentahnya di dalam obrolan, cukup berikan tombol/tautan langsungnya agar rapi dan user bisa langsung klik!
+ATURAN FORMAT LINK & KOMUNIKASI:
+1. **PENULISAN LINK WHATSAPP & PELACAKAN**:
+   - Tulis link markdown dengan format bersih: \`[Chat WhatsApp Admin Super Komputer]({link_wa})\` atau \`[Buka Pelacakan Tiket #{nomor_tiket}](/track/{nomor_tiket})\`.
+   - JANGAN PERNAH membungkus link dengan kurung siku/bintang ganda seperti \`**[Link](url)**\` atau mengekstrak query URL ke teks obrolan, agar link dapat diklik langsung sebagai tombol interaktif!
 
-2. **PENYAJIAN TIKET NOMOR HP DENGAN FORMAT LENGKAP**:
+2. **PENANGANAN TIKET STATUS 'BELUM DIKERJAKAN' YANG LEBIH DARI 24 JAM**:
+   - Jika tiket berstatus "Belum Dikerjakan" (status Diterima) dan sudah masuk lebih dari 24 jam:
+     * Tampilkan detail tiket secara lengkap dan sertakan info durasi tunggu: "Unit servis ini tercatat belum ditangani teknisi selama [X hari Y jam]".
+     * Tanyakan opsi: "**Apakah Anda mau saya buatkan chat langsung ke WhatsApp Admin Super Komputer untuk menindaklanjuti tiket ini?**"
+   - JIKA pengguna menjawab setuju / iya / mau / buatkan / hubungi admin:
+     * Berikan link WhatsApp: [Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})
+     * Sertakan kalimat penutup ramah: "Silakan klik tombol di atas untuk langsung membuka chat WhatsApp dengan Admin Super Komputer."
+
+3. **PENYAJIAN TIKET NOMOR HP DENGAN FORMAT LENGKAP**:
    - Jika nomor HP memiliki lebih dari 1 tiket, kelompokkan ke dalam 4 kategori (Belum Dikerjakan, Sedang Dikerjakan, Selesai Pengerjaan, Unit Close).
    - Setiap tiket WAJIB disertai nama perangkatnya: \`- #<NomorTiket> (<Nama Perangkat>)\`.
    - Di akhir pesan, tanyakan: "**Mau di tampilkan nomor tiket yang mana nih?**"
 
-3. **TAMPILAN RINCIAN TIKET**:
+4. **TAMPILAN RINCIAN TIKET**:
    - Saat menampilkan 1 tiket tertentu, sertakan:
      • Nomor Tiket
      • Nama Pelanggan
@@ -344,7 +347,7 @@ ATURAN PENTING & GAYA KOMUNIKASI:
      • Keluhan
      • Total / Estimasi Biaya
      • Tombol Pelacakan: [Buka Pelacakan Tiket #{nomor_tiket}](/track/{nomor_tiket})
-   - JANGAN menampilkan "Riwayat Progres" atau catatan internal teknisi.
+   - JANGAN menampilkan "Riwayat Progres" atau catatan teknisi internal.
 
 DATA DARI DATABASE SUMTRA:
 ${liveDynamicContext || "- Tidak ada data tiket khusus pada percakapan ini."}
@@ -455,7 +458,7 @@ ${KNOWLEDGE_BASE}
     if (isStaleTicket && isUserConfirmingWa && staleWaDirectLink) {
       return new Response(
         JSON.stringify({
-          reply: `Baik, saya telah menyiapkan pesan tindak lanjut untuk tiket **#${ticketOrderFound?.ticket_number}**. Silakan klik tombol di bawah ini untuk langsung membuka chat WhatsApp dengan Admin Toko Super Komputer:\n\n👉 [Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})\n\nAda hal lain yang dapat kami bantu?`,
+          reply: `Baik, saya telah menyiapkan pesan konfirmasi tiket **#${ticketOrderFound?.ticket_number}**. Silakan klik tombol di bawah ini untuk langsung membuka chat WhatsApp dengan Admin Toko Super Komputer:\n\n[Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})\n\nAda hal lain yang dapat kami bantu?`,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

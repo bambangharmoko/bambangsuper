@@ -206,21 +206,26 @@ export function ChatAssistant() {
     const lines = content.split("\n");
 
     return lines.map((line, idx) => {
-      // Match markdown links [Label](url)
+      // Match markdown links [Label](url) robustly
       const linkRegex = /\[(.*?)\]\((.*?)\)/g;
       let lastIndex = 0;
       const elements: React.ReactNode[] = [];
       let match;
 
       while ((match = linkRegex.exec(line)) !== null) {
-        const [fullMatch, linkText, linkUrl] = match;
+        const [fullMatch, rawLinkText, rawLinkUrl] = match;
         const textBefore = line.substring(lastIndex, match.index);
 
         if (textBefore) {
           elements.push(renderInlineFormatting(textBefore, `${idx}-tb-${lastIndex}`));
         }
 
+        const linkText = rawLinkText.replace(/^\*\*|\*\*$/g, "").trim();
+        const linkUrl = rawLinkUrl.trim();
+
         const isInternalTrackLink = linkUrl.startsWith("/track/");
+        const isWhatsAppLink = linkUrl.includes("wa.me") || linkUrl.includes("whatsapp.com");
+
         if (isInternalTrackLink) {
           elements.push(
             <button
@@ -234,6 +239,20 @@ export function ChatAssistant() {
               <ChevronRight className="w-3.5 h-3.5" />
               {linkText}
             </button>
+          );
+        } else if (isWhatsAppLink) {
+          elements.push(
+            <a
+              key={`${idx}-link-${match.index}`}
+              href={linkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 my-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-xl border border-emerald-700/30 transition-all shadow-md shadow-emerald-600/20"
+            >
+              <MessageCircle className="w-4 h-4 fill-current text-white shrink-0" />
+              <span>{linkText}</span>
+              <ExternalLink className="w-3 h-3 ml-0.5 opacity-80 shrink-0" />
+            </a>
           );
         } else {
           elements.push(

@@ -703,8 +703,9 @@ export default function OrderDetailPage() {
   const isTechnician = hasRole("technician") && !hasRole("admin") && !hasRole("owner");
   const isMyTicket = isTechnician && order.assigned_technician === user?.id;
   const staleTechnicianStatuses = ["Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan"];
-  const isStaleTechnicianTicket =
-    isMyTicket && staleTechnicianStatuses.includes(order.status) && Date.now() - new Date(order.updated_at).getTime() > 24 * 60 * 60 * 1000;
+  const isOrderLate =
+    staleTechnicianStatuses.includes(order.status) && Date.now() - new Date(order.updated_at).getTime() > 24 * 60 * 60 * 1000;
+  const isStaleTechnicianTicket = isMyTicket && isOrderLate;
   const hasDelayReason = Boolean(((order as any).update_delay_reason || delayReason).trim());
   const shouldLockStatusForDelayReason = isStaleTechnicianTicket && !hasDelayReason;
 
@@ -1670,7 +1671,7 @@ export default function OrderDetailPage() {
                     <RefreshCw className="h-2.5 w-2.5 mr-1" /> Reassign
                   </Button>
                 )}
-                {isLateUpdate && (isOwner || isAdminOrOwner) && order.assigned_technician && (
+                {isOrderLate && (isOwner || isAdminOrOwner) && order.assigned_technician && (
                   <Button
                     variant="outline"
                     size="sm"

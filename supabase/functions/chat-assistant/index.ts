@@ -22,6 +22,12 @@ const KNOWLEDGE_BASE = `
   * Senin s/d Sabtu: Pukul 09.00 - 20.00 WITA
   * Minggu & Hari Libur Nasional: Tutup
 
+# SISTEM PENOMORAN TIKET SERVIS SUMTRA
+- Format Nomor Tiket: [Huruf Bulan][2 Digit Tahun][Nomor Urut 3+ Digit] (Contoh: A26001, B26010, F26016, G26052, K26001, L26099).
+- Huruf depan (A s/d L) mewakili bulan pembuatan (A=Januari, B=Februari, C=Maret, D=April, E=Mei, F=Juni, G=Juli, H=Agustus, I=September, J=Oktober, K=November, L=Desember).
+- Dua digit angka berikutnya mewakili tahun (misal: 24 = 2024, 25 = 2025, 26 = 2026).
+- Tiga digit angka terakhir adalah nomor urut tiket pada bulan tersebut.
+
 # LAYANAN AUTHORIZED SERVICE CENTER & KLAIM GARANSI
 1. AUTHORIZED SERVICE CENTER RESMI ASUS (EKSKLUSIF):
    - Super Komputer adalah **Authorized Service Center Resmi ASUS di Balikpapan** (satu-satunya brand mitra authorized resmi saat ini).
@@ -99,10 +105,10 @@ Deno.serve(async (req) => {
     let phoneOrdersFound: any[] = [];
     let ticketOrderFound: any = null;
 
-    // 1. CEK NOMOR TIKET DARI PESAN TERAKHIR MAUPUN SELURUH RIWAYAT CHAT
+    // 1. CEK NOMOR TIKET: fleksibel huruf A-Z diikuti digit (contoh: K26001, G26052, A24001, k321312, SK-2401)
     const ticketMatch =
-      lastUserText.match(/\b([FG]\d{5}|SK-\d{4})\b/i) ||
-      allUserTexts.match(/\b([FG]\d{5}|SK-\d{4})\b/i);
+      lastUserText.match(/\b([A-Za-z]\d{2}\d{3,6}|[A-Za-z]\d{4,8}|SK-\d{4})\b/i) ||
+      allUserTexts.match(/\b([A-Za-z]\d{2}\d{3,6}|[A-Za-z]\d{4,8}|SK-\d{4})\b/i);
 
     // 2. CEK NOMOR TELEPON DARI PESAN TERAKHIR MAUPUN SELURUH RIWAYAT CHAT
     const phoneMatch =
@@ -178,6 +184,12 @@ Deno.serve(async (req) => {
 ${timelineStr || "- Belum ada catatan timeline"}
 - Link Pelacakan Detail: [Buka Pelacakan Tiket #${orderData.ticket_number}](/track/${orderData.ticket_number})
 `;
+      } else {
+        liveDynamicContext += `
+[HASIL PENCARIAN TIKET #${extractedTicket}]
+- Status: Nomor tiket '${extractedTicket}' tidak ditemukan di database toko Super Komputer.
+- Catatan: Sampaikan secara ramah bahwa nomor tiket tersebut belum terdaftar/tidak ditemukan di database toko kami. JANGAN menghakimi atau mempermasalahkan format huruf/angka tiket pengguna.
+`;
       }
     }
 
@@ -246,16 +258,19 @@ ${ordersList}
     const systemInstruction = `
 Kamu adalah "SuperBot", asisten AI resmi dari Super Komputer Balikpapan (SUMTRA).
 
-ATURAN MEMORI PERCAKAPAN (SANGAT PENTING):
-1. **BACA DAN FAHAMI RIWAYAT CHAT**:
-   - Jika pengguna bertanya hal lanjutan (contoh: "apakah itu seluruh tiket saya?", "berapa total biayanya?", "yang mana yang selesai?", "apa kerusakannya?"), JANGAN PERNAH mengulang salam awal!
-   - Jawab langsung pertanyaan pengguna secara spesifik menggunakan data pada bagian "DATA DARI DATABASE SUMTRA".
-   - Jika pengguna bertanya "apakah itu seluruh tiket saya?", jawab dengan jelas dan ramah: "Ya, dari nomor telepon Anda tercatat ada total ${phoneOrdersFound.length} tiket servis..." dan rangkum secara singkat statusnya.
+ATURAN PENTING & GAYA KOMUNIKASI:
+1. **PENANGANAN NOMOR TIKET**:
+   - Format nomor tiket SUMTRA adalah [Huruf Bulan A-L][2 Digit Tahun][Nomor Urut] (misal: A26001 = Januari 2026, K26001 = November 2026, dll.).
+   - JANGAN PERNAH menyalahkan, mengoreksi, atau mempermasalahkan format huruf/angka nomor tiket pengguna (jangan pernah berkata "format resmi hanya F26 atau G26").
+   - Cukup cari nomor tiket yang diberikan pengguna di database. Jika nomor tiket TIDAK DITEMUKAN di database, sampaikan secara sopan bahwa tiket tersebut tidak ditemukan di sistem, dan sarankan untuk cek kembali nomor di nota atau berikan nomor HP terdaftar.
 
-2. **DILARANG MENGARANG DATA**:
-   - Hanya gunakan data tiket asli yang ada di bawah.
-   - Jangan membuat format nomor tiket selain format resmi (F26xxx / G26xxx).
-   - Setiap mencantumkan nomor tiket, selalu sertakan link tombol pelacakan: [Buka Pelacakan Tiket #{nomor_tiket}](/track/{nomor_tiket}).
+2. **MEMORI PERCAKAPAN & MULTI-TURN**:
+   - Jika pengguna bertanya pertanyaan lanjutan (seperti "apakah itu seluruh tiket saya?", "berapa total biayanya?", "yang mana yang selesai?"), JANGAN MENGULANG salam pembuka awal.
+   - Jawab langsung pertanyaan pengguna secara cerdas dan akurat berdasarkan data di "DATA DARI DATABASE SUMTRA".
+
+3. **DILARANG MENGARANG DATA**:
+   - Hanya gunakan data tiket nyata yang ada di database.
+   - Setiap mencantumkan nomor tiket nyata, selalu sertakan link format: [Buka Pelacakan Tiket #{nomor_tiket}](/track/{nomor_tiket}).
 
 DATA DARI DATABASE SUMTRA:
 ${liveDynamicContext || "- Tidak ada data tiket khusus pada percakapan ini."}
@@ -265,7 +280,6 @@ ${KNOWLEDGE_BASE}
 `;
 
     // ═══ FORMAT BROWSER/GEMINI CONVERSATION PAYLOAD ═══
-    // Gemini mewajibkan giliran percakapan bergantian secara ketat (user -> model -> user -> model).
     const rawClean: { role: "user" | "model"; text: string }[] = [];
 
     for (const m of messages) {
@@ -280,7 +294,6 @@ ${KNOWLEDGE_BASE}
       }
     }
 
-    // Pastikan percakapan dimulai oleh 'user'
     while (rawClean.length > 0 && rawClean[0].role === "model") {
       rawClean.shift();
     }
@@ -303,7 +316,6 @@ ${KNOWLEDGE_BASE}
           cachedModelsList = listJson.models
             .filter((m: any) => m.supportedGenerationMethods?.includes("generateContent"))
             .map((m: any) => m.name.replace(/^models\//, ""))
-            // Urutkan flash model di awal
             .sort((a: string, b: string) => {
               if (a.includes("flash") && !b.includes("flash")) return -1;
               if (!a.includes("flash") && b.includes("flash")) return 1;
@@ -362,38 +374,11 @@ ${KNOWLEDGE_BASE}
 
     console.error("[All Models Failed]", geminiErrors);
 
-    // ═══ SMART NATURAL INTENT FALLBACK KETIKA GEMINI RATELIMITED ═══
-    const isAskingIfAllTickets =
-      /seluruh|semua|total|banyak|ada lagi/i.test(lastUserText);
-
-    if (phoneOrdersFound.length > 0) {
-      if (isAskingIfAllTickets) {
-        const activeTickets = phoneOrdersFound.filter((o) => o.status !== "Close" && o.status !== "Cancelled");
-        const closedTickets = phoneOrdersFound.filter((o) => o.status === "Close" || o.status === "Cancelled");
-
-        return new Response(
-          JSON.stringify({
-            reply: `Betul, untuk nomor telepon **${extractedPhone}** atas nama **${phoneOrdersFound[0]?.customer_name || "Bapak/Ibu"}**, tercatat ada **${phoneOrdersFound.length} tiket servis** di sistem database kami.\n\n• **Tiket Aktif / Sedang Diproses:** ${activeTickets.length} unit\n• **Tiket Selesai / Riwayat Lama:** ${closedTickets.length} unit\n\nApakah ada salah satu tiket yang ingin Anda ketahui rincian detail atau status pengerjaannya?`,
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const listStr = phoneOrdersFound
-        .map((ord) => {
-          const cost =
-            ord.final_cost != null
-              ? `Rp ${Number(ord.final_cost).toLocaleString("id-ID")}`
-              : ord.estimated_cost != null
-              ? `Estimasi Rp ${Number(ord.estimated_cost).toLocaleString("id-ID")}`
-              : "-";
-          return `• **Tiket #${ord.ticket_number}** (${ord.device_brand || ""} ${ord.device_model || ""})\n  - **Status:** ${ord.status}\n  - **Biaya:** ${cost}\n  [Buka Pelacakan Tiket #${ord.ticket_number}](/track/${ord.ticket_number})`;
-        })
-        .join("\n\n");
-
+    // ═══ SMART FALLBACK JIKA MODEL SEDANG RATE-LIMITED ═══
+    if (extractedTicket && !ticketOrderFound) {
       return new Response(
         JSON.stringify({
-          reply: `Halo! Berdasarkan pengecekan nomor telepon **${extractedPhone}**, berikut data ${phoneOrdersFound.length} tiket servis Anda di Super Komputer:\n\n${listStr}\n\nAda hal lain yang dapat kami bantu terkait tiket servis Anda?`,
+          reply: `Maaf, nomor tiket **#${extractedTicket}** tidak ditemukan di sistem database servis Super Komputer. Mohon periksa kembali nomor tiket pada nota fisik Anda, atau berikan nomor HP yang terdaftar saat servis, atau hubungi WhatsApp CS kami di [0811-540-4999](https://wa.me/628115404999).`,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -410,6 +395,27 @@ ${KNOWLEDGE_BASE}
       return new Response(
         JSON.stringify({
           reply: `Halo! Berikut data resmi untuk tiket **#${ticketOrderFound.ticket_number}** atas nama **${ticketOrderFound.customer_name}**:\n\n• **Perangkat:** ${ticketOrderFound.device_brand || ""} ${ticketOrderFound.device_model || ""}\n• **Status Terkini:** ${ticketOrderFound.status}\n• **Keluhan:** ${ticketOrderFound.damage_description || ticketOrderFound.unit_condition || "-"}\n• **Total Biaya:** ${cost}\n\n[Buka Pelacakan Tiket #${ticketOrderFound.ticket_number}](/track/${ticketOrderFound.ticket_number})`,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (phoneOrdersFound.length > 0) {
+      const listStr = phoneOrdersFound
+        .map((ord) => {
+          const cost =
+            ord.final_cost != null
+              ? `Rp ${Number(ord.final_cost).toLocaleString("id-ID")}`
+              : ord.estimated_cost != null
+              ? `Estimasi Rp ${Number(ord.estimated_cost).toLocaleString("id-ID")}`
+              : "-";
+          return `• **Tiket #${ord.ticket_number}** (${ord.device_brand || ""} ${ord.device_model || ""})\n  - **Status:** ${ord.status}\n  - **Biaya:** ${cost}\n  [Buka Pelacakan Tiket #${ord.ticket_number}](/track/${ord.ticket_number})`;
+        })
+        .join("\n\n");
+
+      return new Response(
+        JSON.stringify({
+          reply: `Halo! Berdasarkan pengecekan nomor telepon **${extractedPhone}**, berikut data tiket servis Anda di Super Komputer:\n\n${listStr}\n\nAda hal lain yang dapat kami bantu terkait tiket servis Anda?`,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

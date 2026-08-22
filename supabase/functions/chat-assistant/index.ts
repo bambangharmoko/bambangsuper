@@ -62,9 +62,9 @@ async function getAccessToken(sa: ServiceAccount): Promise<string> {
 }
 
 // ============================================================================
-// RAG KNOWLEDGE BASE: SUPER KOMPUTER BALIKPAPAN & SUMTRA
+// DEFAULT FALLBACK KNOWLEDGE BASE & SYSTEM PROMPT
 // ============================================================================
-const KNOWLEDGE_BASE = `
+const DEFAULT_FALLBACK_KB = `
 # PROFIL SUPER KOMPUTER BALIKPAPAN
 - Super Komputer adalah pusat penjualan perangkat IT, jaringan, CCTV, dan Authorized Service Center terkemuka di Kalimantan Timur dengan pengalaman lebih dari 15 tahun.
 - Aplikasi Resmi: SUMTRA (Super Ultima Management, Tracking & Real-Time Application).
@@ -182,6 +182,35 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // ═══ 1. LOAD DYNAMIC AI TRAINING SETTINGS FROM SUPABASE STORAGE ═══
+    let dynamicKnowledgeBase = DEFAULT_FALLBACK_KB;
+    let dynamicSystemPrompt = "";
+    let dynamicQaExamples: any[] = [];
+    let dynamicTemperature = 0.1;
+    let waAdminPhone = "628115404999";
+    let staleUnassignedHours = 24;
+    let staleInProgressHours = 48;
+
+    try {
+      const { data: configData, error: configErr } = await supabase.storage
+        .from("unit-photos")
+        .download("config/ai_training_settings.json");
+
+      if (!configErr && configData) {
+        const text = await configData.text();
+        const parsed = JSON.parse(text);
+        if (parsed.knowledge_base) dynamicKnowledgeBase = parsed.knowledge_base;
+        if (parsed.system_prompt) dynamicSystemPrompt = parsed.system_prompt;
+        if (Array.isArray(parsed.qa_examples)) dynamicQaExamples = parsed.qa_examples;
+        if (typeof parsed.temperature === "number") dynamicTemperature = parsed.temperature;
+        if (parsed.wa_admin_phone) waAdminPhone = parsed.wa_admin_phone;
+        if (parsed.stale_unassigned_hours) staleUnassignedHours = parsed.stale_unassigned_hours;
+        if (parsed.stale_inprogress_hours) staleInProgressHours = parsed.stale_inprogress_hours;
+      }
+    } catch (err) {
+      console.warn("Could not load dynamic ai settings, using defaults:", err);
+    }
+
     // GABUNGKAN SEMUA TEKS DARI RIWAYAT PERCAKAPAN UNTUK MENDETEKSI MEMORI TIKET / NOMOR HP
     const allUserTexts = messages
       .filter((m) => m.role === "user" || m.sender === "user")
@@ -260,10 +289,9 @@ Deno.serve(async (req) => {
         staleDurationStr = diffDays > 0 ? `${diffDays} hari ${remHours} jam` : `${diffHours} jam`;
 
         const category = getCategoryForStatus(orderData.status);
-        isStaleTicket = category === "Belum Dikerjakan" && diffHours >= 24;
-        isTechStaleTicket = category === "Sedang Dikerjakan" && diffHours >= 48; // > 2 hari (48 jam)
+        isStaleTicket = category === "Belum Dikerjakan" && diffHours >= staleUnassignedHours;
+        isTechStaleTicket = category === "Sedang Dikerjakan" && diffHours >= staleInProgressHours;
 
-        const waAdminPhone = "628115404999";
         const waMessageText = `Halo Admin Super Komputer, saya ingin menanyakan progres tiket servis saya (${orderData.ticket_number}):\n\n* Nomor Tiket: #${orderData.ticket_number}\n* Nama: ${orderData.customer_name}\n* Unit: ${getDeviceName(orderData)}\n* Status: ${category} (${orderData.status})\n* Waktu Tunggu: ${staleDurationStr}\n* Keluhan: ${orderData.damage_description || orderData.unit_condition || "-"}\n\nMohon bantuannya untuk menindaklanjuti unit saya. Terima kasih!`;
 
         staleWaDirectLink = `https://wa.me/${waAdminPhone}?text=${safeEncodeURIComponent(waMessageText)}`;
@@ -354,7 +382,7 @@ Deno.serve(async (req) => {
         let staleWarningText = "";
         if (isStaleTicket) {
           staleWarningText = `
-- STATUS PENANGANAN KHUSUS (> 24 JAM BELUM DIKERJAKAN):
+- STATUS PENANGANAN KHUSUS (> ${staleUnassignedHours} JAM BELUM DIKERJAKAN):
   * Tiket ini berstatus "Belum Dikerjakan" dan sudah masuk selama ${staleDurationStr}.
   * Tautan Direct Chat WhatsApp Admin: [Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})
   * PETUNJUK RESPON:
@@ -363,8 +391,8 @@ Deno.serve(async (req) => {
 `;
         } else if (isTechStaleTicket) {
           staleWarningText = `
-- STATUS PENANGANAN KHUSUS (> 2 HARI / 48 JAM SEDANG DIKERJAKAN BELUM ADA PERUBAHAN STATUS):
-  * Tiket ini berstatus "Sedang Dikerjakan" (${orderData.status}) dan belum ada pembaruan selama ${staleDurationStr} (> 2 hari).
+- STATUS PENANGANAN KHUSUS (> ${staleInProgressHours} JAM SEDANG DIKERJAKAN BELUM ADA PERUBAHAN STATUS):
+  * Tiket ini berstatus "Sedang Dikerjakan" (${orderData.status}) dan belum ada pembaruan selama ${staleDurationStr}.
   * Tombol Reminder Langsung ke Teknisi: [🔔 Reminder Tiket ke Teknisi](/remind-tech/${orderData.ticket_number})
   * Tautan WhatsApp Admin: [Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})
   * PETUNJUK RESPON:
@@ -479,8 +507,14 @@ ${formatGroup("4. Unit Close", unitClose)}
       }
     }
 
+    let qaExamplesContext = "";
+    if (dynamicQaExamples.length > 0) {
+      qaExamplesContext = "\n\nCONTOH TANYA JAWAB IDEAL (FEW-SHOT TRAINING):\n" +
+        dynamicQaExamples.map((q: any) => `Tanya: ${q.question}\nJawab: ${q.answer}`).join("\n\n");
+    }
+
     const systemInstruction = `
-Kamu adalah "SuperBot", asisten AI resmi dari Super Komputer Balikpapan (SUMTRA).
+${dynamicSystemPrompt || `Kamu adalah "SuperBot", asisten AI resmi dari Super Komputer Balikpapan (SUMTRA).`}
 
 ATURAN FORMAT LINK & TOMBOL AKSI:
 1. **PENULISAN TOMBOL & LINK**:
@@ -489,14 +523,14 @@ ATURAN FORMAT LINK & TOMBOL AKSI:
    - Tombol WhatsApp Admin: \`[Chat WhatsApp Admin Super Komputer]({link_wa})\`
    - JANGAN PERNAH membungkus link dengan kurung siku/bintang ganda seperti \`**[Link](url)**\` agar tombol dapat diklik langsung.
 
-2. **PENANGANAN TIKET STATUS 'BELUM DIKERJAKAN' YANG LEBIH DARI 24 JAM**:
-   - Jika tiket berstatus "Belum Dikerjakan" (status Diterima) dan sudah masuk lebih dari 24 jam:
+2. **PENANGANAN TIKET STATUS 'BELUM DIKERJAKAN' YANG LEBIH DARI ${staleUnassignedHours} JAM**:
+   - Jika tiket berstatus "Belum Dikerjakan" (status Diterima) dan sudah masuk lebih dari ${staleUnassignedHours} jam:
      * Tampilkan detail tiket secara lengkap dan sertakan info durasi tunggu: "Unit servis ini tercatat belum ditangani teknisi selama [X hari Y jam]".
      * Tanyakan opsi: "**Apakah Anda mau saya buatkan chat langsung ke WhatsApp Admin Super Komputer untuk menindaklanjuti tiket ini?**"
    - JIKA pengguna menjawab setuju / iya / mau / buatkan: Berikan link: \`[Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})\`.
 
-3. **PENANGANAN TIKET STATUS 'SEDANG DIKERJAKAN' YANG LEBIH DARI 2 HARI (48 JAM) TANPA PERUBAHAN**:
-   - Jika tiket berstatus "Sedang Dikerjakan" (Diagnosa / Menunggu Persetujuan / Menunggu Sparepart / Perbaikan) dan sudah lebih dari 2 hari tanpa perubahan:
+3. **PENANGANAN TIKET STATUS 'SEDANG DIKERJAKAN' YANG LEBIH DARI ${staleInProgressHours} JAM TANPA PERUBAHAN**:
+   - Jika tiket berstatus "Sedang Dikerjakan" (Diagnosa / Menunggu Persetujuan / Menunggu Sparepart / Perbaikan) dan sudah lebih dari ${staleInProgressHours} jam tanpa perubahan:
      * Sampaikan dengan empatik: Unit sedang dalam status [Status Resmi] dan belum ada pembaruan status selama [X hari Y jam].
      * Sertakan tombol aksi: \`[🔔 Reminder Tiket ke Teknisi](/remind-tech/{nomor_tiket})\`
      * Jelaskan bahwa dengan menekan tombol tersebut, sistem akan langsung mengirimkan notifikasi sistem dan push notification (FCM) ke akun/HP teknisi yang menangani unit tersebut agar segera diprioritaskan.
@@ -514,8 +548,8 @@ ATURAN FORMAT LINK & TOMBOL AKSI:
 DATA DARI DATABASE SUMTRA:
 ${liveDynamicContext || "- Tidak ada data tiket khusus pada percakapan ini."}
 
-Knowledge Base Toko:
-${KNOWLEDGE_BASE}
+KNOWLEDGE BASE TOKO (DYNAMIC TRAINED):
+${dynamicKnowledgeBase}${qaExamplesContext}
 `;
 
     // ═══ FORMAT BROWSER/GEMINI CONVERSATION PAYLOAD ═══
@@ -588,7 +622,7 @@ ${KNOWLEDGE_BASE}
             contents: cleanContents,
             generationConfig: {
               maxOutputTokens: 3000,
-              temperature: 0.1,
+              temperature: dynamicTemperature,
             },
           }),
         });

@@ -10,6 +10,7 @@ import {
   Menu,
   Briefcase,
   Archive,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -26,6 +27,7 @@ const navItems = [
   { label: "Kelola Tiket Service", path: "/dashboard/closed-tickets", icon: Archive, roles: ["owner"] as const },
   { label: "Kelola Pelanggan", path: "/dashboard/customers", icon: Users, roles: ["owner", "admin"] as const },
   { label: "Kelola User", path: "/dashboard/users", icon: Users, roles: ["owner"] as const },
+  { label: "Pelatihan AI", path: "/dashboard/ai-training", icon: Sparkles, roles: ["owner"] as const },
 ];
 
 export function DashboardLayout({ children }: { children: ReactNode }) {

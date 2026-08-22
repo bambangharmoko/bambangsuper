@@ -25,6 +25,7 @@ const UserManagement = lazy(() => import("./pages/UserManagement"));
 const TechnicianWorkload = lazy(() => import("./pages/TechnicianWorkload"));
 const CustomerManagement = lazy(() => import("./pages/CustomerManagement"));
 const ClosedTicketsManager = lazy(() => import("./pages/ClosedTicketsManager"));
+const AiTraining = lazy(() => import("./pages/AiTraining"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -56,6 +57,7 @@ const App = () => (
                 <Route path="/dashboard/customers" element={<ProtectedRoute><NonTechnicianRoute><CustomerManagement /></NonTechnicianRoute></ProtectedRoute>} />
                 <Route path="/dashboard/users" element={<ProtectedRoute><OwnerRoute><UserManagement /></OwnerRoute></ProtectedRoute>} />
                 <Route path="/dashboard/closed-tickets" element={<ProtectedRoute><OwnerRoute><ClosedTicketsManager /></OwnerRoute></ProtectedRoute>} />
+                <Route path="/dashboard/ai-training" element={<ProtectedRoute><OwnerRoute><AiTraining /></OwnerRoute></ProtectedRoute>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>

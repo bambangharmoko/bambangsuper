@@ -160,6 +160,15 @@ Deno.serve(async (req) => {
       const body = await req.json();
       const action = body.action || "save";
 
+      if (action === "list_models") {
+        const apiKey = Deno.env.get("GEMINI_API_KEY");
+        const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        const listJson = await listRes.json();
+        return new Response(JSON.stringify(listJson), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       // ── ACTION: TEST PROMPT / SIMULATOR PLAYGROUND ──
       if (action === "test_prompt") {
         const apiKey = Deno.env.get("GEMINI_API_KEY");
@@ -183,7 +192,7 @@ Deno.serve(async (req) => {
 
         const fullPrompt = `${customPrompt}\n\nKNOWLEDGE BASE TOKO:\n${customKB}${qaContext}`;
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
         const geminiRes = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -195,7 +204,13 @@ Deno.serve(async (req) => {
         });
 
         const geminiJson = await geminiRes.json();
-        const reply = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text || "Gagal menghasilkan jawaban dari model AI.";
+        const reply = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (!reply) {
+          return new Response(JSON.stringify({ ok: false, error: geminiJson.error?.message || JSON.stringify(geminiJson) }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
 
         return new Response(JSON.stringify({ ok: true, reply }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },

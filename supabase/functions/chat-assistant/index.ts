@@ -61,9 +61,11 @@ async function getAccessToken(sa: ServiceAccount): Promise<string> {
   return (await res.json()).access_token;
 }
 
-// ============================================================================
-// DEFAULT FALLBACK KNOWLEDGE BASE & SYSTEM PROMPT
-// ============================================================================
+// In-memory cache to eliminate repetitive Storage API roundtrips
+let cachedConfig: any = null;
+let lastConfigFetch = 0;
+const CONFIG_CACHE_TTL_MS = 60 * 1000; // 60 detik
+
 const DEFAULT_FALLBACK_KB = `
 # PROFIL SUPER KOMPUTER BALIKPAPAN
 - Super Komputer adalah pusat penjualan perangkat IT, jaringan, CCTV, dan Authorized Service Center terkemuka di Kalimantan Timur dengan pengalaman lebih dari 15 tahun.
@@ -82,35 +84,6 @@ const DEFAULT_FALLBACK_KB = `
 2. **Sedang Dikerjakan**: Status 'Diagnosa', 'Menunggu Persetujuan Pelanggan', 'Menunggu Sparepart', 'Perbaikan'.
 3. **Selesai Pengerjaan**: Status 'Selesai' (QC lolos) atau 'Siap diAmbil' (Unit siap diambil di toko).
 4. **Unit Close**: Status 'Close' (Sudah diambil & transaksi lunas) atau 'Cancelled' (Batal servis).
-
-# SISTEM PENGECEKAN TIKET SERVIS
-- SuperBot BISA mengecek tiket langsung melalui **Nomor Tiket** (contoh: A26001, G26052, K26001) ATAU **Nomor HP / WhatsApp terdaftar**.
-- Format Nomor Tiket: [Huruf Bulan A-L][2 Digit Tahun][Nomor Urut 3+ Digit] (A=Januari s/d L=Desember).
-- Jika pelanggan bertanya apakah bisa cek menggunakan nomor HP, jawab dengan tegas dan ramah: "Tentu saja bisa! Silakan ketikkan nomor HP Anda yang terdaftar saat servis, saya akan langsung bantu mengecek seluruh daftar tiket Anda."
-
-# LAYANAN AUTHORIZED SERVICE CENTER & KLAIM GARANSI
-1. AUTHORIZED SERVICE CENTER RESMI ASUS (EKSKLUSIF):
-   - Super Komputer adalah **Authorized Service Center Resmi ASUS di Balikpapan** (satu-satunya brand mitra authorized resmi saat ini).
-   - Melayani klaim garansi resmi dan perbaikan produk ASUS (Laptop ASUS ROG, TUF Gaming, ZenBook, VivoBook, ExpertBook, PC Desktop & All-in-One).
-   - GRATIS 100% biaya jasa dan penggantian sparepart original jika unit masih dalam masa garansi resmi ASUS dan memenuhi syarat garansi.
-   - Pengecekan Garansi Resmi ASUS Mandiri: https://www.asus.com/id/support/warranty-status-inquiry/
-   - Bantuan Pengecekan Garansi ASUS: Pelanggan dapat mengirimkan foto Serial Number (SN) ke WhatsApp CS 0811-540-4999 untuk dicekkan langsung oleh staff via sistem internal ASUS Service Partner.
-
-2. STATUS MEREK LAIN (TERMASUK LENOVO, ACER, HP, DELL, DLL):
-   - **PENTING**: Super Komputer **SUDAH TIDAK LAGI** menjadi Authorized Service Partner Lenovo.
-   - Super Komputer saat ini HANYA memegang lisensi Authorized Service Center resmi untuk **ASUS**.
-   - Untuk merek lain (Lenovo, Acer, HP, Dell, MSI, Toshiba, Axioo, Apple MacBook, dll.), Super Komputer melayani sebagai **Multi-Brand Repair Profesional Non-Garansi (Out of Warranty)**:
-     * Mati total (matot), short circuit motherboard, reballing/ganti IC power, BIOS corrupt.
-     * Penggantian LCD/LED panel, keyboard, engsel/casing pecah, baterai original.
-     * Cleaning fan & repaste thermal paste premium (Arctic / Noctua).
-     * Upgrade SSD NVMe/SATA & RAM DDR4/DDR5.
-     * Semua pengerjaan non-garansi diberikan Garansi Servis Toko resmi (1 hingga 3 bulan).
-
-3. SERVIS PRINTER, CCTV, & SOLUSI IT KORPORAT:
-   - Printer Epson, Canon, HP, Brother (head buntu, blinking waste ink pad, paper jam, sistem infus).
-   - Pengadaan & Instalasi CCTV Online/Offline (Hikvision, Dahua).
-   - Mesin Absensi Biometrik (Fingerprint & Face Recognition).
-   - Infrastruktur Jaringan (LAN Cabling, Mikrotik, Cisco, WiFi Ubiquiti UniFi).
 `;
 
 function getCategoryForStatus(status: string): string {
@@ -152,7 +125,15 @@ function safeEncodeURIComponent(str: string): string {
     .replace(/\~/g, "%7E");
 }
 
-let cachedModelsList: string[] = [];
+// Model prioritas ultra-cepat dan akurat (Gemini 3.6 Flash adalah model generasi terbaru tercepat)
+const PRIORITY_FAST_MODELS = [
+  "gemini-3.6-flash",
+  "gemini-3.5-flash",
+  "gemini-3.7-flash",
+  "gemini-flash-latest",
+  "gemini-3.1-flash-lite",
+  "gemini-3.5-flash-lite",
+];
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -177,47 +158,41 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Inisialisasi Supabase client dengan Service Role Key
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // ═══ 1. LOAD DYNAMIC AI TRAINING SETTINGS FROM SUPABASE STORAGE ═══
-    let dynamicKnowledgeBase = DEFAULT_FALLBACK_KB;
-    let dynamicSystemPrompt = "";
-    let dynamicQaExamples: any[] = [];
-    let dynamicTemperature = 0.1;
-    let waAdminPhone = "628115404999";
-    let staleUnassignedHours = 24;
-    let staleInProgressHours = 48;
+    // ═══ 1. LOAD DYNAMIC AI TRAINING SETTINGS (WITH IN-MEMORY CACHE) ═══
+    const now = Date.now();
+    if (!cachedConfig || now - lastConfigFetch > CONFIG_CACHE_TTL_MS) {
+      try {
+        const { data: configData, error: configErr } = await supabase.storage
+          .from("unit-photos")
+          .download("config/ai_training_settings.json");
 
-    try {
-      const { data: configData, error: configErr } = await supabase.storage
-        .from("unit-photos")
-        .download("config/ai_training_settings.json");
-
-      if (!configErr && configData) {
-        const text = await configData.text();
-        const parsed = JSON.parse(text);
-        if (parsed.knowledge_base) dynamicKnowledgeBase = parsed.knowledge_base;
-        if (parsed.system_prompt) dynamicSystemPrompt = parsed.system_prompt;
-        if (Array.isArray(parsed.qa_examples)) dynamicQaExamples = parsed.qa_examples;
-        if (typeof parsed.temperature === "number") dynamicTemperature = parsed.temperature;
-        if (parsed.wa_admin_phone) waAdminPhone = parsed.wa_admin_phone;
-        if (parsed.stale_unassigned_hours) staleUnassignedHours = parsed.stale_unassigned_hours;
-        if (parsed.stale_inprogress_hours) staleInProgressHours = parsed.stale_inprogress_hours;
+        if (!configErr && configData) {
+          const text = await configData.text();
+          cachedConfig = JSON.parse(text);
+          lastConfigFetch = now;
+        }
+      } catch (err) {
+        console.warn("Could not load dynamic ai settings, fallback to cache/default:", err);
       }
-    } catch (err) {
-      console.warn("Could not load dynamic ai settings, using defaults:", err);
     }
 
-    // GABUNGKAN SEMUA TEKS DARI RIWAYAT PERCAKAPAN UNTUK MENDETEKSI MEMORI TIKET / NOMOR HP
+    const dynamicKnowledgeBase = cachedConfig?.knowledge_base || DEFAULT_FALLBACK_KB;
+    const dynamicSystemPrompt = cachedConfig?.system_prompt || "";
+    const dynamicQaExamples = Array.isArray(cachedConfig?.qa_examples) ? cachedConfig.qa_examples : [];
+    const dynamicTemperature = typeof cachedConfig?.temperature === "number" ? cachedConfig.temperature : 0.1;
+    const waAdminPhone = cachedConfig?.wa_admin_phone || "628115404999";
+    const staleUnassignedHours = cachedConfig?.stale_unassigned_hours || 24;
+    const staleInProgressHours = cachedConfig?.stale_inprogress_hours || 48;
+
     const allUserTexts = messages
       .filter((m) => m.role === "user" || m.sender === "user")
       .map((m) => String(m.parts?.[0]?.text || m.text || ""))
       .join(" ");
 
-    // Ambil pesan terakhir user
     const lastUserMsg = [...messages].reverse().find((m) => m.role === "user" || m.sender === "user");
     const lastUserText = String(lastUserMsg?.parts?.[0]?.text || lastUserMsg?.text || "");
 
@@ -232,12 +207,12 @@ Deno.serve(async (req) => {
     let staleWaDirectLink = "";
     let techReminderSent = false;
 
-    // 1. CEK NOMOR TIKET: fleksibel huruf A-Z diikuti digit (contoh: K26001, G26052, A24001, SK-2401)
+    // 1. CEK NOMOR TIKET
     const ticketMatch =
       lastUserText.match(/\b([A-Za-z]\d{2}\d{3,6}|[A-Za-z]\d{4,8}|SK-\d{4})\b/i) ||
       allUserTexts.match(/\b([A-Za-z]\d{2}\d{3,6}|[A-Za-z]\d{4,8}|SK-\d{4})\b/i);
 
-    // 2. CEK NOMOR TELEPON DARI PESAN TERAKHIR MAUPUN SELURUH RIWAYAT CHAT
+    // 2. CEK NOMOR TELEPON
     const phoneMatch =
       lastUserText.match(/(?:(?:\+?62)|0)[0-9\s\-]{8,16}/) ||
       allUserTexts.match(/(?:(?:\+?62)|0)[0-9\s\-]{8,16}/);
@@ -280,7 +255,6 @@ Deno.serve(async (req) => {
             ? `Estimasi Rp ${Number(orderData.estimated_cost).toLocaleString("id-ID")}`
             : "Belum ada rincian final";
 
-        // Hitung durasi waktu tunggu tiket / perubahan status terakhir
         const updatedAtDate = new Date(orderData.updated_at || orderData.created_at || Date.now());
         const diffMs = Math.max(0, Date.now() - updatedAtDate.getTime());
         const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
@@ -296,7 +270,6 @@ Deno.serve(async (req) => {
 
         staleWaDirectLink = `https://wa.me/${waAdminPhone}?text=${safeEncodeURIComponent(waMessageText)}`;
 
-        // DETEKSI APAKAH USER MEMINTA PENGINGAT KE TEKNISI
         const isUserAskingTechReminder =
           /(ingatkan|reminder|remind|colek|notif|dorong|percepat|follow\s*up).*teknisi/i.test(lastUserText) ||
           /reminder\s*tiket\s*ke\s*teknisi/i.test(lastUserText) ||
@@ -304,7 +277,6 @@ Deno.serve(async (req) => {
           lastUserText.toLowerCase().includes("reminder ke teknisi");
 
         if (isUserAskingTechReminder && (isTechStaleTicket || category === "Sedang Dikerjakan")) {
-          // 1. Kirim notifikasi DB ke teknisi (atau admin jika belum ada teknisi)
           const targetTechId = orderData.assigned_technician;
           const notifTitle = "⚠️ Reminder Pelanggan: Tiket Perlu Ditindaklanjuti";
           const notifMessage = `Pelanggan menanyakan tiket #${orderData.ticket_number} (${getDeviceName(orderData)}) yang berstatus '${orderData.status}' dan belum ada pembaruan selama ${staleDurationStr}. Mohon segera ditindaklanjuti!`;
@@ -318,7 +290,6 @@ Deno.serve(async (req) => {
               is_read: false,
             });
 
-            // 2. Kirim Web Push via FCM ke perangkat teknisi
             const fcmRaw = Deno.env.get("FIREBASE_SERVICE_ACCOUNT");
             if (fcmRaw) {
               try {
@@ -360,7 +331,6 @@ Deno.serve(async (req) => {
             }
             techReminderSent = true;
           } else {
-            // Jika belum di-assign, kirim ke notifications admin
             const { data: adminRoles } = await supabase
               .from("user_roles")
               .select("user_id")
@@ -385,9 +355,6 @@ Deno.serve(async (req) => {
 - STATUS PENANGANAN KHUSUS (> ${staleUnassignedHours} JAM BELUM DIKERJAKAN):
   * Tiket ini berstatus "Belum Dikerjakan" dan sudah masuk selama ${staleDurationStr}.
   * Tautan Direct Chat WhatsApp Admin: [Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})
-  * PETUNJUK RESPON:
-    1. Jika pengguna baru menanyakan tiket ini: Tampilkan detail tiket, sertakan info bahwa unit belum di-handle teknisi selama ${staleDurationStr}, lalu tanyakan opsi: "Apakah Anda mau saya buatkan tautan chat langsung ke WhatsApp Admin Super Komputer untuk menindaklanjuti tiket ini?"
-    2. JIKA pengguna menjawab setuju/iya/mau/buatkan/hubungi: Berikan LANGSUNG link markdown [Chat WhatsApp Admin Super Komputer](${staleWaDirectLink}) (JANGAN menambahkan tanda bintang ganda ** di luar link markdown).
 `;
         } else if (isTechStaleTicket) {
           staleWarningText = `
@@ -395,19 +362,13 @@ Deno.serve(async (req) => {
   * Tiket ini berstatus "Sedang Dikerjakan" (${orderData.status}) dan belum ada pembaruan selama ${staleDurationStr}.
   * Tombol Reminder Langsung ke Teknisi: [🔔 Reminder Tiket ke Teknisi](/remind-tech/${orderData.ticket_number})
   * Tautan WhatsApp Admin: [Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})
-  * PETUNJUK RESPON:
-    1. Berikan empati bahwa unit sedang berada di tahap ${orderData.status} dan belum ada pembaruan status selama ${staleDurationStr}.
-    2. Tampilkan tombol aksi pengingat langsung ke teknisi: [🔔 Reminder Tiket ke Teknisi](/remind-tech/${orderData.ticket_number}).
-    3. Jelaskan bahwa menekan tombol pengingat tersebut akan langsung mengirimkan notifikasi sistem dan push notification (FCM) ke akun/HP teknisi yang menangani unit tersebut agar segera diprioritaskan.
-    4. Sediakan juga opsi tautan chat WhatsApp Admin jika ingin berbicara dengan staf: [Chat WhatsApp Admin Super Komputer](${staleWaDirectLink}).
 `;
         }
 
         if (techReminderSent) {
           staleWarningText += `
 - STATUS PENGINGAT SUKSES DIKIRIMKAN:
-  * Pengingat (Notifikasi Sistem & Push Notification FCM) telah BERHASIL dikirimkan langsung ke perangkat & akun internal teknisi yang menangani tiket #${orderData.ticket_number}.
-  * Konfirmasikan kepada pelanggan dengan ramah bahwa pengingat telah masuk ke HP & dashboard teknisi dan unitnya akan segera diprioritaskan.
+  * Pengingat telah BERHASIL dikirimkan langsung ke perangkat & akun internal teknisi yang menangani tiket #${orderData.ticket_number}.
 `;
         }
 
@@ -425,8 +386,7 @@ ${staleWarningText}
       } else {
         liveDynamicContext += `
 [HASIL PENCARIAN TIKET #${extractedTicket}]
-- Status: Nomor tiket '${extractedTicket}' tidak ditemukan di database toko Super Komputer.
-- Catatan: Sampaikan secara ramah bahwa nomor tiket tersebut belum terdaftar/tidak ditemukan di database toko kami. JANGAN menghakimi atau mempermasalahkan format huruf/angka tiket pengguna.
+- Status: Nomor tiket '${extractedTicket}' tidak ditemukan di database toko Super Komputer. Sampaikan secara ramah.
 `;
       }
     }
@@ -516,35 +476,6 @@ ${formatGroup("4. Unit Close", unitClose)}
     const systemInstruction = `
 ${dynamicSystemPrompt || `Kamu adalah "SuperBot", asisten AI resmi dari Super Komputer Balikpapan (SUMTRA).`}
 
-ATURAN FORMAT LINK & TOMBOL AKSI:
-1. **PENULISAN TOMBOL & LINK**:
-   - Tombol Pelacakan Tiket: \`[Buka Pelacakan Tiket #{nomor_tiket}](/track/{nomor_tiket})\`
-   - Tombol Reminder Teknisi: \`[🔔 Reminder Tiket ke Teknisi](/remind-tech/{nomor_tiket})\`
-   - Tombol WhatsApp Admin: \`[Chat WhatsApp Admin Super Komputer]({link_wa})\`
-   - JANGAN PERNAH membungkus link dengan kurung siku/bintang ganda seperti \`**[Link](url)**\` agar tombol dapat diklik langsung.
-
-2. **PENANGANAN TIKET STATUS 'BELUM DIKERJAKAN' YANG LEBIH DARI ${staleUnassignedHours} JAM**:
-   - Jika tiket berstatus "Belum Dikerjakan" (status Diterima) dan sudah masuk lebih dari ${staleUnassignedHours} jam:
-     * Tampilkan detail tiket secara lengkap dan sertakan info durasi tunggu: "Unit servis ini tercatat belum ditangani teknisi selama [X hari Y jam]".
-     * Tanyakan opsi: "**Apakah Anda mau saya buatkan chat langsung ke WhatsApp Admin Super Komputer untuk menindaklanjuti tiket ini?**"
-   - JIKA pengguna menjawab setuju / iya / mau / buatkan: Berikan link: \`[Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})\`.
-
-3. **PENANGANAN TIKET STATUS 'SEDANG DIKERJAKAN' YANG LEBIH DARI ${staleInProgressHours} JAM TANPA PERUBAHAN**:
-   - Jika tiket berstatus "Sedang Dikerjakan" (Diagnosa / Menunggu Persetujuan / Menunggu Sparepart / Perbaikan) dan sudah lebih dari ${staleInProgressHours} jam tanpa perubahan:
-     * Sampaikan dengan empatik: Unit sedang dalam status [Status Resmi] dan belum ada pembaruan status selama [X hari Y jam].
-     * Sertakan tombol aksi: \`[🔔 Reminder Tiket ke Teknisi](/remind-tech/{nomor_tiket})\`
-     * Jelaskan bahwa dengan menekan tombol tersebut, sistem akan langsung mengirimkan notifikasi sistem dan push notification (FCM) ke akun/HP teknisi yang menangani unit tersebut agar segera diprioritaskan.
-     * Berikan juga opsi: \`[Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})\` jika pelanggan ingin langsung koordinasi dengan Admin Toko.
-
-4. **KONFIRMASI PENGINGAT TEKNISI TELAH DIKIRIM**:
-   - Jika pengguna menekan tombol reminder atau meminta mengirimkan pengingat ke teknisi:
-     * Sampaikan dengan jelas dan ramah: "✅ **Pengingat berhasil dikirim ke teknisi penanggung jawab unit Anda!** Notifikasi prioritas dan push notification FCM telah masuk ke akun & HP teknisi kami agar segera menindaklanjuti unit Anda."
-
-5. **PENYAJIAN TIKET NOMOR HP DENGAN FORMAT LENGKAP**:
-   - Jika nomor HP memiliki lebih dari 1 tiket, kelompokkan ke dalam 4 kategori (Belum Dikerjakan, Sedang Dikerjakan, Selesai Pengerjaan, Unit Close).
-   - Setiap tiket WAJIB disertai nama perangkatnya: \`- #<NomorTiket> (<Nama Perangkat>)\`.
-   - Di akhir pesan, tanyakan: "**Mau di tampilkan nomor tiket yang mana nih?**"
-
 DATA DARI DATABASE SUMTRA:
 ${liveDynamicContext || "- Tidak ada data tiket khusus pada percakapan ini."}
 
@@ -552,9 +483,7 @@ KNOWLEDGE BASE TOKO (DYNAMIC TRAINED):
 ${dynamicKnowledgeBase}${qaExamplesContext}
 `;
 
-    // ═══ FORMAT BROWSER/GEMINI CONVERSATION PAYLOAD ═══
     const rawClean: { role: "user" | "model"; text: string }[] = [];
-
     for (const m of messages) {
       const role = m.role === "user" || m.sender === "user" ? "user" : "model";
       const text = String(m.parts?.[0]?.text || m.text || "").trim();
@@ -580,52 +509,31 @@ ${dynamicKnowledgeBase}${qaExamplesContext}
       parts: [{ text: c.text }],
     }));
 
-    // Dynamic discovery of supported Gemini models
-    if (cachedModelsList.length === 0) {
-      try {
-        const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-        const listJson = await listRes.json();
-        if (Array.isArray(listJson.models)) {
-          cachedModelsList = listJson.models
-            .filter((m: any) => m.supportedGenerationMethods?.includes("generateContent"))
-            .map((m: any) => m.name.replace(/^models\//, ""))
-            .sort((a: string, b: string) => {
-              if (a.includes("flash") && !b.includes("flash")) return -1;
-              if (!a.includes("flash") && b.includes("flash")) return 1;
-              return 0;
-            });
-        }
-      } catch (err) {
-        console.warn("Failed to list models:", err);
-      }
-    }
-
-    const candidateModels = [
-      ...cachedModelsList,
-      "gemini-1.5-flash-8b",
-      "gemini-1.5-flash",
-      "gemini-2.0-flash",
-      "gemini-2.0-flash-lite",
-    ].filter((v, i, arr) => v && arr.indexOf(v) === i);
-
     let replyText = "";
     let geminiErrors: string[] = [];
 
-    for (const modelName of candidateModels) {
+    // Coba model tercepat secara berurutan dengan timeout 8 detik per request
+    for (const modelName of PRIORITY_FAST_MODELS) {
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
         const res = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
           body: JSON.stringify({
             system_instruction: { parts: [{ text: systemInstruction }] },
             contents: cleanContents,
             generationConfig: {
-              maxOutputTokens: 3000,
+              maxOutputTokens: 2500,
               temperature: dynamicTemperature,
             },
           }),
         });
+
+        clearTimeout(timeoutId);
 
         const resJson = await res.json();
         if (!resJson.error && resJson.candidates?.[0]?.content?.parts?.[0]?.text) {
@@ -645,25 +553,13 @@ ${dynamicKnowledgeBase}${qaExamplesContext}
       });
     }
 
-    console.error("[All Models Failed]", geminiErrors);
+    console.error("[All Fast Models Failed]", geminiErrors);
 
-    // ═══ SMART FALLBACK JIKA MODEL SEDANG RATE-LIMITED ═══
+    // ═══ SMART INSTANT FALLBACK ═══
     if (techReminderSent) {
       return new Response(
         JSON.stringify({
-          reply: `✅ **Pengingat berhasil dikirim ke teknisi penanggung jawab!**\n\nNotifikasi sistem dan push notification (FCM) telah diteruskan langsung ke akun dan HP teknisi kami untuk tiket **#${ticketOrderFound?.ticket_number}** agar unit Anda segera diprioritaskan dan diperbarui statusnya.\n\nJika ada hal darurat lain yang perlu dikoordinasikan, Anda juga dapat menghubungi admin toko kami:\n\n[Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})`,
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const isUserConfirmingWa =
-      /(ya|iya|setuju|mau|boleh|tolong|buatkan|hubungi|chat|wa|admin|gas|oke|ok|yes|lanjut)/i.test(lastUserText);
-
-    if (isStaleTicket && isUserConfirmingWa && staleWaDirectLink) {
-      return new Response(
-        JSON.stringify({
-          reply: `Baik, saya telah menyiapkan tautan konfirmasi tiket **#${ticketOrderFound?.ticket_number}**. Silakan klik tombol di bawah ini untuk langsung membuka chat WhatsApp dengan Admin Toko Super Komputer:\n\n[Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})\n\nAda hal lain yang dapat kami bantu?`,
+          reply: `✅ **Pengingat berhasil dikirim ke teknisi penanggung jawab!**\n\nNotifikasi sistem dan push notification (FCM) telah diteruskan langsung ke akun dan HP teknisi kami untuk tiket **#${ticketOrderFound?.ticket_number}** agar unit Anda segera diprioritaskan.\n\n[Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})`,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -677,49 +573,9 @@ ${dynamicKnowledgeBase}${qaExamplesContext}
           ? `Estimasi Rp ${Number(ticketOrderFound.estimated_cost).toLocaleString("id-ID")}`
           : "-";
 
-      let staleSuffix = "";
-      if (isStaleTicket) {
-        staleSuffix = `\n\n⚠️ *Catatan:* Tiket ini tercatat belum ditangani oleh teknisi selama **${staleDurationStr}**.\n\nApakah Anda mau saya buatkan chat langsung ke WhatsApp Admin di toko Super Komputer untuk menindaklanjuti unit ini?`;
-      } else if (isTechStaleTicket) {
-        staleSuffix = `\n\n⚠️ *Catatan:* Unit ini sedang berada di tahap **${ticketOrderFound.status}** dan belum ada pembaruan status selama **${staleDurationStr}**.\n\nAnda dapat menekan tombol di bawah untuk mengirimkan pengingat langsung ke HP & akun teknisi yang menangani unit ini:\n\n[🔔 Reminder Tiket ke Teknisi](/remind-tech/${ticketOrderFound.ticket_number})\n\nAtau hubungi admin kami:\n[Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})`;
-      }
-
       return new Response(
         JSON.stringify({
-          reply: `Halo! Berikut data resmi untuk tiket **#${ticketOrderFound.ticket_number}** atas nama **${ticketOrderFound.customer_name}**:\n\n• **Perangkat:** ${getDeviceName(ticketOrderFound)}\n• **Kategori:** ${getCategoryForStatus(ticketOrderFound.status)} (${ticketOrderFound.status})\n• **Keluhan:** ${ticketOrderFound.damage_description || ticketOrderFound.unit_condition || "-"}\n• **Total Biaya:** ${cost}\n\n[Buka Pelacakan Tiket #${ticketOrderFound.ticket_number}](/track/${ticketOrderFound.ticket_number})${staleSuffix}`,
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (phoneOrdersFound.length > 0) {
-      if (phoneOrdersFound.length === 1) {
-        const o = phoneOrdersFound[0];
-        const cost = o.final_cost != null ? `Rp ${Number(o.final_cost).toLocaleString("id-ID")}` : (o.estimated_cost != null ? `Estimasi Rp ${Number(o.estimated_cost).toLocaleString("id-ID")}` : "-");
-        return new Response(
-          JSON.stringify({
-            reply: `Halo! Berdasarkan nomor telepon **${extractedPhone}**, ditemukan 1 tiket servis atas nama **${o.customer_name}**:\n\n• **Nomor Tiket:** #${o.ticket_number}\n• **Perangkat:** ${getDeviceName(o)}\n• **Kategori:** ${getCategoryForStatus(o.status)} (${o.status})\n• **Keluhan:** ${o.damage_description || o.unit_condition || "-"}\n• **Total Biaya:** ${cost}\n\n[Buka Pelacakan Tiket #${o.ticket_number}](/track/${o.ticket_number})`,
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const belumDikerjakan = phoneOrdersFound.filter((o) => getCategoryForStatus(o.status) === "Belum Dikerjakan");
-      const sedangDikerjakan = phoneOrdersFound.filter((o) => getCategoryForStatus(o.status) === "Sedang Dikerjakan");
-      const selesaiPengerjaan = phoneOrdersFound.filter((o) => getCategoryForStatus(o.status) === "Selesai Pengerjaan");
-      const unitClose = phoneOrdersFound.filter((o) => getCategoryForStatus(o.status) === "Unit Close");
-
-      const formatGroupFB = (title: string, list: any[]) => {
-        if (list.length === 0) return `* **${title}**: 0 unit (Tidak ada)`;
-        const items = list
-          .map((o) => `  - #${o.ticket_number} (${getDeviceName(o)})`)
-          .join("\n");
-        return `* **${title}** (${list.length} unit):\n${items}`;
-      };
-
-      return new Response(
-        JSON.stringify({
-          reply: `Halo! Berdasarkan nomor telepon **${extractedPhone}** atas nama **${phoneOrdersFound[0]?.customer_name || "Bapak/Ibu"}**, ditemukan total **${phoneOrdersFound.length} tiket servis** yang terbagi dalam 4 kategori:\n\n${formatGroupFB("1. Belum Dikerjakan", belumDikerjakan)}\n\n${formatGroupFB("2. Sedang Dikerjakan", sedangDikerjakan)}\n\n${formatGroupFB("3. Selesai Pengerjaan", selesaiPengerjaan)}\n\n${formatGroupFB("4. Unit Close", unitClose)}\n\n**Mau di tampilkan nomor tiket yang mana nih?**`,
+          reply: `Halo! Berikut data resmi untuk tiket **#${ticketOrderFound.ticket_number}** atas nama **${ticketOrderFound.customer_name}**:\n\n• **Perangkat:** ${getDeviceName(ticketOrderFound)}\n• **Kategori:** ${getCategoryForStatus(ticketOrderFound.status)} (${ticketOrderFound.status})\n• **Keluhan:** ${ticketOrderFound.damage_description || ticketOrderFound.unit_condition || "-"}\n• **Total Biaya:** ${cost}\n\n[Buka Pelacakan Tiket #${ticketOrderFound.ticket_number}](/track/${ticketOrderFound.ticket_number})`,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -727,7 +583,7 @@ ${dynamicKnowledgeBase}${qaExamplesContext}
 
     return new Response(
       JSON.stringify({
-        reply: "Halo! Ada yang bisa kami bantu terkait servis komputer, laptop, klaim garansi ASUS, atau pengecekan status tiket Anda? Silakan tanyakan langsung di sini.",
+        reply: "Halo! Ada yang bisa kami bantu terkait servis laptop, komputer, klaim garansi ASUS, atau pengecekan status tiket servis Anda di Super Komputer Balikpapan?",
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

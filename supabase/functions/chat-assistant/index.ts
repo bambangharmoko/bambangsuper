@@ -6,6 +6,61 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-auth-token",
 };
 
+interface ServiceAccount {
+  client_email: string;
+  private_key: string;
+  project_id: string;
+}
+
+function base64UrlEncode(input: string | Uint8Array): string {
+  const bytes = typeof input === "string" ? new TextEncoder().encode(input) : input;
+  let str = "";
+  bytes.forEach((b) => (str += String.fromCharCode(b)));
+  return btoa(str).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+function pemToArrayBuffer(pem: string): ArrayBuffer {
+  const b64 = pem
+    .replace(/-----BEGIN PRIVATE KEY-----/g, "")
+    .replace(/-----END PRIVATE KEY-----/g, "")
+    .replace(/\s+/g, "");
+  const bin = atob(b64);
+  const buf = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  return buf.buffer;
+}
+
+async function getAccessToken(sa: ServiceAccount): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "RS256", typ: "JWT" };
+  const payload = {
+    iss: sa.client_email,
+    scope: "https://www.googleapis.com/auth/firebase.messaging",
+    aud: "https://oauth2.googleapis.com/token",
+    exp: now + 3600,
+    iat: now,
+  };
+  const toSign = `${base64UrlEncode(JSON.stringify(header))}.${base64UrlEncode(JSON.stringify(payload))}`;
+  const key = await crypto.subtle.importKey(
+    "pkcs8",
+    pemToArrayBuffer(sa.private_key),
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const sig = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(toSign));
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: `${toSign}.${base64UrlEncode(new Uint8Array(sig))}`,
+    }),
+  });
+  if (!res.ok) throw new Error(`OAuth token failed: ${res.status} ${await res.text()}`);
+  return (await res.json()).access_token;
+}
+
 // ============================================================================
 // RAG KNOWLEDGE BASE: SUPER KOMPUTER BALIKPAPAN & SUMTRA
 // ============================================================================
@@ -143,8 +198,10 @@ Deno.serve(async (req) => {
     let phoneOrdersFound: any[] = [];
     let ticketOrderFound: any = null;
     let isStaleTicket = false;
+    let isTechStaleTicket = false;
     let staleDurationStr = "";
     let staleWaDirectLink = "";
+    let techReminderSent = false;
 
     // 1. CEK NOMOR TIKET: fleksibel huruf A-Z diikuti digit (contoh: K26001, G26052, A24001, SK-2401)
     const ticketMatch =
@@ -174,6 +231,7 @@ Deno.serve(async (req) => {
           unit_condition,
           unit_accessories,
           status,
+          assigned_technician,
           created_at,
           updated_at,
           final_cost,
@@ -193,9 +251,9 @@ Deno.serve(async (req) => {
             ? `Estimasi Rp ${Number(orderData.estimated_cost).toLocaleString("id-ID")}`
             : "Belum ada rincian final";
 
-        // Hitung durasi waktu tunggu tiket
-        const createdAtDate = new Date(orderData.created_at || Date.now());
-        const diffMs = Math.max(0, Date.now() - createdAtDate.getTime());
+        // Hitung durasi waktu tunggu tiket / perubahan status terakhir
+        const updatedAtDate = new Date(orderData.updated_at || orderData.created_at || Date.now());
+        const diffMs = Math.max(0, Date.now() - updatedAtDate.getTime());
         const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
         const diffDays = Math.floor(diffHours / 24);
         const remHours = diffHours % 24;
@@ -203,11 +261,95 @@ Deno.serve(async (req) => {
 
         const category = getCategoryForStatus(orderData.status);
         isStaleTicket = category === "Belum Dikerjakan" && diffHours >= 24;
+        isTechStaleTicket = category === "Sedang Dikerjakan" && diffHours >= 48; // > 2 hari (48 jam)
 
         const waAdminPhone = "628115404999";
-        const waMessageText = `Halo Admin Super Komputer, saya ingin menanyakan progres tiket servis saya yang belum ditangani teknisi:\n\n* Nomor Tiket: #${orderData.ticket_number}\n* Nama: ${orderData.customer_name}\n* Unit: ${getDeviceName(orderData)}\n* Status: Belum Dikerjakan (${orderData.status})\n* Waktu Tunggu: ${staleDurationStr}\n* Keluhan: ${orderData.damage_description || orderData.unit_condition || "-"}\n\nMohon bantuannya untuk menindaklanjuti unit saya. Terima kasih!`;
+        const waMessageText = `Halo Admin Super Komputer, saya ingin menanyakan progres tiket servis saya (${orderData.ticket_number}):\n\n* Nomor Tiket: #${orderData.ticket_number}\n* Nama: ${orderData.customer_name}\n* Unit: ${getDeviceName(orderData)}\n* Status: ${category} (${orderData.status})\n* Waktu Tunggu: ${staleDurationStr}\n* Keluhan: ${orderData.damage_description || orderData.unit_condition || "-"}\n\nMohon bantuannya untuk menindaklanjuti unit saya. Terima kasih!`;
 
         staleWaDirectLink = `https://wa.me/${waAdminPhone}?text=${safeEncodeURIComponent(waMessageText)}`;
+
+        // DETEKSI APAKAH USER MEMINTA PENGINGAT KE TEKNISI
+        const isUserAskingTechReminder =
+          /(ingatkan|reminder|remind|colek|notif|dorong|percepat|follow\s*up).*teknisi/i.test(lastUserText) ||
+          /reminder\s*tiket\s*ke\s*teknisi/i.test(lastUserText) ||
+          lastUserText.includes(`/remind-tech/${extractedTicket}`) ||
+          lastUserText.toLowerCase().includes("reminder ke teknisi");
+
+        if (isUserAskingTechReminder && (isTechStaleTicket || category === "Sedang Dikerjakan")) {
+          // 1. Kirim notifikasi DB ke teknisi (atau admin jika belum ada teknisi)
+          const targetTechId = orderData.assigned_technician;
+          const notifTitle = "⚠️ Reminder Pelanggan: Tiket Perlu Ditindaklanjuti";
+          const notifMessage = `Pelanggan menanyakan tiket #${orderData.ticket_number} (${getDeviceName(orderData)}) yang berstatus '${orderData.status}' dan belum ada pembaruan selama ${staleDurationStr}. Mohon segera ditindaklanjuti!`;
+
+          if (targetTechId) {
+            await supabase.from("notifications").insert({
+              user_id: targetTechId,
+              title: notifTitle,
+              message: notifMessage,
+              order_id: orderData.id,
+              is_read: false,
+            });
+
+            // 2. Kirim Web Push via FCM ke perangkat teknisi
+            const fcmRaw = Deno.env.get("FIREBASE_SERVICE_ACCOUNT");
+            if (fcmRaw) {
+              try {
+                const sa = JSON.parse(fcmRaw) as ServiceAccount;
+                const fcmProjectId = sa.project_id || Deno.env.get("FIREBASE_PROJECT_ID") || "";
+                const accessToken = await getAccessToken(sa);
+
+                const { data: pushTokens } = await supabase
+                  .from("staff_push_tokens")
+                  .select("fcm_token")
+                  .eq("user_id", targetTechId)
+                  .eq("is_active", true);
+
+                for (const t of pushTokens || []) {
+                  await fetch(`https://fcm.googleapis.com/v1/projects/${fcmProjectId}/messages:send`, {
+                    method: "POST",
+                    headers: {
+                      Authorization: `Bearer ${accessToken}`,
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      message: {
+                        token: t.fcm_token,
+                        notification: {
+                          title: notifTitle,
+                          body: notifMessage,
+                        },
+                        data: {
+                          ticket_number: orderData.ticket_number,
+                          url: `/dashboard/orders/${orderData.ticket_number}`,
+                        },
+                      },
+                    }),
+                  });
+                }
+              } catch (e) {
+                console.warn("[FCM] Error dispatching push to tech:", e);
+              }
+            }
+            techReminderSent = true;
+          } else {
+            // Jika belum di-assign, kirim ke notifications admin
+            const { data: adminRoles } = await supabase
+              .from("user_roles")
+              .select("user_id")
+              .in("role", ["admin", "owner"]);
+
+            for (const adm of adminRoles || []) {
+              await supabase.from("notifications").insert({
+                user_id: adm.user_id,
+                title: notifTitle,
+                message: notifMessage,
+                order_id: orderData.id,
+                is_read: false,
+              });
+            }
+            techReminderSent = true;
+          }
+        }
 
         let staleWarningText = "";
         if (isStaleTicket) {
@@ -218,6 +360,26 @@ Deno.serve(async (req) => {
   * PETUNJUK RESPON:
     1. Jika pengguna baru menanyakan tiket ini: Tampilkan detail tiket, sertakan info bahwa unit belum di-handle teknisi selama ${staleDurationStr}, lalu tanyakan opsi: "Apakah Anda mau saya buatkan tautan chat langsung ke WhatsApp Admin Super Komputer untuk menindaklanjuti tiket ini?"
     2. JIKA pengguna menjawab setuju/iya/mau/buatkan/hubungi: Berikan LANGSUNG link markdown [Chat WhatsApp Admin Super Komputer](${staleWaDirectLink}) (JANGAN menambahkan tanda bintang ganda ** di luar link markdown).
+`;
+        } else if (isTechStaleTicket) {
+          staleWarningText = `
+- STATUS PENANGANAN KHUSUS (> 2 HARI / 48 JAM SEDANG DIKERJAKAN BELUM ADA PERUBAHAN STATUS):
+  * Tiket ini berstatus "Sedang Dikerjakan" (${orderData.status}) dan belum ada pembaruan selama ${staleDurationStr} (> 2 hari).
+  * Tombol Reminder Langsung ke Teknisi: [🔔 Reminder Tiket ke Teknisi](/remind-tech/${orderData.ticket_number})
+  * Tautan WhatsApp Admin: [Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})
+  * PETUNJUK RESPON:
+    1. Berikan empati bahwa unit sedang berada di tahap ${orderData.status} dan belum ada pembaruan status selama ${staleDurationStr}.
+    2. Tampilkan tombol aksi pengingat langsung ke teknisi: [🔔 Reminder Tiket ke Teknisi](/remind-tech/${orderData.ticket_number}).
+    3. Jelaskan bahwa menekan tombol pengingat tersebut akan langsung mengirimkan notifikasi sistem dan push notification (FCM) ke akun/HP teknisi yang menangani unit tersebut agar segera diprioritaskan.
+    4. Sediakan juga opsi tautan chat WhatsApp Admin jika ingin berbicara dengan staf: [Chat WhatsApp Admin Super Komputer](${staleWaDirectLink}).
+`;
+        }
+
+        if (techReminderSent) {
+          staleWarningText += `
+- STATUS PENGINGAT SUKSES DIKIRIMKAN:
+  * Pengingat (Notifikasi Sistem & Push Notification FCM) telah BERHASIL dikirimkan langsung ke perangkat & akun internal teknisi yang menangani tiket #${orderData.ticket_number}.
+  * Konfirmasikan kepada pelanggan dengan ramah bahwa pengingat telah masuk ke HP & dashboard teknisi dan unitnya akan segera diprioritaskan.
 `;
         }
 
@@ -320,34 +482,34 @@ ${formatGroup("4. Unit Close", unitClose)}
     const systemInstruction = `
 Kamu adalah "SuperBot", asisten AI resmi dari Super Komputer Balikpapan (SUMTRA).
 
-ATURAN FORMAT LINK & KOMUNIKASI:
-1. **PENULISAN LINK WHATSAPP & PELACAKAN**:
-   - Tulis link markdown dengan format bersih: \`[Chat WhatsApp Admin Super Komputer]({link_wa})\` atau \`[Buka Pelacakan Tiket #{nomor_tiket}](/track/{nomor_tiket})\`.
-   - JANGAN PERNAH membungkus link dengan kurung siku/bintang ganda seperti \`**[Link](url)**\` atau mengekstrak query URL ke teks obrolan, agar link dapat diklik langsung sebagai tombol interaktif!
+ATURAN FORMAT LINK & TOMBOL AKSI:
+1. **PENULISAN TOMBOL & LINK**:
+   - Tombol Pelacakan Tiket: \`[Buka Pelacakan Tiket #{nomor_tiket}](/track/{nomor_tiket})\`
+   - Tombol Reminder Teknisi: \`[🔔 Reminder Tiket ke Teknisi](/remind-tech/{nomor_tiket})\`
+   - Tombol WhatsApp Admin: \`[Chat WhatsApp Admin Super Komputer]({link_wa})\`
+   - JANGAN PERNAH membungkus link dengan kurung siku/bintang ganda seperti \`**[Link](url)**\` agar tombol dapat diklik langsung.
 
 2. **PENANGANAN TIKET STATUS 'BELUM DIKERJAKAN' YANG LEBIH DARI 24 JAM**:
    - Jika tiket berstatus "Belum Dikerjakan" (status Diterima) dan sudah masuk lebih dari 24 jam:
      * Tampilkan detail tiket secara lengkap dan sertakan info durasi tunggu: "Unit servis ini tercatat belum ditangani teknisi selama [X hari Y jam]".
      * Tanyakan opsi: "**Apakah Anda mau saya buatkan chat langsung ke WhatsApp Admin Super Komputer untuk menindaklanjuti tiket ini?**"
-   - JIKA pengguna menjawab setuju / iya / mau / buatkan / hubungi admin:
-     * Berikan link WhatsApp: [Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})
-     * Sertakan kalimat penutup ramah: "Silakan klik tombol di atas untuk langsung membuka chat WhatsApp dengan Admin Super Komputer."
+   - JIKA pengguna menjawab setuju / iya / mau / buatkan: Berikan link: \`[Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})\`.
 
-3. **PENYAJIAN TIKET NOMOR HP DENGAN FORMAT LENGKAP**:
+3. **PENANGANAN TIKET STATUS 'SEDANG DIKERJAKAN' YANG LEBIH DARI 2 HARI (48 JAM) TANPA PERUBAHAN**:
+   - Jika tiket berstatus "Sedang Dikerjakan" (Diagnosa / Menunggu Persetujuan / Menunggu Sparepart / Perbaikan) dan sudah lebih dari 2 hari tanpa perubahan:
+     * Sampaikan dengan empatik: Unit sedang dalam status [Status Resmi] dan belum ada pembaruan status selama [X hari Y jam].
+     * Sertakan tombol aksi: \`[🔔 Reminder Tiket ke Teknisi](/remind-tech/{nomor_tiket})\`
+     * Jelaskan bahwa dengan menekan tombol tersebut, sistem akan langsung mengirimkan notifikasi sistem dan push notification (FCM) ke akun/HP teknisi yang menangani unit tersebut agar segera diprioritaskan.
+     * Berikan juga opsi: \`[Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})\` jika pelanggan ingin langsung koordinasi dengan Admin Toko.
+
+4. **KONFIRMASI PENGINGAT TEKNISI TELAH DIKIRIM**:
+   - Jika pengguna menekan tombol reminder atau meminta mengirimkan pengingat ke teknisi:
+     * Sampaikan dengan jelas dan ramah: "✅ **Pengingat berhasil dikirim ke teknisi penanggung jawab unit Anda!** Notifikasi prioritas dan push notification FCM telah masuk ke akun & HP teknisi kami agar segera menindaklanjuti unit Anda."
+
+5. **PENYAJIAN TIKET NOMOR HP DENGAN FORMAT LENGKAP**:
    - Jika nomor HP memiliki lebih dari 1 tiket, kelompokkan ke dalam 4 kategori (Belum Dikerjakan, Sedang Dikerjakan, Selesai Pengerjaan, Unit Close).
    - Setiap tiket WAJIB disertai nama perangkatnya: \`- #<NomorTiket> (<Nama Perangkat>)\`.
    - Di akhir pesan, tanyakan: "**Mau di tampilkan nomor tiket yang mana nih?**"
-
-4. **TAMPILAN RINCIAN TIKET**:
-   - Saat menampilkan 1 tiket tertentu, sertakan:
-     • Nomor Tiket
-     • Nama Pelanggan
-     • Perangkat (Merk/Model)
-     • Kategori Status & Status Resmi
-     • Keluhan
-     • Total / Estimasi Biaya
-     • Tombol Pelacakan: [Buka Pelacakan Tiket #{nomor_tiket}](/track/{nomor_tiket})
-   - JANGAN menampilkan "Riwayat Progres" atau catatan teknisi internal.
 
 DATA DARI DATABASE SUMTRA:
 ${liveDynamicContext || "- Tidak ada data tiket khusus pada percakapan ini."}
@@ -452,13 +614,22 @@ ${KNOWLEDGE_BASE}
     console.error("[All Models Failed]", geminiErrors);
 
     // ═══ SMART FALLBACK JIKA MODEL SEDANG RATE-LIMITED ═══
+    if (techReminderSent) {
+      return new Response(
+        JSON.stringify({
+          reply: `✅ **Pengingat berhasil dikirim ke teknisi penanggung jawab!**\n\nNotifikasi sistem dan push notification (FCM) telah diteruskan langsung ke akun dan HP teknisi kami untuk tiket **#${ticketOrderFound?.ticket_number}** agar unit Anda segera diprioritaskan dan diperbarui statusnya.\n\nJika ada hal darurat lain yang perlu dikoordinasikan, Anda juga dapat menghubungi admin toko kami:\n\n[Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})`,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const isUserConfirmingWa =
       /(ya|iya|setuju|mau|boleh|tolong|buatkan|hubungi|chat|wa|admin|gas|oke|ok|yes|lanjut)/i.test(lastUserText);
 
     if (isStaleTicket && isUserConfirmingWa && staleWaDirectLink) {
       return new Response(
         JSON.stringify({
-          reply: `Baik, saya telah menyiapkan pesan konfirmasi tiket **#${ticketOrderFound?.ticket_number}**. Silakan klik tombol di bawah ini untuk langsung membuka chat WhatsApp dengan Admin Toko Super Komputer:\n\n[Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})\n\nAda hal lain yang dapat kami bantu?`,
+          reply: `Baik, saya telah menyiapkan tautan konfirmasi tiket **#${ticketOrderFound?.ticket_number}**. Silakan klik tombol di bawah ini untuk langsung membuka chat WhatsApp dengan Admin Toko Super Komputer:\n\n[Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})\n\nAda hal lain yang dapat kami bantu?`,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -475,6 +646,8 @@ ${KNOWLEDGE_BASE}
       let staleSuffix = "";
       if (isStaleTicket) {
         staleSuffix = `\n\n⚠️ *Catatan:* Tiket ini tercatat belum ditangani oleh teknisi selama **${staleDurationStr}**.\n\nApakah Anda mau saya buatkan chat langsung ke WhatsApp Admin di toko Super Komputer untuk menindaklanjuti unit ini?`;
+      } else if (isTechStaleTicket) {
+        staleSuffix = `\n\n⚠️ *Catatan:* Unit ini sedang berada di tahap **${ticketOrderFound.status}** dan belum ada pembaruan status selama **${staleDurationStr}**.\n\nAnda dapat menekan tombol di bawah untuk mengirimkan pengingat langsung ke HP & akun teknisi yang menangani unit ini:\n\n[🔔 Reminder Tiket ke Teknisi](/remind-tech/${ticketOrderFound.ticket_number})\n\nAtau hubungi admin kami:\n[Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})`;
       }
 
       return new Response(

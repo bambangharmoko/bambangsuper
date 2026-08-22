@@ -17,6 +17,7 @@ import {
   Minimize2,
   Info,
   MessageCircle,
+  Bell,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -225,6 +226,7 @@ export function ChatAssistant() {
         const linkUrl = rawLinkUrl.trim();
 
         const isInternalTrackLink = linkUrl.startsWith("/track/");
+        const isTechReminderLink = linkUrl.startsWith("/remind-tech/");
         const isWhatsAppLink = linkUrl.includes("wa.me") || linkUrl.includes("whatsapp.com");
 
         if (isInternalTrackLink) {
@@ -239,6 +241,20 @@ export function ChatAssistant() {
             >
               <ChevronRight className="w-3.5 h-3.5" />
               {linkText}
+            </button>
+          );
+        } else if (isTechReminderLink) {
+          const ticketNum = linkUrl.replace("/remind-tech/", "").trim();
+          elements.push(
+            <button
+              key={`${idx}-link-${match.index}`}
+              onClick={() => {
+                handleSendMessage(`Tolong kirimkan Reminder Tiket ke Teknisi untuk tiket #${ticketNum}`);
+              }}
+              className="inline-flex items-center gap-1.5 my-1.5 px-3.5 py-2 text-xs font-semibold text-amber-950 dark:text-amber-100 bg-amber-500/20 hover:bg-amber-500/30 active:scale-95 rounded-xl border border-amber-500/40 transition-all shadow-sm"
+            >
+              <Bell className="w-4 h-4 text-amber-500 shrink-0" />
+              <span>{linkText}</span>
             </button>
           );
         } else if (isWhatsAppLink) {

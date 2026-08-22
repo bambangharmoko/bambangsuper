@@ -169,6 +169,55 @@ Deno.serve(async (req) => {
         });
       }
 
+      // ── ACTION: BENCHMARK MODELS (find the fastest model) ──
+      if (action === "benchmark_models") {
+        const apiKey = Deno.env.get("GEMINI_API_KEY");
+        const modelsToTest = body.models || [
+          "gemini-3.5-flash-lite",
+          "gemini-3.1-flash-lite",
+          "gemini-flash-lite-latest",
+          "gemini-flash-latest",
+          "gemini-3.5-flash",
+          "gemini-3.6-flash",
+        ];
+        const testMsg = body.test_message || "Halo";
+        const results: any[] = [];
+
+        for (const modelName of modelsToTest) {
+          const t0 = Date.now();
+          try {
+            const controller = new AbortController();
+            const tid = setTimeout(() => controller.abort(), 12000);
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+            const res = await fetch(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              signal: controller.signal,
+              body: JSON.stringify({
+                system_instruction: { parts: [{ text: "Kamu adalah SuperBot, asisten AI toko komputer. Jawab singkat dan cepat." }] },
+                contents: [{ role: "user", parts: [{ text: testMsg }] }],
+                generationConfig: { maxOutputTokens: 300, temperature: 0.1 },
+              }),
+            });
+            clearTimeout(tid);
+            const rj = await res.json();
+            const reply = rj.candidates?.[0]?.content?.parts?.[0]?.text;
+            results.push({
+              model: modelName,
+              time_ms: Date.now() - t0,
+              ok: !!reply,
+              reply_preview: reply ? reply.substring(0, 80) : null,
+              error: rj.error?.message || null,
+            });
+          } catch (e: any) {
+            results.push({ model: modelName, time_ms: Date.now() - t0, ok: false, error: e.message });
+          }
+        }
+        return new Response(JSON.stringify({ results }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       // ── ACTION: TEST PROMPT / SIMULATOR PLAYGROUND ──
       if (action === "test_prompt") {
         const apiKey = Deno.env.get("GEMINI_API_KEY");
@@ -192,7 +241,7 @@ Deno.serve(async (req) => {
 
         const fullPrompt = `${customPrompt}\n\nKNOWLEDGE BASE TOKO:\n${customKB}${qaContext}`;
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`;
         const geminiRes = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },

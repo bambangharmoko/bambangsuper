@@ -125,14 +125,14 @@ function safeEncodeURIComponent(str: string): string {
     .replace(/\~/g, "%7E");
 }
 
-// Model prioritas ultra-cepat dan akurat (Gemini 3.6 Flash adalah model generasi terbaru tercepat)
+// Model prioritas berdasarkan benchmark server-side (Supabase → Gemini API):
+// gemini-flash-lite-latest: 690ms | gemini-3.1-flash-lite: 980ms | gemini-3.5-flash-lite: 987ms
+// gemini-3.5-flash: 1629ms | gemini-flash-latest: 4654ms | gemini-3.6-flash: 8426ms
 const PRIORITY_FAST_MODELS = [
-  "gemini-3.6-flash",
-  "gemini-3.5-flash",
-  "gemini-3.7-flash",
-  "gemini-flash-latest",
-  "gemini-3.1-flash-lite",
   "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
+  "gemini-flash-lite-latest",
+  "gemini-3.5-flash",
 ];
 
 Deno.serve(async (req) => {
@@ -512,11 +512,11 @@ ${dynamicKnowledgeBase}${qaExamplesContext}
     let replyText = "";
     let geminiErrors: string[] = [];
 
-    // Coba model tercepat secara berurutan dengan timeout 8 detik per request
+    // Coba model tercepat secara berurutan dengan timeout 5 detik per model
     for (const modelName of PRIORITY_FAST_MODELS) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
 
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
         const res = await fetch(url, {
@@ -527,7 +527,7 @@ ${dynamicKnowledgeBase}${qaExamplesContext}
             system_instruction: { parts: [{ text: systemInstruction }] },
             contents: cleanContents,
             generationConfig: {
-              maxOutputTokens: 2500,
+              maxOutputTokens: 1500,
               temperature: dynamicTemperature,
             },
           }),

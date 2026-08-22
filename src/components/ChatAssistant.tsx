@@ -34,16 +34,16 @@ interface ChatMessage {
 const INITIAL_GREETING: ChatMessage = {
   id: "welcome-msg",
   sender: "bot",
-  text: `Halo! 👋 Selamat datang di **Super Komputer Balikpapan** (SUMTRA). Saya **SuperBot**, asisten AI pintar Anda.\n\nSaya bisa membantu Anda:\n- 🔍 **Cek Status Servis Real-time** (sebutkan nomor tiket Anda, contoh: *F26001*)\n- 💻 **Konsultasi Troubleshooting** Komputer, Laptop, Printer, & CCTV\n- 🛡️ **Info Layanan Authorized Service** ASUS\n- ⏱️ **Jam Operasional, Lokasi, & Biaya Servis**\n\nAda yang bisa saya bantu hari ini?`,
+  text: `Halo! 👋 Selamat datang di **Super Komputer Balikpapan** (SUMTRA). Saya **SuperBot**, asisten AI pintar Anda.\n\nSaya bisa membantu Anda:\n- 🔍 **Cek Status Servis Real-time** (sebutkan nomor tiket Anda, contoh: *F26001*, atau nomor HP terdaftar)\n- 💻 **Konsultasi Servis & Troubleshooting** Laptop, PC Desktop, CCTV, & Jaringan\n- 🛡️ **Info Layanan Authorized Service Resmi ASUS & Multi-Brand Non-Garansi**\n- 🔑 **Penjualan Lisensi Resmi Windows & Office Original (Rp 150.000)**\n- ⏱️ **Jam Operasional, Lokasi, & Estimasi Biaya Servis**\n\nAda yang bisa saya bantu hari ini?`,
   timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
 };
 
 const QUICK_PROMPTS = [
   { label: "🔍 Cek Status Servis", prompt: "Saya ingin mengecek status pengerjaan tiket servis saya." },
-  { label: "💻 Solusi Laptop Lambat", prompt: "Laptop saya terasa sangat lemot dan lambat, apa solusinya?" },
   { label: "🛡️ Garansi Resmi ASUS", prompt: "Bagaimana prosedur klaim garansi resmi ASUS di Super Komputer?" },
+  { label: "💻 Servis Laptop Multi-Brand", prompt: "Apakah melayani servis laptop Lenovo, Acer, HP, Dell yang mati total atau rusak hardware?" },
+  { label: "🔑 Lisensi Windows/Office", prompt: "Berapa harga lisensi resmi Windows dan Office original di Super Komputer?" },
   { label: "📍 Jam Buka & Lokasi", prompt: "Dimana alamat toko Super Komputer Balikpapan dan jam operasionalnya?" },
-  { label: "🖨️ Servis Printer", prompt: "Apakah melayani perbaikan printer Epson/Canon yang blinking dan head buntu?" },
 ];
 
 export function ChatAssistant() {
@@ -113,6 +113,11 @@ export function ChatAssistant() {
   }, []);
 
   const handleResetChat = () => {
+    try {
+      sessionStorage.removeItem("superbot_chat_history");
+    } catch {
+      // ignore
+    }
     setMessages([
       {
         ...INITIAL_GREETING,
@@ -207,7 +212,10 @@ export function ChatAssistant() {
     // Split into paragraphs / lines
     const lines = content.split("\n");
 
-    return lines.map((line, idx) => {
+    return lines.map((rawLine, idx) => {
+      const isBullet = rawLine.trim().startsWith("- ") || rawLine.trim().startsWith("* ");
+      const line = isBullet ? rawLine.trim().replace(/^[-*]\s+/, "") : rawLine;
+
       // Match markdown links [Label](url) robustly
       const linkRegex = /\[(.*?)\]\((.*?)\)/g;
       let lastIndex = 0;
@@ -293,12 +301,13 @@ export function ChatAssistant() {
         elements.push(renderInlineFormatting(textAfter, `${idx}-ta-${lastIndex}`));
       }
 
-      // Check if line is bullet list item
-      if (line.trim().startsWith("- ") || line.trim().startsWith("* ")) {
+      const formattedLine = elements.length > 0 ? elements : renderInlineFormatting(line, `${idx}-line`);
+
+      if (isBullet) {
         return (
           <div key={idx} className="flex items-start gap-2 my-1 text-xs sm:text-sm">
             <span className="text-primary font-bold mt-0.5">•</span>
-            <div className="flex-1">{elements.length > 0 ? elements : line.replace(/^[-*]\s+/, "")}</div>
+            <div className="flex-1">{formattedLine}</div>
           </div>
         );
       }
@@ -309,7 +318,7 @@ export function ChatAssistant() {
 
       return (
         <p key={idx} className="my-0.5 leading-relaxed text-xs sm:text-sm">
-          {elements.length > 0 ? elements : line}
+          {formattedLine}
         </p>
       );
     });

@@ -23,7 +23,7 @@ const KNOWLEDGE_BASE = `
   * Minggu & Hari Libur Nasional: Tutup
 
 # 4 KATEGORI STATUS SERVIS UTAMA DI SUMTRA
-1. **Belum Dikerjakan**: Status 'Diterima' (Unit baru masuk dan mengantre untuk diperiksa).
+1. **Belum Dikerjakan**: Status 'Diterima' (Unit baru masuk dan mengantre untuk diperiksa/dihandle teknisi).
 2. **Sedang Dikerjakan**: Status 'Diagnosa', 'Menunggu Persetujuan Pelanggan', 'Menunggu Sparepart', 'Perbaikan'.
 3. **Selesai Pengerjaan**: Status 'Selesai' (QC lolos) atau 'Siap diAmbil' (Unit siap diambil di toko).
 4. **Unit Close**: Status 'Close' (Sudah diambil & transaksi lunas) atau 'Cancelled' (Batal servis).
@@ -132,6 +132,9 @@ Deno.serve(async (req) => {
     let extractedTicket = "";
     let phoneOrdersFound: any[] = [];
     let ticketOrderFound: any = null;
+    let isStaleTicket = false;
+    let staleDurationStr = "";
+    let staleWaDirectLink = "";
 
     // 1. CEK NOMOR TIKET: fleksibel huruf A-Z diikuti digit (contoh: K26001, G26052, A24001, SK-2401)
     const ticketMatch =
@@ -180,15 +183,53 @@ Deno.serve(async (req) => {
             ? `Estimasi Rp ${Number(orderData.estimated_cost).toLocaleString("id-ID")}`
             : "Belum ada rincian final";
 
+        // Hitung durasi waktu tunggu tiket
+        const createdAtDate = new Date(orderData.created_at || Date.now());
+        const diffMs = Math.max(0, Date.now() - createdAtDate.getTime());
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffDays = Math.floor(diffHours / 24);
+        const remHours = diffHours % 24;
+        staleDurationStr = diffDays > 0 ? `${diffDays} hari ${remHours} jam` : `${diffHours} jam`;
+
+        const category = getCategoryForStatus(orderData.status);
+        isStaleTicket = category === "Belum Dikerjakan" && diffHours >= 24;
+
+        const waAdminPhone = "628115404999";
+        const waMessageText = `Halo Admin Super Komputer, saya ingin menanyakan progres tiket servis saya yang belum ditangani teknisi:
+
+* Nomor Tiket: #${orderData.ticket_number}
+* Nama: ${orderData.customer_name}
+* Unit: ${getDeviceName(orderData)}
+* Status: Belum Dikerjakan (${orderData.status})
+* Waktu Tunggu: ${staleDurationStr}
+* Keluhan: ${orderData.damage_description || orderData.unit_condition || "-"}
+
+Mohon bantuannya untuk menindaklanjuti unit saya. Terima kasih!`;
+
+        staleWaDirectLink = `https://wa.me/${waAdminPhone}?text=${encodeURIComponent(waMessageText)}`;
+
+        let staleWarningText = "";
+        if (isStaleTicket) {
+          staleWarningText = `
+- STATUS PENANGANAN KHUSUS (> 24 JAM BELUM DIKERJAKAN):
+  * Tiket ini berstatus "Belum Dikerjakan" dan sudah masuk selama ${staleDurationStr}.
+  * Tautan Direct Chat WhatsApp Admin: [Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})
+  * PETUNJUK RESEPON:
+    1. Jika pengguna baru menanyakan tiket ini: Tampilkan detail tiket, sertakan info bahwa unit belum di-handle teknisi selama ${staleDurationStr}, lalu tanyakan opsi: "Apakah Anda mau saya buatkan tautan chat langsung ke WhatsApp Admin Super Komputer untuk menindaklanjuti tiket ini?"
+    2. JIKA pengguna menjawab setuju/iya/mau/buatkan: Berikan LANGSUNG tombol tautan direct WhatsApp [Chat WhatsApp Admin Super Komputer](${staleWaDirectLink}) tanpa memperlihatkan teks mentah format chatnya!
+`;
+        }
+
         liveDynamicContext += `
 [DATA TIKET RESMI DARI DATABASE: #${orderData.ticket_number}]
 - Nomor Tiket: #${orderData.ticket_number}
 - Nama Pelanggan: ${orderData.customer_name}
 - Perangkat: ${getDeviceName(orderData)} (${orderData.device_type || "Unit"})
-- Kategori Status: ${getCategoryForStatus(orderData.status)} (Status Resmi: ${orderData.status})
+- Kategori Status: ${category} (Status Resmi: ${orderData.status})
 - Keluhan: ${orderData.damage_description || orderData.unit_condition || "-"}
 - Total Biaya: ${costStr}
 - Link Pelacakan: [Buka Pelacakan Tiket #${orderData.ticket_number}](/track/${orderData.ticket_number})
+${staleWarningText}
 `;
       } else {
         liveDynamicContext += `
@@ -211,7 +252,6 @@ Deno.serve(async (req) => {
           localPhone = cleanPhone.substring(2);
         }
 
-        // Ambil SEMUA tiket untuk nomor telepon ini tanpa limit kecil
         const { data: phoneOrders, error: phoneErr } = await supabase
           .from("service_orders")
           .select(`
@@ -263,7 +303,7 @@ JUMLAH DETAIL PER KATEGORI:
 3. Selesai Pengerjaan: ${selesaiPengerjaan.length} unit
 4. Unit Close: ${unitClose.length} unit
 
-DAFTAR TIKET LENGKAP DENGAN NAMA PERANGKAT (GUNAKAN PERSIS DATA INI):
+DAFTAR TIKET LENGKAP DENGAN NAMA PERANGKAT:
 ${formatGroup("1. Belum Dikerjakan", belumDikerjakan)}
 
 ${formatGroup("2. Sedang Dikerjakan", sedangDikerjakan)}
@@ -279,39 +319,32 @@ ${formatGroup("4. Unit Close", unitClose)}
     const systemInstruction = `
 Kamu adalah "SuperBot", asisten AI resmi dari Super Komputer Balikpapan (SUMTRA).
 
-ATURAN UTAMA PENYAJIAN TIKET DARI NOMOR HP:
-1. **WAJIB TAMPILKAN NAMA PERANGKAT DI SETIAP SETELAH NOMOR TIKET**:
-   - Setiap nomor tiket WAJIB disertai nama perangkatnya dengan format:
-     \`- #<NomorTiket> (<Nama Perangkat>)\`
-     (Contoh: \`- #G26010 (ASUS TUF)\`, \`- #G26022 (asus aio)\`, \`- #G26018 (Lenovo LOQ)\`).
-   - DILARANG KERAS hanya mendaftar nomor tiket koma-komaan tanpa nama perangkat seperti \`#G26022, #G26018\`!
-   - Gunakan data persis dari "DAFTAR TIKET LENGKAP DENGAN NAMA PERANGKAT" di bawah.
+ATURAN PENTING & GAYA KOMUNIKASI:
+1. **PENANGANAN TIKET STATUS 'BELUM DIKERJAKAN' YANG LEBIH DARI 24 JAM**:
+   - Jika tiket berstatus "Belum Dikerjakan" (status Diterima) dan sudah masuk lebih dari 24 jam:
+     * Tampilkan detail tiket secara lengkap dan sertakan catatan bahwa unit belum di-handle teknisi selama durasi waktu tunggu (misal: "Unit servis ini tercatat belum ditangani teknisi selama [X hari Y jam]").
+     * Berikan pilihan/saran kepada pengguna:
+       "**Apakah Anda mau saya buatkan chat langsung ke WhatsApp Admin Super Komputer untuk menindaklanjuti tiket ini?**"
+   - JIKA pengguna menjawab setuju / iya / mau / buatkan / hubungi admin:
+     * Segera berikan tautan direct chat WhatsApp dengan tombol:
+       👉 **[Chat WhatsApp Admin Super Komputer]({link_wa_dari_data})**
+     * JANGAN memperlihatkan atau mengeja format teks chat mentahnya di dalam obrolan, cukup berikan tombol/tautan langsungnya agar rapi dan user bisa langsung klik!
 
-2. **STRUKTUR JAWABAN KETIKA TIKET LEBIH DARI 1**:
-   - Sapalah dengan ramah, sebutkan total tiket (contoh: "ditemukan total 54 tiket servis atas nama...").
-   - Tampilkan 4 Kategori dengan daftar poin tiket + nama perangkat di setiap kategori:
-     1. **Belum Dikerjakan** (X unit):
-        - #G26052 (t t)
-        - #G26051 (xs zx)
-        ... (cantumkan semua item dengan nama perangkatnya)
-     2. **Sedang Dikerjakan** (Y unit):
-        - #G26022 (asus aio)
-        - #G26018 (Lenovo LOQ)
-        - #F26018 (v v)
-     3. **Selesai Pengerjaan** (Z unit):
-        - #G26027 (b h)
-        - #G26026 (b h)
-        ...
-     4. **Unit Close** (W unit):
-        - #G26021 (ASUS TUF)
-        - #G26020 (Lenovo IdeaPad Slim 3)
-        ...
-   - Di akhir kalimat, TANYAKAN PERSIS:
-     "**Mau di tampilkan nomor tiket yang mana nih?**"
+2. **PENYAJIAN TIKET NOMOR HP DENGAN FORMAT LENGKAP**:
+   - Jika nomor HP memiliki lebih dari 1 tiket, kelompokkan ke dalam 4 kategori (Belum Dikerjakan, Sedang Dikerjakan, Selesai Pengerjaan, Unit Close).
+   - Setiap tiket WAJIB disertai nama perangkatnya: \`- #<NomorTiket> (<Nama Perangkat>)\`.
+   - Di akhir pesan, tanyakan: "**Mau di tampilkan nomor tiket yang mana nih?**"
 
-3. **JIKA HANYA ADA 1 TIKET ATAU USER MEMILIH TIKET SPESIFIK**:
-   - Tampilkan rincian: Nomor Tiket, Nama Pelanggan, Perangkat, Kategori Status, Keluhan, Total Biaya, dan Tombol Pelacakan: [Buka Pelacakan Tiket #{nomor_tiket}](/track/{nomor_tiket}).
-   - JANGAN tampilkan "Riwayat Progres" atau catatan teknisi internal.
+3. **TAMPILAN RINCIAN TIKET**:
+   - Saat menampilkan 1 tiket tertentu, sertakan:
+     • Nomor Tiket
+     • Nama Pelanggan
+     • Perangkat (Merk/Model)
+     • Kategori Status & Status Resmi
+     • Keluhan
+     • Total / Estimasi Biaya
+     • Tombol Pelacakan: [Buka Pelacakan Tiket #{nomor_tiket}](/track/{nomor_tiket})
+   - JANGAN menampilkan "Riwayat Progres" atau catatan internal teknisi.
 
 DATA DARI DATABASE SUMTRA:
 ${liveDynamicContext || "- Tidak ada data tiket khusus pada percakapan ini."}
@@ -416,22 +449,13 @@ ${KNOWLEDGE_BASE}
     console.error("[All Models Failed]", geminiErrors);
 
     // ═══ SMART FALLBACK JIKA MODEL SEDANG RATE-LIMITED ═══
-    const isAskingAboutPhoneCapability =
-      /(cek.*(nomor|no|nohp|hp|telepon|wa|whatsapp))|((nomor|no|nohp|hp|telepon|wa|whatsapp).*bisa)/i.test(lastUserText);
+    const isUserConfirmingWa =
+      /(ya|iya|setuju|mau|boleh|tolong|buatkan|hubungi|chat|wa|admin|gas|oke|ok|yes|lanjut)/i.test(lastUserText);
 
-    if (isAskingAboutPhoneCapability && !extractedPhone) {
+    if (isStaleTicket && isUserConfirmingWa && staleWaDirectLink) {
       return new Response(
         JSON.stringify({
-          reply: "Tentu saja bisa! Silakan ketikkan nomor HP atau nomor WhatsApp Anda yang terdaftar saat menyerahkan unit servis di sini, saya akan langsung mengecek seluruh data tiket Anda di database.",
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (extractedTicket && !ticketOrderFound) {
-      return new Response(
-        JSON.stringify({
-          reply: `Maaf, nomor tiket **#${extractedTicket}** tidak ditemukan di sistem database servis Super Komputer. Mohon periksa kembali nomor tiket pada nota fisik Anda, atau berikan nomor HP yang terdaftar saat servis, atau hubungi WhatsApp CS kami di [0811-540-4999](https://wa.me/628115404999).`,
+          reply: `Baik, saya telah menyiapkan pesan tindak lanjut untuk tiket **#${ticketOrderFound?.ticket_number}**. Silakan klik tombol di bawah ini untuk langsung membuka chat WhatsApp dengan Admin Toko Super Komputer:\n\n👉 [Chat WhatsApp Admin Super Komputer](${staleWaDirectLink})\n\nAda hal lain yang dapat kami bantu?`,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -445,9 +469,14 @@ ${KNOWLEDGE_BASE}
           ? `Estimasi Rp ${Number(ticketOrderFound.estimated_cost).toLocaleString("id-ID")}`
           : "-";
 
+      let staleSuffix = "";
+      if (isStaleTicket) {
+        staleSuffix = `\n\n⚠️ *Catatan:* Tiket ini tercatat belum ditangani oleh teknisi selama **${staleDurationStr}**.\n\nApakah Anda mau saya buatkan chat langsung ke WhatsApp Admin di toko Super Komputer untuk menindaklanjuti unit ini?`;
+      }
+
       return new Response(
         JSON.stringify({
-          reply: `Halo! Berikut data resmi untuk tiket **#${ticketOrderFound.ticket_number}** atas nama **${ticketOrderFound.customer_name}**:\n\n• **Perangkat:** ${getDeviceName(ticketOrderFound)}\n• **Kategori:** ${getCategoryForStatus(ticketOrderFound.status)} (${ticketOrderFound.status})\n• **Keluhan:** ${ticketOrderFound.damage_description || ticketOrderFound.unit_condition || "-"}\n• **Total Biaya:** ${cost}\n\n[Buka Pelacakan Tiket #${ticketOrderFound.ticket_number}](/track/${ticketOrderFound.ticket_number})`,
+          reply: `Halo! Berikut data resmi untuk tiket **#${ticketOrderFound.ticket_number}** atas nama **${ticketOrderFound.customer_name}**:\n\n• **Perangkat:** ${getDeviceName(ticketOrderFound)}\n• **Kategori:** ${getCategoryForStatus(ticketOrderFound.status)} (${ticketOrderFound.status})\n• **Keluhan:** ${ticketOrderFound.damage_description || ticketOrderFound.unit_condition || "-"}\n• **Total Biaya:** ${cost}\n\n[Buka Pelacakan Tiket #${ticketOrderFound.ticket_number}](/track/${ticketOrderFound.ticket_number})${staleSuffix}`,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

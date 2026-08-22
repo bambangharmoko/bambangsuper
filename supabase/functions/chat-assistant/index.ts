@@ -22,8 +22,14 @@ const KNOWLEDGE_BASE = `
   * Senin s/d Sabtu: Pukul 09.00 - 20.00 WITA
   * Minggu & Hari Libur Nasional: Tutup
 
-# SISTEM PENGECEKAN TIKET SERVIS DI SUMTRA
-- SuperBot BISA DAN MAMPU mengecek tiket langsung melalui **Nomor Tiket** (contoh: A26001, G26052, K26001) ATAU **Nomor HP / WhatsApp terdaftar**.
+# 4 KATEGORI STATUS SERVIS UTAMA DI SUMTRA
+1. **Belum Dikerjakan**: Status 'Diterima' (Unit baru masuk dan mengantre untuk diperiksa).
+2. **Sedang Dikerjakan**: Status 'Diagnosa', 'Menunggu Persetujuan Pelanggan', 'Menunggu Sparepart', 'Perbaikan'.
+3. **Selesai Pengerjaan**: Status 'Selesai' (QC lolos) atau 'Siap diAmbil' (Unit siap diambil di toko).
+4. **Unit Close**: Status 'Close' (Sudah diambil & transaksi lunas) atau 'Cancelled' (Batal servis).
+
+# SISTEM PENGECEKAN TIKET SERVIS
+- SuperBot BISA mengecek tiket langsung melalui **Nomor Tiket** (contoh: A26001, G26052, K26001) ATAU **Nomor HP / WhatsApp terdaftar**.
 - Format Nomor Tiket: [Huruf Bulan A-L][2 Digit Tahun][Nomor Urut 3+ Digit] (A=Januari s/d L=Desember).
 - Jika pelanggan bertanya apakah bisa cek menggunakan nomor HP, jawab dengan tegas dan ramah: "Tentu saja bisa! Silakan ketikkan nomor HP Anda yang terdaftar saat servis, saya akan langsung bantu mengecek seluruh daftar tiket Anda."
 
@@ -50,13 +56,27 @@ const KNOWLEDGE_BASE = `
    - Pengadaan & Instalasi CCTV Online/Offline (Hikvision, Dahua).
    - Mesin Absensi Biometrik (Fingerprint & Face Recognition).
    - Infrastruktur Jaringan (LAN Cabling, Mikrotik, Cisco, WiFi Ubiquiti UniFi).
-
-# PROSEDUR SERVIS TOKO & SLA
-- Alur Pengerjaan: Unit Diterima -> Diagnosa Teknisi -> Konfirmasi Biaya & Kerusakan ke Pelanggan -> Pengerjaan / Penggantian Part -> Quality Control (QC) -> Selesai / Siap Diambil.
-- Estimasi Waktu Diagnosa: 1 - 2 hari kerja.
-- Estimasi Waktu Pengerjaan: 2 - 4 hari kerja (tergantung ketersediaan sparepart).
-- Garansi Servis Toko: Setiap perbaikan mendapatkan garansi (1 bulan hingga 3 bulan sesuai jenis perbaikan/part).
 `;
+
+function getCategoryForStatus(status: string): string {
+  switch (status) {
+    case "Diterima":
+      return "Belum Dikerjakan";
+    case "Diagnosa":
+    case "Menunggu Persetujuan Pelanggan":
+    case "Menunggu Sparepart":
+    case "Perbaikan":
+      return "Sedang Dikerjakan";
+    case "Selesai":
+    case "Siap diAmbil":
+      return "Selesai Pengerjaan";
+    case "Close":
+    case "Cancelled":
+      return "Unit Close";
+    default:
+      return "Lainnya";
+  }
+}
 
 let cachedModelsList: string[] = [];
 
@@ -152,11 +172,11 @@ Deno.serve(async (req) => {
             : "Belum ada rincian final";
 
         liveDynamicContext += `
-[DATA TIKET RESMI DARI DATABASE: #${orderData.ticket_number}]
+[DATA TIKET #${orderData.ticket_number}]
 - Nomor Tiket: ${orderData.ticket_number}
 - Nama Pelanggan: ${orderData.customer_name}
 - Perangkat: ${orderData.device_brand || ""} ${orderData.device_model || ""} (${orderData.device_type || "Unit"})
-- Status Terkini: ${orderData.status}
+- Kategori Status: ${getCategoryForStatus(orderData.status)} (Status Resmi: ${orderData.status})
 - Keluhan: ${orderData.damage_description || orderData.unit_condition || "-"}
 - Total Biaya: ${costStr}
 - Link Pelacakan: [Buka Pelacakan Tiket #${orderData.ticket_number}](/track/${orderData.ticket_number})
@@ -208,7 +228,24 @@ Deno.serve(async (req) => {
 
         if (!phoneErr && phoneOrders && phoneOrders.length > 0) {
           phoneOrdersFound = phoneOrders;
-          const ordersList = phoneOrders
+
+          const belumDikerjakan = phoneOrders.filter((o) => getCategoryForStatus(o.status) === "Belum Dikerjakan");
+          const sedangDikerjakan = phoneOrders.filter((o) => getCategoryForStatus(o.status) === "Sedang Dikerjakan");
+          const selesaiPengerjaan = phoneOrders.filter((o) => getCategoryForStatus(o.status) === "Selesai Pengerjaan");
+          const unitClose = phoneOrders.filter((o) => getCategoryForStatus(o.status) === "Unit Close");
+
+          const formatGroup = (title: string, list: any[]) => {
+            if (list.length === 0) return `* **${title}**: 0 unit (Tidak ada)`;
+            const items = list
+              .map(
+                (o) =>
+                  `  - Tiket #${o.ticket_number} (${o.device_brand || ""} ${o.device_model || ""}) - Status: ${o.status} [Link: /track/${o.ticket_number}]`
+              )
+              .join("\n");
+            return `* **${title}** (${list.length} unit):\n${items}`;
+          };
+
+          const fullListDetailed = phoneOrders
             .map((ord, idx) => {
               const cost =
                 ord.final_cost != null
@@ -216,16 +253,26 @@ Deno.serve(async (req) => {
                   : ord.estimated_cost != null
                   ? `Estimasi Rp ${Number(ord.estimated_cost).toLocaleString("id-ID")}`
                   : "-";
-              return `${idx + 1}. Tiket #${ord.ticket_number} (${ord.device_brand || ""} ${ord.device_model || ""}) - Status: "${ord.status}" - Biaya: ${cost} - Link: [Buka Pelacakan Tiket #${ord.ticket_number}](/track/${ord.ticket_number})`;
+              return `${idx + 1}. Tiket #${ord.ticket_number} (${ord.device_brand || ""} ${ord.device_model || ""}) | Kategori: "${getCategoryForStatus(ord.status)}" (Status: ${ord.status}) | Keluhan: ${ord.damage_description || ord.unit_condition || "-"} | Biaya: ${cost} | [Buka Pelacakan Tiket #${ord.ticket_number}](/track/${ord.ticket_number})`;
             })
             .join("\n");
 
           liveDynamicContext += `
-[DATA PELANGGAN UNTUK NO HP: ${extractedPhone}]
-- Total Tiket di Database: ${phoneOrders.length} tiket.
+[DATA TIKET DATABASE UNTUK NO HP: ${extractedPhone}]
 - Nama Pemilik: ${phoneOrders[0]?.customer_name || "Pelanggan"}
-- Daftar Lengkap Semua Tiket:
-${ordersList}
+- Total Keseluruhan Tiket: ${phoneOrders.length} tiket.
+
+RINGKASAN 4 KATEGORI STATUS:
+${formatGroup("1. Belum Dikerjakan", belumDikerjakan)}
+
+${formatGroup("2. Sedang Dikerjakan", sedangDikerjakan)}
+
+${formatGroup("3. Selesai Pengerjaan", selesaiPengerjaan)}
+
+${formatGroup("4. Unit Close", unitClose)}
+
+DAFTAR RINCIAN LENGKAP SEMUA TIKET:
+${fullListDetailed}
 `;
         }
       }
@@ -235,30 +282,33 @@ ${ordersList}
 Kamu adalah "SuperBot", asisten AI resmi dari Super Komputer Balikpapan (SUMTRA).
 
 ATURAN PENTING & GAYA KOMUNIKASI:
-1. **KEMAMPUAN PENGECEKAN TIKET (NOMOR TIKET & NOMOR HP)**:
-   - SuperBot BISA DAN MAMPU mengecek tiket langsung melalui NOMOR TIKET maupun NOMOR HP/WhatsApp pelanggan.
-   - Jika pelanggan bertanya apakah bisa cek tiket menggunakan nomor HP (contoh: "apakah bisa cek pakai no hp?", "kalau cek pakai nomor hp ku bisa?"), jawab: "Tentu saja bisa! Silakan ketikkan nomor HP atau nomor WhatsApp Anda yang terdaftar saat servis, saya akan langsung bantu carikan data tiket Anda di sistem."
-   - JANGAN PERNAH mengatakan bahwa SuperBot "belum bisa melakukan pencarian langsung berdasarkan nomor HP secara mandiri".
+1. **PENANGANAN PENGECEKAN TIKET LEBIH DARI 1 DARI NOMOR HP**:
+   - Jika ditemukan LEBIH DARI 1 TIKET dari nomor HP:
+     * Sapalah dengan ramah dan sebutkan bahwa ditemukan total X tiket servis untuk nomor HP tersebut atas nama pemilik.
+     * Sajikan ringkasan yang dikelompokkan secara rapi ke dalam 4 KATEGORI RESMI:
+       1) **Belum Dikerjakan** (Status Diterima)
+       2) **Sedang Dikerjakan** (Status Diagnosa / Menunggu Persetujuan / Menunggu Sparepart / Perbaikan)
+       3) **Selesai Pengerjaan** (Status Selesai / Siap diAmbil)
+       4) **Unit Close** (Status Close / Cancelled)
+     * Cantumkan nomor tiket dan nama perangkat untuk masing-masing kategori.
+     * Di akhir pesan, TANYAKAN DENGAN RAMAH KEPADA PELANGGAN:
+       "**Mau di tampilkan nomor tiket yang mana nih?**" (atau tanyakan nomor tiket/kategori mana yang ingin dilihat rincian detailnya).
 
-2. **INFORMASI TIKET YANG DITAMPILKAN (JANGAN TAMPILKAN CATATAN INTERNAL)**:
-   - Saat menampilkan data tiket pelanggan, HANYA tampilkan:
+2. **JIKA HANYA ADA 1 TIKET (ATAU PELANGGAN SUDAH MEMILIH TIKET TERTENTU)**:
+   - Langsung tampilkan rincian lengkap tiket tersebut:
      • Nomor Tiket
      • Nama Pelanggan
      • Perangkat (Merk/Model)
-     • Status Terkini
+     • Kategori Status (Belum Dikerjakan / Sedang Dikerjakan / Selesai Pengerjaan / Unit Close) & Status Resmi
      • Keluhan
      • Total / Estimasi Biaya
      • Tombol Pelacakan: [Buka Pelacakan Tiket #{nomor_tiket}](/track/{nomor_tiket})
-   - JANGAN menampilkan atau menyebutkan "Riwayat Progres" atau catatan teknisi internal karena bersifat internal.
+   - JANGAN menampilkan atau menyebutkan "Riwayat Progres" atau catatan teknisi internal.
 
-3. **PENANGANAN NOMOR TIKET**:
-   - Format nomor tiket SUMTRA adalah [Huruf Bulan A-L][2 Digit Tahun][Nomor Urut] (misal: A26001, F26016, K26001, dll.).
-   - JANGAN PERNAH menyalahkan, mengoreksi, atau mempermasalahkan format huruf/angka nomor tiket pengguna (jangan pernah berkata "format resmi hanya F26 atau G26").
-   - Jika nomor tiket tidak ditemukan di database, cukup katakan bahwa tiket tersebut tidak ditemukan di database, lalu sarankan cek nota fisik atau kirimkan nomor HP terdaftar.
-
-4. **MEMORI PERCAKAPAN & MULTI-TURN**:
-   - Jika percakapan sudah berlangsung, JANGAN MENGULANG salam pembuka awal.
-   - Jawab langsung pertanyaan pengguna secara cerdas dan akurat berdasarkan data di "DATA DARI DATABASE SUMTRA".
+3. **KEMAMPUAN PENGECEKAN TIKET**:
+   - SuperBot BISA mengecek tiket langsung melalui NOMOR TIKET maupun NOMOR HP.
+   - Jika pelanggan bertanya apakah bisa cek tiket menggunakan nomor HP, jawab: "Tentu saja bisa! Silakan ketikkan nomor HP atau nomor WhatsApp Anda yang terdaftar saat servis, saya akan langsung bantu carikan data tiket Anda di sistem."
+   - JANGAN PERNAH mengatakan SuperBot "belum bisa melakukan pencarian nomor HP secara mandiri".
 
 DATA DARI DATABASE SUMTRA:
 ${liveDynamicContext || "- Tidak ada data tiket khusus pada percakapan ini."}
@@ -394,28 +444,41 @@ ${KNOWLEDGE_BASE}
 
       return new Response(
         JSON.stringify({
-          reply: `Halo! Berikut data resmi untuk tiket **#${ticketOrderFound.ticket_number}** atas nama **${ticketOrderFound.customer_name}**:\n\n• **Perangkat:** ${ticketOrderFound.device_brand || ""} ${ticketOrderFound.device_model || ""}\n• **Status Terkini:** ${ticketOrderFound.status}\n• **Keluhan:** ${ticketOrderFound.damage_description || ticketOrderFound.unit_condition || "-"}\n• **Total Biaya:** ${cost}\n\n[Buka Pelacakan Tiket #${ticketOrderFound.ticket_number}](/track/${ticketOrderFound.ticket_number})`,
+          reply: `Halo! Berikut data resmi untuk tiket **#${ticketOrderFound.ticket_number}** atas nama **${ticketOrderFound.customer_name}**:\n\n• **Perangkat:** ${ticketOrderFound.device_brand || ""} ${ticketOrderFound.device_model || ""}\n• **Kategori:** ${getCategoryForStatus(ticketOrderFound.status)} (${ticketOrderFound.status})\n• **Keluhan:** ${ticketOrderFound.damage_description || ticketOrderFound.unit_condition || "-"}\n• **Total Biaya:** ${cost}\n\n[Buka Pelacakan Tiket #${ticketOrderFound.ticket_number}](/track/${ticketOrderFound.ticket_number})`,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (phoneOrdersFound.length > 0) {
-      const listStr = phoneOrdersFound
-        .map((ord) => {
-          const cost =
-            ord.final_cost != null
-              ? `Rp ${Number(ord.final_cost).toLocaleString("id-ID")}`
-              : ord.estimated_cost != null
-              ? `Estimasi Rp ${Number(ord.estimated_cost).toLocaleString("id-ID")}`
-              : "-";
-          return `• **Tiket #${ord.ticket_number}** (${ord.device_brand || ""} ${ord.device_model || ""})\n  - **Status:** ${ord.status}\n  - **Biaya:** ${cost}\n  [Buka Pelacakan Tiket #${ord.ticket_number}](/track/${ord.ticket_number})`;
-        })
-        .join("\n\n");
+      if (phoneOrdersFound.length === 1) {
+        const o = phoneOrdersFound[0];
+        const cost = o.final_cost != null ? `Rp ${Number(o.final_cost).toLocaleString("id-ID")}` : (o.estimated_cost != null ? `Estimasi Rp ${Number(o.estimated_cost).toLocaleString("id-ID")}` : "-");
+        return new Response(
+          JSON.stringify({
+            reply: `Halo! Berdasarkan nomor telepon **${extractedPhone}**, ditemukan 1 tiket servis atas nama **${o.customer_name}**:\n\n• **Nomor Tiket:** #${o.ticket_number}\n• **Perangkat:** ${o.device_brand || ""} ${o.device_model || ""}\n• **Kategori:** ${getCategoryForStatus(o.status)} (${o.status})\n• **Keluhan:** ${o.damage_description || o.unit_condition || "-"}\n• **Total Biaya:** ${cost}\n\n[Buka Pelacakan Tiket #${o.ticket_number}](/track/${o.ticket_number})`,
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Jika lebih dari 1 tiket, kelompokkan ke dalam 4 Kategori
+      const belumDikerjakan = phoneOrdersFound.filter((o) => getCategoryForStatus(o.status) === "Belum Dikerjakan");
+      const sedangDikerjakan = phoneOrdersFound.filter((o) => getCategoryForStatus(o.status) === "Sedang Dikerjakan");
+      const selesaiPengerjaan = phoneOrdersFound.filter((o) => getCategoryForStatus(o.status) === "Selesai Pengerjaan");
+      const unitClose = phoneOrdersFound.filter((o) => getCategoryForStatus(o.status) === "Unit Close");
+
+      const formatGroupFB = (title: string, list: any[]) => {
+        if (list.length === 0) return `* **${title}**: 0 unit`;
+        const items = list
+          .map((o) => `  - [Tiket #${o.ticket_number}](/track/${o.ticket_number}) (${o.device_brand || ""} ${o.device_model || ""})`)
+          .join("\n");
+        return `* **${title}** (${list.length} unit):\n${items}`;
+      };
 
       return new Response(
         JSON.stringify({
-          reply: `Halo! Berdasarkan pengecekan nomor telepon **${extractedPhone}**, berikut data tiket servis Anda di Super Komputer:\n\n${listStr}\n\nAda hal lain yang dapat kami bantu terkait tiket servis Anda?`,
+          reply: `Halo! Berdasarkan nomor telepon **${extractedPhone}** atas nama **${phoneOrdersFound[0]?.customer_name || "Bapak/Ibu"}**, ditemukan total **${phoneOrdersFound.length} tiket servis** yang terbagi dalam 4 kategori:\n\n${formatGroupFB("1. Belum Dikerjakan", belumDikerjakan)}\n\n${formatGroupFB("2. Sedang Dikerjakan", sedangDikerjakan)}\n\n${formatGroupFB("3. Selesai Pengerjaan", selesaiPengerjaan)}\n\n${formatGroupFB("4. Unit Close", unitClose)}\n\n**Mau di tampilkan nomor tiket yang mana nih?**`,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

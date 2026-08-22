@@ -6,7 +6,7 @@ import { useReconnectableChannel } from "@/hooks/useReconnectableChannel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ClipboardList, Wrench, CheckCircle, AlertTriangle, ChevronLeft, ChevronRight, RefreshCw, XCircle } from "lucide-react";
+import { ClipboardList, Wrench, CheckCircle, AlertTriangle, ChevronLeft, ChevronRight, RefreshCw, XCircle, Bell } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { StaleTicketsAlert } from "@/components/StaleTicketsAlert";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -47,6 +47,7 @@ export default function DashboardHome() {
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const [delayReasons, setDelayReasons] = useState<Record<string, string>>({});
   const [savingReasonId, setSavingReasonId] = useState<string | null>(null);
+  const [sendingAllReminders, setSendingAllReminders] = useState(false);
   const navigate = useNavigate();
   const { user, hasRole } = useAuth();
   const fetchRunRef = useRef(0);
@@ -244,9 +245,38 @@ export default function DashboardHome() {
               </span>
             )}
           </div>
-          <Button variant="ghost" size="icon" onClick={fetchData} title="Refresh">
-            <RefreshCw className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            {!isTechnician && stats.stale > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                className="h-8 text-xs gap-1.5"
+                disabled={sendingAllReminders}
+                onClick={async () => {
+                  setSendingAllReminders(true);
+                  try {
+                    const { data, error } = await supabase.functions.invoke("cron-stale-reminder");
+                    if (error) throw error;
+                    if (data?.stale_tickets > 0) {
+                      toast.success(`Pengingat berhasil dikirim ke ${data.technicians_notified} teknisi (${data.stale_tickets} tiket tertunda)!`);
+                    } else {
+                      toast.info("Tidak ada tiket tertunda yang perlu diingatkan.");
+                    }
+                  } catch (err: any) {
+                    toast.error(err?.message || "Gagal mengirim pengingat ke teknisi.");
+                  } finally {
+                    setSendingAllReminders(false);
+                  }
+                }}
+              >
+                <Bell className="h-3.5 w-3.5" />
+                {sendingAllReminders ? "Mengirim..." : `Ingatkan Teknisi (${stats.stale})`}
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" onClick={fetchData} title="Refresh">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {staleTechOrders.length > 0 && (

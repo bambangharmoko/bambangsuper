@@ -6,8 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useNavigate } from "react-router-dom";
-import { User, Wrench, ChevronRight, ArrowLeft, ClipboardList, Clock, CheckCircle, AlertTriangle, RefreshCw } from "lucide-react";
+import { User, Wrench, ChevronRight, ArrowLeft, Clock, CheckCircle, AlertTriangle, RefreshCw, Bell, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 interface TechData {
   id: string;
@@ -24,7 +26,11 @@ export default function TechnicianWorkload() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [selectedTech, setSelectedTech] = useState<TechData | null>(null);
+  const [sendingReminderId, setSendingReminderId] = useState<string | null>(null);
+  const [sendingAllReminders, setSendingAllReminders] = useState(false);
   const navigate = useNavigate();
+  const { user, hasRole } = useAuth();
+  const isAdminOrOwner = hasRole("admin") || hasRole("owner");
 
   const fetchData = useCallback(async () => {
     try {
@@ -46,6 +52,7 @@ export default function TechnicianWorkload() {
         .from("service_orders")
         .select("id, ticket_number, customer_name, customer_phone, device_type, device_brand, device_model, status, assigned_technician, updated_at, damage_description, unit_condition, service_type")
         .in("status", ACTIVE_STATUSES)
+        .is("deleted_at", null)
         .order("updated_at", { ascending: false });
       if (ordersError) throw ordersError;
 
@@ -92,6 +99,54 @@ export default function TechnicianWorkload() {
 
   useReconnectableChannel(true, buildWorkloadChannel, fetchData);
 
+  // Kirim reminder untuk 1 tiket tertentu ke teknisi
+  const sendSingleTicketReminder = async (e: React.MouseEvent, orderId: string, ticketNumber: string, techName: string) => {
+    e.stopPropagation();
+    if (!user?.id) return;
+    setSendingReminderId(orderId);
+    try {
+      const { data, error } = await supabase.functions.invoke("notify-staff-update", {
+        body: {
+          order_id: orderId,
+          action: "stale_reminder",
+          updated_by: user.id,
+        },
+      });
+      if (error) throw error;
+      toast.success(`Pengingat tiket #${ticketNumber} berhasil dikirim ke akun ${techName}!`);
+    } catch (err: any) {
+      toast.error(err?.message || "Gagal mengirim pengingat ke teknisi.");
+    } finally {
+      setSendingReminderId(null);
+    }
+  };
+
+  // Kirim reminder batch untuk semua tiket tertunda (>24h)
+  const sendAllStaleReminders = async () => {
+    setSendingAllReminders(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("cron-stale-reminder");
+      if (error) throw error;
+      if (data?.stale_tickets > 0) {
+        toast.success(`Pengingat berhasil dikirim ke ${data.technicians_notified} teknisi (${data.stale_tickets} tiket tertunda)!`);
+      } else {
+        toast.info("Tidak ada tiket tertunda yang perlu diingatkan saat ini.");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Gagal menjalankan pengingat otomatis.");
+    } finally {
+      setSendingAllReminders(false);
+    }
+  };
+
+  // Hitung total tiket stale (>24h) di seluruh teknisi
+  const totalStaleCount = techData.reduce((acc, tech) => {
+    const staleCount = tech.tickets.filter(
+      (t) => Date.now() - new Date(t.updated_at).getTime() > 24 * 60 * 60 * 1000
+    ).length;
+    return acc + staleCount;
+  }, 0);
+
   if (loading) {
     return <DashboardLayout><div className="p-8 text-center text-muted-foreground">Loading...</div></DashboardLayout>;
   }
@@ -123,16 +178,37 @@ export default function TechnicianWorkload() {
       statusGroups[t.status].push(t);
     }
 
+    const techStaleTickets = selectedTech.tickets.filter(
+      (t) => Date.now() - new Date(t.updated_at).getTime() > 24 * 60 * 60 * 1000
+    );
+
     return (
       <DashboardLayout>
         <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => setSelectedTech(null)}>
-              <ArrowLeft className="h-4 w-4 mr-1" /> Kembali
-            </Button>
-            <h1 className="text-2xl font-bold">{selectedTech.full_name}</h1>
-            {selectedTech.username && (
-              <span className="text-sm text-muted-foreground">@{selectedTech.username}</span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="sm" onClick={() => setSelectedTech(null)}>
+                <ArrowLeft className="h-4 w-4 mr-1" /> Kembali
+              </Button>
+              <div>
+                <h1 className="text-2xl font-bold">{selectedTech.full_name}</h1>
+                {selectedTech.username && (
+                  <span className="text-sm text-muted-foreground">@{selectedTech.username}</span>
+                )}
+              </div>
+            </div>
+
+            {isAdminOrOwner && techStaleTickets.length > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={sendAllStaleReminders}
+                disabled={sendingAllReminders}
+                className="gap-1.5"
+              >
+                <Bell className="h-4 w-4" />
+                {sendingAllReminders ? "Mengirim..." : `Ingatkan ${selectedTech.full_name} (${techStaleTickets.length} Tiket Terlambat)`}
+              </Button>
             )}
           </div>
 
@@ -141,11 +217,11 @@ export default function TechnicianWorkload() {
             <Card>
               <CardContent className="p-4 flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-muted text-primary">
-                  <ClipboardList className="h-5 w-5" />
+                  <Wrench className="h-5 w-5" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{selectedTech.tickets.length}</p>
-                  <p className="text-xs text-muted-foreground">Total Aktif</p>
+                  <p className="text-xs text-muted-foreground">Total Tiket Aktif</p>
                 </div>
               </CardContent>
             </Card>
@@ -165,13 +241,13 @@ export default function TechnicianWorkload() {
             <Card>
               <CardContent className="p-4 flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-muted text-destructive">
-                  <CheckCircle className="h-5 w-5" />
+                  <AlertTriangle className="h-5 w-5" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">
-                    {selectedTech.tickets.filter((t) => ["Menunggu Sparepart", "Menunggu Persetujuan Pelanggan"].includes(t.status)).length}
+                    {techStaleTickets.length}
                   </p>
-                  <p className="text-xs text-muted-foreground">Tertunda</p>
+                  <p className="text-xs text-muted-foreground">&gt; 24 Jam Belum Update</p>
                 </div>
               </CardContent>
             </Card>
@@ -187,32 +263,59 @@ export default function TechnicianWorkload() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {tickets.map((o: any) => (
-                  <div
-                    key={o.id}
-                    className="p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors"
-                    onClick={() => navigate(`/dashboard/orders/${o.ticket_number}`)}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-bold text-sm">{o.ticket_number}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {o.customer_name} • {o.customer_phone}
+                {tickets.map((o: any) => {
+                  const isLate = Date.now() - new Date(o.updated_at).getTime() > 24 * 60 * 60 * 1000;
+                  const daysLate = Math.max(1, Math.floor((Date.now() - new Date(o.updated_at).getTime()) / (24 * 60 * 60 * 1000)));
+
+                  return (
+                    <div
+                      key={o.id}
+                      className={`p-3 rounded-lg border transition-colors ${
+                        isLate ? "border-destructive/40 bg-destructive/5 hover:bg-destructive/10" : "border-border hover:bg-muted/50"
+                      }`}
+                    >
+                      <div className="flex justify-between items-start cursor-pointer" onClick={() => navigate(`/dashboard/orders/${o.ticket_number}`)}>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-sm">{o.ticket_number}</p>
+                            {isLate && (
+                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                                ⚠️ Terlambat {daysLate} hari
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {o.customer_name} • {o.customer_phone}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isAdminOrOwner && isLate && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
+                              disabled={sendingReminderId === o.id}
+                              onClick={(e) => sendSingleTicketReminder(e, o.id, o.ticket_number, selectedTech.full_name)}
+                            >
+                              <Send className="h-3 w-3 mr-1" />
+                              {sendingReminderId === o.id ? "Mengirim..." : "Ingatkan"}
+                            </Button>
+                          )}
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-muted-foreground space-y-0.5 cursor-pointer" onClick={() => navigate(`/dashboard/orders/${o.ticket_number}`)}>
+                        <p>🔧 {o.device_type} {o.device_brand} {o.device_model} • {o.service_type}</p>
+                        {(o.damage_description || o.unit_condition) && (
+                          <p className="line-clamp-1">⚠️ {o.unit_condition}{o.damage_description ? ` — ${o.damage_description}` : ""}</p>
+                        )}
+                        <p className="text-muted-foreground/70">
+                          Update terakhir: {new Date(o.updated_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                         </p>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground mt-1" />
                     </div>
-                    <div className="mt-2 text-xs text-muted-foreground space-y-0.5">
-                      <p>🔧 {o.device_type} {o.device_brand} {o.device_model} • {o.service_type}</p>
-                      {(o.damage_description || o.unit_condition) && (
-                        <p className="line-clamp-1">⚠️ {o.unit_condition}{o.damage_description ? ` — ${o.damage_description}` : ""}</p>
-                      )}
-                      <p className="text-muted-foreground/70">
-                        Update terakhir: {new Date(o.updated_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </CardContent>
             </Card>
           ))}
@@ -229,53 +332,82 @@ export default function TechnicianWorkload() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Status Pekerjaan & Tiket Teknisi</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold">Status Pekerjaan & Tiket Teknisi</h1>
+            <p className="text-sm text-muted-foreground">Monitor beban kerja, progres pengerjaan, dan pengingat tiket tertunda.</p>
+          </div>
+
+          {isAdminOrOwner && totalStaleCount > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={sendAllStaleReminders}
+              disabled={sendingAllReminders}
+              className="gap-2 shrink-0"
+            >
+              <Bell className="h-4 w-4" />
+              {sendingAllReminders ? "Mengirim Notifikasi..." : `⚡ Ingatkan Semua Teknisi (${totalStaleCount} Tiket Terlambat)`}
+            </Button>
+          )}
+        </div>
 
         {/* Technician list - clickable */}
         <div className="space-y-2">
-          {techData.map((tech) => (
-            <Card
-              key={tech.id}
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => setSelectedTech(tech)}
-            >
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-3 rounded-full bg-muted text-primary">
-                  <User className="h-5 w-5" />
-                </div>
-                <div className="flex-1 min-w-0">
+          {techData.map((tech) => {
+            const techStaleCount = tech.tickets.filter(
+              (t) => Date.now() - new Date(t.updated_at).getTime() > 24 * 60 * 60 * 1000
+            ).length;
+
+            return (
+              <Card
+                key={tech.id}
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => setSelectedTech(tech)}
+              >
+                <CardContent className="p-4 flex items-center gap-4">
+                  <div className="p-3 rounded-full bg-muted text-primary">
+                    <User className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold">{tech.full_name}</p>
+                      {tech.username && <span className="text-xs text-muted-foreground">@{tech.username}</span>}
+                      {techStaleCount > 0 && (
+                        <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                          ⚠️ {techStaleCount} Terlambat &gt;24j
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex gap-2 mt-1 flex-wrap">
+                      {tech.tickets.length === 0 ? (
+                        <span className="text-xs text-muted-foreground">Tidak ada tiket aktif</span>
+                      ) : (
+                        <>
+                          {Object.entries(
+                            tech.tickets.reduce((acc: Record<string, number>, t: any) => {
+                              acc[t.status] = (acc[t.status] || 0) + 1;
+                              return acc;
+                            }, {})
+                          ).map(([status, count]) => (
+                            <Badge key={status} variant="outline" className="text-xs gap-1">
+                              {status} <span className="font-bold">{count as number}</span>
+                            </Badge>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  </div>
                   <div className="flex items-center gap-2">
-                    <p className="font-semibold">{tech.full_name}</p>
-                    {tech.username && <span className="text-xs text-muted-foreground">@{tech.username}</span>}
+                    <Badge variant={tech.tickets.length > 5 ? "destructive" : "secondary"} className="text-lg px-3">
+                      {tech.tickets.length}
+                    </Badge>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <div className="flex gap-2 mt-1 flex-wrap">
-                    {tech.tickets.length === 0 ? (
-                      <span className="text-xs text-muted-foreground">Tidak ada tiket aktif</span>
-                    ) : (
-                      <>
-                        {Object.entries(
-                          tech.tickets.reduce((acc: Record<string, number>, t: any) => {
-                            acc[t.status] = (acc[t.status] || 0) + 1;
-                            return acc;
-                          }, {})
-                        ).map(([status, count]) => (
-                          <Badge key={status} variant="outline" className="text-xs gap-1">
-                            {status} <span className="font-bold">{count as number}</span>
-                          </Badge>
-                        ))}
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant={tech.tickets.length > 5 ? "destructive" : "secondary"} className="text-lg px-3">
-                    {tech.tickets.length}
-                  </Badge>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {/* Unassigned */}

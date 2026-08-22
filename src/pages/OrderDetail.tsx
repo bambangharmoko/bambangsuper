@@ -47,6 +47,7 @@ import {
   AlertTriangle,
   Printer,
   Trash2,
+  Bell,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -251,6 +252,7 @@ export default function OrderDetailPage() {
   const [newNote, setNewNote] = useState("");
   const [delayReason, setDelayReason] = useState("");
   const [savingDelayReason, setSavingDelayReason] = useState(false);
+  const [sendingTechReminder, setSendingTechReminder] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingNoteContent, setEditingNoteContent] = useState("");
   const [hasUnreadNotes, setHasUnreadNotes] = useState(false);
@@ -1666,6 +1668,36 @@ export default function OrderDetailPage() {
                     }}
                   >
                     <RefreshCw className="h-2.5 w-2.5 mr-1" /> Reassign
+                  </Button>
+                )}
+                {isLateUpdate && (isOwner || isAdminOrOwner) && order.assigned_technician && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-1 ml-1.5 h-6 text-[10px] border-destructive/40 text-destructive hover:bg-destructive/10"
+                    disabled={sendingTechReminder}
+                    onClick={async () => {
+                      if (!order?.id || !user?.id) return;
+                      setSendingTechReminder(true);
+                      try {
+                        const { error } = await supabase.functions.invoke("notify-staff-update", {
+                          body: {
+                            order_id: order.id,
+                            action: "stale_reminder",
+                            updated_by: user.id,
+                          },
+                        });
+                        if (error) throw error;
+                        toast.success(`Pengingat berhasil dikirim ke akun teknisi (${assigneeName})!`);
+                      } catch (err: any) {
+                        toast.error(err?.message || "Gagal mengirim pengingat");
+                      } finally {
+                        setSendingTechReminder(false);
+                      }
+                    }}
+                  >
+                    <Bell className="h-2.5 w-2.5 mr-1" />
+                    {sendingTechReminder ? "Mengirim..." : "Ingatkan"}
                   </Button>
                 )}
               </div>

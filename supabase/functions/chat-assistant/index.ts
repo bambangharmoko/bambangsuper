@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
             : "Belum ada rincian final";
 
         liveDynamicContext += `
-[DATA TIKET #${orderData.ticket_number}]
+[DATA TIKET RESMI DARI DATABASE: #${orderData.ticket_number}]
 - Nomor Tiket: ${orderData.ticket_number}
 - Nama Pelanggan: ${orderData.customer_name}
 - Perangkat: ${orderData.device_brand || ""} ${orderData.device_model || ""} (${orderData.device_type || "Unit"})
@@ -202,6 +202,7 @@ Deno.serve(async (req) => {
           localPhone = cleanPhone.substring(2);
         }
 
+        // Ambil SEMUA tiket untuk nomor telepon ini tanpa limit kecil agar data 100% akurat
         const { data: phoneOrders, error: phoneErr } = await supabase
           .from("service_orders")
           .select(`
@@ -224,7 +225,7 @@ Deno.serve(async (req) => {
           .or(`customer_phone.ilike.%${localPhone}%,customer_phone.ilike.%${cleanPhone}%`)
           .is("deleted_at", null)
           .order("created_at", { ascending: false })
-          .limit(30);
+          .limit(200);
 
         if (!phoneErr && phoneOrders && phoneOrders.length > 0) {
           phoneOrdersFound = phoneOrders;
@@ -239,30 +240,24 @@ Deno.serve(async (req) => {
             const items = list
               .map(
                 (o) =>
-                  `  - Tiket #${o.ticket_number} (${o.device_brand || ""} ${o.device_model || ""}) - Status: ${o.status} [Link: /track/${o.ticket_number}]`
+                  `  - Tiket #${o.ticket_number} (${o.device_brand || ""} ${o.device_model || ""}) - Status: ${o.status}`
               )
               .join("\n");
             return `* **${title}** (${list.length} unit):\n${items}`;
           };
 
-          const fullListDetailed = phoneOrders
-            .map((ord, idx) => {
-              const cost =
-                ord.final_cost != null
-                  ? `Rp ${Number(ord.final_cost).toLocaleString("id-ID")}`
-                  : ord.estimated_cost != null
-                  ? `Estimasi Rp ${Number(ord.estimated_cost).toLocaleString("id-ID")}`
-                  : "-";
-              return `${idx + 1}. Tiket #${ord.ticket_number} (${ord.device_brand || ""} ${ord.device_model || ""}) | Kategori: "${getCategoryForStatus(ord.status)}" (Status: ${ord.status}) | Keluhan: ${ord.damage_description || ord.unit_condition || "-"} | Biaya: ${cost} | [Buka Pelacakan Tiket #${ord.ticket_number}](/track/${ord.ticket_number})`;
-            })
-            .join("\n");
-
           liveDynamicContext += `
-[DATA TIKET DATABASE UNTUK NO HP: ${extractedPhone}]
+[DATA TIKET LENGKAP DARI DATABASE UNTUK NO HP: ${extractedPhone}]
 - Nama Pemilik: ${phoneOrders[0]?.customer_name || "Pelanggan"}
 - Total Keseluruhan Tiket: ${phoneOrders.length} tiket.
 
-RINGKASAN 4 KATEGORI STATUS:
+JUMLAH DETAIL PER KATEGORI:
+1. Belum Dikerjakan: ${belumDikerjakan.length} unit
+2. Sedang Dikerjakan: ${sedangDikerjakan.length} unit
+3. Selesai Pengerjaan: ${selesaiPengerjaan.length} unit
+4. Unit Close: ${unitClose.length} unit
+
+RINGKASAN TIKET PER KATEGORI:
 ${formatGroup("1. Belum Dikerjakan", belumDikerjakan)}
 
 ${formatGroup("2. Sedang Dikerjakan", sedangDikerjakan)}
@@ -270,9 +265,6 @@ ${formatGroup("2. Sedang Dikerjakan", sedangDikerjakan)}
 ${formatGroup("3. Selesai Pengerjaan", selesaiPengerjaan)}
 
 ${formatGroup("4. Unit Close", unitClose)}
-
-DAFTAR RINCIAN LENGKAP SEMUA TIKET:
-${fullListDetailed}
 `;
         }
       }
@@ -281,18 +273,19 @@ ${fullListDetailed}
     const systemInstruction = `
 Kamu adalah "SuperBot", asisten AI resmi dari Super Komputer Balikpapan (SUMTRA).
 
-ATURAN PENTING & GAYA KOMUNIKASI:
-1. **PENANGANAN PENGECEKAN TIKET LEBIH DARI 1 DARI NOMOR HP**:
+ATURAN PENTING & GAYA KOMUNIKASI (WAJIB DIIKUTI DENGAN AKURAT):
+1. **PENYAJIAN DATA TIKET NOMOR HP (AKURASI TOTAL & 4 KATEGORI)**:
+   - Gunakan angka dan data PERSIS seperti yang tercantum di "DATA TIKET LENGKAP DARI DATABASE UNTUK NO HP" di bawah!
    - Jika ditemukan LEBIH DARI 1 TIKET dari nomor HP:
-     * Sapalah dengan ramah dan sebutkan bahwa ditemukan total X tiket servis untuk nomor HP tersebut atas nama pemilik.
-     * Sajikan ringkasan yang dikelompokkan secara rapi ke dalam 4 KATEGORI RESMI:
-       1) **Belum Dikerjakan** (Status Diterima)
-       2) **Sedang Dikerjakan** (Status Diagnosa / Menunggu Persetujuan / Menunggu Sparepart / Perbaikan)
-       3) **Selesai Pengerjaan** (Status Selesai / Siap diAmbil)
-       4) **Unit Close** (Status Close / Cancelled)
-     * Cantumkan nomor tiket dan nama perangkat untuk masing-masing kategori.
-     * Di akhir pesan, TANYAKAN DENGAN RAMAH KEPADA PELANGGAN:
-       "**Mau di tampilkan nomor tiket yang mana nih?**" (atau tanyakan nomor tiket/kategori mana yang ingin dilihat rincian detailnya).
+     * Sebutkan nama pemilik dan total tiket servis yang tercatat di database (contoh: "total 54 tiket servis atas nama...").
+     * Sajikan ringkasan 4 KATEGORI UTAMA beserta JUMLAH PERSISNYA sesuai data database:
+       1) **Belum Dikerjakan** (X unit)
+       2) **Sedang Dikerjakan** (Y unit)
+       3) **Selesai Pengerjaan** (Z unit)
+       4) **Unit Close** (W unit)
+     * Cantumkan daftar nomor tiket pada masing-masing kategori tersebut.
+     * Di akhir pesan, TANYAKAN KEPADA PELANGGAN:
+       "**Mau di tampilkan nomor tiket yang mana nih?**" (atau tanyakan kategori mana yang ingin dilihat rincian detailnya).
 
 2. **JIKA HANYA ADA 1 TIKET (ATAU PELANGGAN SUDAH MEMILIH TIKET TERTENTU)**:
    - Langsung tampilkan rincian lengkap tiket tersebut:
@@ -386,8 +379,8 @@ ${KNOWLEDGE_BASE}
             system_instruction: { parts: [{ text: systemInstruction }] },
             contents: cleanContents,
             generationConfig: {
-              maxOutputTokens: 1500,
-              temperature: 0.3,
+              maxOutputTokens: 2000,
+              temperature: 0.2,
             },
           }),
         });
@@ -462,7 +455,7 @@ ${KNOWLEDGE_BASE}
         );
       }
 
-      // Jika lebih dari 1 tiket, kelompokkan ke dalam 4 Kategori
+      // Jika lebih dari 1 tiket, kelompokkan ke dalam 4 Kategori lengkap
       const belumDikerjakan = phoneOrdersFound.filter((o) => getCategoryForStatus(o.status) === "Belum Dikerjakan");
       const sedangDikerjakan = phoneOrdersFound.filter((o) => getCategoryForStatus(o.status) === "Sedang Dikerjakan");
       const selesaiPengerjaan = phoneOrdersFound.filter((o) => getCategoryForStatus(o.status) === "Selesai Pengerjaan");

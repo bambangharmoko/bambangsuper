@@ -210,20 +210,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setLoading(false);
             initializedRef.current = true;
           }
-        } else if (event === "USER_DELETED") {
-          setSession(null);
-          setUser(null);
-          setProfile(null);
-          setRoles([]);
-          clearSessionHint();
-          clearCachedProfileAndRoles();
-          setLoading(false);
-          redirectToLogin();
         } else {
-          // INITIAL_SESSION tanpa session atau event lain tanpa session
+          // Event tanpa session aktif
           if (!hasRecentSessionHint() && initializedRef.current) {
+            setSession(null);
+            setUser(null);
             setProfile(null);
             setRoles([]);
+            clearSessionHint();
+            clearCachedProfileAndRoles();
             setLoading(false);
             redirectToLogin();
           }

@@ -78,6 +78,15 @@ function getCategoryForStatus(status: string): string {
   }
 }
 
+function getDeviceName(o: any): string {
+  const brand = (o.device_brand || "").trim();
+  const model = (o.device_model || "").trim();
+  if (brand && model) return `${brand} ${model}`;
+  if (brand) return brand;
+  if (model) return model;
+  return o.device_type || "Perangkat";
+}
+
 let cachedModelsList: string[] = [];
 
 Deno.serve(async (req) => {
@@ -173,9 +182,9 @@ Deno.serve(async (req) => {
 
         liveDynamicContext += `
 [DATA TIKET RESMI DARI DATABASE: #${orderData.ticket_number}]
-- Nomor Tiket: ${orderData.ticket_number}
+- Nomor Tiket: #${orderData.ticket_number}
 - Nama Pelanggan: ${orderData.customer_name}
-- Perangkat: ${orderData.device_brand || ""} ${orderData.device_model || ""} (${orderData.device_type || "Unit"})
+- Perangkat: ${getDeviceName(orderData)} (${orderData.device_type || "Unit"})
 - Kategori Status: ${getCategoryForStatus(orderData.status)} (Status Resmi: ${orderData.status})
 - Keluhan: ${orderData.damage_description || orderData.unit_condition || "-"}
 - Total Biaya: ${costStr}
@@ -202,7 +211,7 @@ Deno.serve(async (req) => {
           localPhone = cleanPhone.substring(2);
         }
 
-        // Ambil SEMUA tiket untuk nomor telepon ini tanpa limit kecil agar data 100% akurat
+        // Ambil SEMUA tiket untuk nomor telepon ini tanpa limit kecil
         const { data: phoneOrders, error: phoneErr } = await supabase
           .from("service_orders")
           .select(`
@@ -238,10 +247,7 @@ Deno.serve(async (req) => {
           const formatGroup = (title: string, list: any[]) => {
             if (list.length === 0) return `* **${title}**: 0 unit (Tidak ada)`;
             const items = list
-              .map(
-                (o) =>
-                  `  - Tiket #${o.ticket_number} (${o.device_brand || ""} ${o.device_model || ""}) - Status: ${o.status}`
-              )
+              .map((o) => `  - #${o.ticket_number} (${getDeviceName(o)})`)
               .join("\n");
             return `* **${title}** (${list.length} unit):\n${items}`;
           };
@@ -257,7 +263,7 @@ JUMLAH DETAIL PER KATEGORI:
 3. Selesai Pengerjaan: ${selesaiPengerjaan.length} unit
 4. Unit Close: ${unitClose.length} unit
 
-RINGKASAN TIKET PER KATEGORI:
+DAFTAR TIKET LENGKAP DENGAN NAMA PERANGKAT (GUNAKAN PERSIS DATA INI):
 ${formatGroup("1. Belum Dikerjakan", belumDikerjakan)}
 
 ${formatGroup("2. Sedang Dikerjakan", sedangDikerjakan)}
@@ -273,35 +279,39 @@ ${formatGroup("4. Unit Close", unitClose)}
     const systemInstruction = `
 Kamu adalah "SuperBot", asisten AI resmi dari Super Komputer Balikpapan (SUMTRA).
 
-ATURAN PENTING & GAYA KOMUNIKASI (WAJIB DIIKUTI DENGAN AKURAT):
-1. **PENYAJIAN DATA TIKET NOMOR HP (AKURASI TOTAL & 4 KATEGORI)**:
-   - Gunakan angka dan data PERSIS seperti yang tercantum di "DATA TIKET LENGKAP DARI DATABASE UNTUK NO HP" di bawah!
-   - Jika ditemukan LEBIH DARI 1 TIKET dari nomor HP:
-     * Sebutkan nama pemilik dan total tiket servis yang tercatat di database (contoh: "total 54 tiket servis atas nama...").
-     * Sajikan ringkasan 4 KATEGORI UTAMA beserta JUMLAH PERSISNYA sesuai data database:
-       1) **Belum Dikerjakan** (X unit)
-       2) **Sedang Dikerjakan** (Y unit)
-       3) **Selesai Pengerjaan** (Z unit)
-       4) **Unit Close** (W unit)
-     * Cantumkan daftar nomor tiket pada masing-masing kategori tersebut.
-     * Di akhir pesan, TANYAKAN KEPADA PELANGGAN:
-       "**Mau di tampilkan nomor tiket yang mana nih?**" (atau tanyakan kategori mana yang ingin dilihat rincian detailnya).
+ATURAN UTAMA PENYAJIAN TIKET DARI NOMOR HP:
+1. **WAJIB TAMPILKAN NAMA PERANGKAT DI SETIAP SETELAH NOMOR TIKET**:
+   - Setiap nomor tiket WAJIB disertai nama perangkatnya dengan format:
+     \`- #<NomorTiket> (<Nama Perangkat>)\`
+     (Contoh: \`- #G26010 (ASUS TUF)\`, \`- #G26022 (asus aio)\`, \`- #G26018 (Lenovo LOQ)\`).
+   - DILARANG KERAS hanya mendaftar nomor tiket koma-komaan tanpa nama perangkat seperti \`#G26022, #G26018\`!
+   - Gunakan data persis dari "DAFTAR TIKET LENGKAP DENGAN NAMA PERANGKAT" di bawah.
 
-2. **JIKA HANYA ADA 1 TIKET (ATAU PELANGGAN SUDAH MEMILIH TIKET TERTENTU)**:
-   - Langsung tampilkan rincian lengkap tiket tersebut:
-     • Nomor Tiket
-     • Nama Pelanggan
-     • Perangkat (Merk/Model)
-     • Kategori Status (Belum Dikerjakan / Sedang Dikerjakan / Selesai Pengerjaan / Unit Close) & Status Resmi
-     • Keluhan
-     • Total / Estimasi Biaya
-     • Tombol Pelacakan: [Buka Pelacakan Tiket #{nomor_tiket}](/track/{nomor_tiket})
-   - JANGAN menampilkan atau menyebutkan "Riwayat Progres" atau catatan teknisi internal.
+2. **STRUKTUR JAWABAN KETIKA TIKET LEBIH DARI 1**:
+   - Sapalah dengan ramah, sebutkan total tiket (contoh: "ditemukan total 54 tiket servis atas nama...").
+   - Tampilkan 4 Kategori dengan daftar poin tiket + nama perangkat di setiap kategori:
+     1. **Belum Dikerjakan** (X unit):
+        - #G26052 (t t)
+        - #G26051 (xs zx)
+        ... (cantumkan semua item dengan nama perangkatnya)
+     2. **Sedang Dikerjakan** (Y unit):
+        - #G26022 (asus aio)
+        - #G26018 (Lenovo LOQ)
+        - #F26018 (v v)
+     3. **Selesai Pengerjaan** (Z unit):
+        - #G26027 (b h)
+        - #G26026 (b h)
+        ...
+     4. **Unit Close** (W unit):
+        - #G26021 (ASUS TUF)
+        - #G26020 (Lenovo IdeaPad Slim 3)
+        ...
+   - Di akhir kalimat, TANYAKAN PERSIS:
+     "**Mau di tampilkan nomor tiket yang mana nih?**"
 
-3. **KEMAMPUAN PENGECEKAN TIKET**:
-   - SuperBot BISA mengecek tiket langsung melalui NOMOR TIKET maupun NOMOR HP.
-   - Jika pelanggan bertanya apakah bisa cek tiket menggunakan nomor HP, jawab: "Tentu saja bisa! Silakan ketikkan nomor HP atau nomor WhatsApp Anda yang terdaftar saat servis, saya akan langsung bantu carikan data tiket Anda di sistem."
-   - JANGAN PERNAH mengatakan SuperBot "belum bisa melakukan pencarian nomor HP secara mandiri".
+3. **JIKA HANYA ADA 1 TIKET ATAU USER MEMILIH TIKET SPESIFIK**:
+   - Tampilkan rincian: Nomor Tiket, Nama Pelanggan, Perangkat, Kategori Status, Keluhan, Total Biaya, dan Tombol Pelacakan: [Buka Pelacakan Tiket #{nomor_tiket}](/track/{nomor_tiket}).
+   - JANGAN tampilkan "Riwayat Progres" atau catatan teknisi internal.
 
 DATA DARI DATABASE SUMTRA:
 ${liveDynamicContext || "- Tidak ada data tiket khusus pada percakapan ini."}
@@ -379,8 +389,8 @@ ${KNOWLEDGE_BASE}
             system_instruction: { parts: [{ text: systemInstruction }] },
             contents: cleanContents,
             generationConfig: {
-              maxOutputTokens: 2000,
-              temperature: 0.2,
+              maxOutputTokens: 3000,
+              temperature: 0.1,
             },
           }),
         });
@@ -437,7 +447,7 @@ ${KNOWLEDGE_BASE}
 
       return new Response(
         JSON.stringify({
-          reply: `Halo! Berikut data resmi untuk tiket **#${ticketOrderFound.ticket_number}** atas nama **${ticketOrderFound.customer_name}**:\n\n• **Perangkat:** ${ticketOrderFound.device_brand || ""} ${ticketOrderFound.device_model || ""}\n• **Kategori:** ${getCategoryForStatus(ticketOrderFound.status)} (${ticketOrderFound.status})\n• **Keluhan:** ${ticketOrderFound.damage_description || ticketOrderFound.unit_condition || "-"}\n• **Total Biaya:** ${cost}\n\n[Buka Pelacakan Tiket #${ticketOrderFound.ticket_number}](/track/${ticketOrderFound.ticket_number})`,
+          reply: `Halo! Berikut data resmi untuk tiket **#${ticketOrderFound.ticket_number}** atas nama **${ticketOrderFound.customer_name}**:\n\n• **Perangkat:** ${getDeviceName(ticketOrderFound)}\n• **Kategori:** ${getCategoryForStatus(ticketOrderFound.status)} (${ticketOrderFound.status})\n• **Keluhan:** ${ticketOrderFound.damage_description || ticketOrderFound.unit_condition || "-"}\n• **Total Biaya:** ${cost}\n\n[Buka Pelacakan Tiket #${ticketOrderFound.ticket_number}](/track/${ticketOrderFound.ticket_number})`,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -449,22 +459,21 @@ ${KNOWLEDGE_BASE}
         const cost = o.final_cost != null ? `Rp ${Number(o.final_cost).toLocaleString("id-ID")}` : (o.estimated_cost != null ? `Estimasi Rp ${Number(o.estimated_cost).toLocaleString("id-ID")}` : "-");
         return new Response(
           JSON.stringify({
-            reply: `Halo! Berdasarkan nomor telepon **${extractedPhone}**, ditemukan 1 tiket servis atas nama **${o.customer_name}**:\n\n• **Nomor Tiket:** #${o.ticket_number}\n• **Perangkat:** ${o.device_brand || ""} ${o.device_model || ""}\n• **Kategori:** ${getCategoryForStatus(o.status)} (${o.status})\n• **Keluhan:** ${o.damage_description || o.unit_condition || "-"}\n• **Total Biaya:** ${cost}\n\n[Buka Pelacakan Tiket #${o.ticket_number}](/track/${o.ticket_number})`,
+            reply: `Halo! Berdasarkan nomor telepon **${extractedPhone}**, ditemukan 1 tiket servis atas nama **${o.customer_name}**:\n\n• **Nomor Tiket:** #${o.ticket_number}\n• **Perangkat:** ${getDeviceName(o)}\n• **Kategori:** ${getCategoryForStatus(o.status)} (${o.status})\n• **Keluhan:** ${o.damage_description || o.unit_condition || "-"}\n• **Total Biaya:** ${cost}\n\n[Buka Pelacakan Tiket #${o.ticket_number}](/track/${o.ticket_number})`,
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      // Jika lebih dari 1 tiket, kelompokkan ke dalam 4 Kategori lengkap
       const belumDikerjakan = phoneOrdersFound.filter((o) => getCategoryForStatus(o.status) === "Belum Dikerjakan");
       const sedangDikerjakan = phoneOrdersFound.filter((o) => getCategoryForStatus(o.status) === "Sedang Dikerjakan");
       const selesaiPengerjaan = phoneOrdersFound.filter((o) => getCategoryForStatus(o.status) === "Selesai Pengerjaan");
       const unitClose = phoneOrdersFound.filter((o) => getCategoryForStatus(o.status) === "Unit Close");
 
       const formatGroupFB = (title: string, list: any[]) => {
-        if (list.length === 0) return `* **${title}**: 0 unit`;
+        if (list.length === 0) return `* **${title}**: 0 unit (Tidak ada)`;
         const items = list
-          .map((o) => `  - [Tiket #${o.ticket_number}](/track/${o.ticket_number}) (${o.device_brand || ""} ${o.device_model || ""})`)
+          .map((o) => `  - #${o.ticket_number} (${getDeviceName(o)})`)
           .join("\n");
         return `* **${title}** (${list.length} unit):\n${items}`;
       };

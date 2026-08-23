@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Sparkles,
   Bot,
@@ -23,30 +38,177 @@ import {
   HelpCircle,
   Play,
   CheckCircle2,
-  AlertCircle,
-  FileText,
+  Package,
+  Boxes,
+  Search,
+  Edit,
+  Tag,
+  ShieldCheck,
+  Laptop,
+  CheckCircle,
   Clock,
   Phone,
   Lightbulb,
+  Download,
+  Upload,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 
-interface QaExample {
+export interface QaExample {
   id: string;
   question: string;
   answer: string;
 }
 
-interface AiConfigData {
+export interface ReadyStockItem {
+  id: string;
+  category: string;
+  name: string;
+  brand: string;
+  compatibility: string;
+  status: "ready" | "po" | "kosong";
+  stock_qty: number;
+  price_range: string;
+  warranty: string;
+  notes?: string;
+}
+
+export interface AiConfigData {
   knowledge_base: string;
   system_prompt: string;
   qa_examples: QaExample[];
+  ready_stock: ReadyStockItem[];
   temperature: number;
   stale_unassigned_hours: number;
   stale_inprogress_hours: number;
   wa_admin_phone: string;
   updated_at?: string;
 }
+
+export const STOCK_CATEGORIES = [
+  "Baterai Laptop",
+  "LCD / Screen",
+  "Keyboard",
+  "Charger / Adaptor",
+  "SSD & Storage",
+  "RAM Memory",
+  "Casing & Engsel",
+  "Cooling Fan",
+  "Aksesoris & Lisensi",
+  "Lainnya",
+];
+
+export const DEFAULT_READY_STOCK: ReadyStockItem[] = [
+  {
+    id: "sp-dell-7420-bat",
+    category: "Baterai Laptop",
+    name: "Baterai Dell Latitude 7420 / 7320 / 7520 Original (63Wh / 4-Cell)",
+    brand: "Dell",
+    compatibility: "Dell Latitude 7420, 7320, 7520, Inspiron 14 7420 (Part No: 1V1XF, 4M15E, 63Wh / 42Wh)",
+    status: "ready",
+    stock_qty: 4,
+    price_range: "Rp 550.000 - Rp 750.000 (Termasuk Jasa Pasang & Kalibrasi)",
+    warranty: "6 Bulan Garansi Resmi Toko Ganti Baru",
+    notes: "Unit 100% Baru Original Grade A+. Gratis instalasi, cleaning soket, dan kalibrasi daya di toko.",
+  },
+  {
+    id: "sp-asus-tuf-bat",
+    category: "Baterai Laptop",
+    name: "Baterai ASUS TUF Gaming A15 / F15 / FX506 / FA506 Original",
+    brand: "ASUS",
+    compatibility: "ASUS TUF Gaming FX506, FA506, FX505, FA505, TUF Dash F15 (Tipe Baterai B31N1726 / B41N1711)",
+    status: "ready",
+    stock_qty: 6,
+    price_range: "Rp 450.000 - Rp 650.000 (Termasuk Pasang)",
+    warranty: "6 Bulan Garansi Toko Ganti Baru",
+    notes: "Original Resmi ASUS. Tersedia varian 48Wh dan 90Wh.",
+  },
+  {
+    id: "sp-lenovo-ideapad-bat",
+    category: "Baterai Laptop",
+    name: "Baterai Lenovo IdeaPad Slim 3 / Slim 5 / V14 / V15 Original",
+    brand: "Lenovo",
+    compatibility: "Lenovo IdeaPad Slim 3 14/15, Slim 5, V14, V15, Flex 5 (Part No: L19M3PF5, L19C3PF5)",
+    status: "ready",
+    stock_qty: 5,
+    price_range: "Rp 380.000 - Rp 550.000",
+    warranty: "6 Bulan Garansi Toko Ganti Baru",
+    notes: "Ready stok toko. Pemasangan cepat 30-45 menit bisa ditunggu.",
+  },
+  {
+    id: "sp-lcd-14-fhd",
+    category: "LCD / Screen",
+    name: "LCD Panel 14.0 Inch Full HD IPS Slim 30-Pin Frameless",
+    brand: "Universal",
+    compatibility: "ASUS VivoBook / ZenBook, Lenovo IdeaPad, Acer Aspire, HP 14s, Dell Latitude / Inspiron 14 inch",
+    status: "ready",
+    stock_qty: 8,
+    price_range: "Rp 750.000 - Rp 950.000 (Termasuk Pasang)",
+    warranty: "3 Bulan Garansi Toko (No Dead Pixel Guarantee)",
+    notes: "Panel Grade A+ No Dot / No Spot. Pengerjaan 30-60 menit.",
+  },
+  {
+    id: "sp-lcd-156-144hz",
+    category: "LCD / Screen",
+    name: "LCD Panel 15.6 Inch Full HD IPS 144Hz 40-Pin / 30-Pin Gaming",
+    brand: "Universal",
+    compatibility: "ASUS TUF FX505/FX506, ROG Strix, Lenovo Legion 5 / Gaming 3, Acer Nitro 5, HP Pavilion Gaming",
+    status: "ready",
+    stock_qty: 5,
+    price_range: "Rp 1.100.000 - Rp 1.350.000 (Termasuk Pasang)",
+    warranty: "3 Bulan Garansi Toko",
+    notes: "Refresh rate 144Hz 100% sRGB tajam dan responsif.",
+  },
+  {
+    id: "sp-ssd-nvme-512",
+    category: "SSD & Storage",
+    name: "SSD M.2 NVMe PCIe Gen3/Gen4 512GB & 1TB (Kingston / Samsung / Klevv)",
+    brand: "Universal",
+    compatibility: "Semua laptop dan PC dengan slot M.2 NVMe (ASUS, Lenovo, Dell, HP, Acer, MacBook via adapter)",
+    status: "ready",
+    stock_qty: 15,
+    price_range: "512GB: Rp 450.000 - Rp 550.000 | 1TB: Rp 850.000 - Rp 1.100.000",
+    warranty: "3 - 5 Tahun Garansi Resmi Distributor",
+    notes: "Free Jasa Pasang + Free Migrasi/Cloning Windows jika beli di toko.",
+  },
+  {
+    id: "sp-ram-sodimm",
+    category: "RAM Memory",
+    name: "RAM Laptop Sodimm DDR4 (3200MHz) & DDR5 (4800/5600MHz) 8GB / 16GB",
+    brand: "Universal",
+    compatibility: "Kompatibel untuk semua laptop Intel Core Gen 6-14 & AMD Ryzen 3000-8000 Series",
+    status: "ready",
+    stock_qty: 20,
+    price_range: "DDR4 8GB: Rp 280.000, 16GB: Rp 490.000 | DDR5 8GB: Rp 380.000, 16GB: Rp 680.000",
+    warranty: "Lifetime / Seumur Hidup Garansi Resmi",
+    notes: "Gratis pasang dan pengetesan dual-channel di toko.",
+  },
+  {
+    id: "sp-charger-typec",
+    category: "Charger / Adaptor",
+    name: "Adaptor Charger Universal Type-C 65W & 100W GaN Fast Charging",
+    brand: "Universal",
+    compatibility: "Dell Latitude (termasuk 7420 / 7320 / 5420), ASUS ZenBook / ROG Ally, Lenovo ThinkPad / Yoga, MacBook Air / Pro M1/M2/M3, HP Envy / Spectre",
+    status: "ready",
+    stock_qty: 10,
+    price_range: "65W: Rp 250.000 - Rp 350.000 | 100W: Rp 450.000 - Rp 550.000",
+    warranty: "6 Bulan Garansi Toko Ganti Baru",
+    notes: "Sudah dilengkapi smart chip proteksi arus berlebih dan kabel braided kuat.",
+  },
+  {
+    id: "sp-license-win-office",
+    category: "Aksesoris & Lisensi",
+    name: "Lisensi Digital Original Windows 10/11 Pro & Microsoft Office 2021 Professional Plus",
+    brand: "Universal",
+    compatibility: "Semua PC Desktop & Laptop",
+    status: "ready",
+    stock_qty: 99,
+    price_range: "Rp 150.000 / Lisensi",
+    warranty: "Garansi Aktivasi Permanen Seumur Hidup",
+    notes: "Aktivasi online resmi Microsoft, bukan bajakan/KMS. Bisa diupdate selamanya.",
+  },
+];
 
 const KNOWLEDGE_TEMPLATES = {
   store_info: `
@@ -70,10 +232,9 @@ const KNOWLEDGE_TEMPLATES = {
 # DAFTAR LAYANAN SERVIS & ESTIMASI BIAYA
 1. Cleaning Fan & Thermal Paste Premium: Mulai Rp 100.000 - Rp 250.000
 2. Install Ulang OS Windows 11/10 + Software Standar: Rp 100.000 - Rp 150.000
-3. Servis Mainboard / Mati Total / Reballing IC Power: Mulai Rp 350.000 (tergantung tingkat kerusakan setelah diagnosa)
+3. Servis Mainboard / Mati Total / Ganti IC Power: Mulai Rp 350.000 (setelah diagnosa)
 4. Penggantian Keyboard / Baterai / LCD: Biaya sparepart + jasa pasang (Estimasi diberikan sebelum pengerjaan)
-5. Upgrade SSD NVMe / RAM: Biaya unit SSD/RAM + free instalasi/cloning data
-6. Servis Printer (Head Buntu / Blinking / Reset Waste Pad): Mulai Rp 75.000 - Rp 200.000`,
+5. Upgrade SSD NVMe / RAM: Biaya unit SSD/RAM + free instalasi/cloning data`,
 
   sop_rules: `
 # SOP & ATURAN SERVIS TOKO
@@ -88,6 +249,7 @@ export default function AiTraining() {
     knowledge_base: "",
     system_prompt: "",
     qa_examples: [],
+    ready_stock: DEFAULT_READY_STOCK,
     temperature: 0.1,
     stale_unassigned_hours: 24,
     stale_inprogress_hours: 48,
@@ -96,13 +258,35 @@ export default function AiTraining() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState("knowledge");
+  const [activeTab, setActiveTab] = useState("stock");
+
+  // Stock Filtering & Search state
+  const [stockSearch, setStockSearch] = useState("");
+  const [stockCategoryFilter, setStockCategoryFilter] = useState("all");
+  const [stockStatusFilter, setStockStatusFilter] = useState("all");
+
+  // Stock Add/Edit Modal state
+  const [stockModalOpen, setStockModalOpen] = useState(false);
+  const [editingStockItem, setEditingStockItem] = useState<ReadyStockItem | null>(null);
+  const [stockFormData, setStockFormData] = useState<Omit<ReadyStockItem, "id">>({
+    category: "Baterai Laptop",
+    name: "",
+    brand: "Dell",
+    compatibility: "",
+    status: "ready",
+    stock_qty: 1,
+    price_range: "",
+    warranty: "6 Bulan Garansi Toko",
+    notes: "",
+  });
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Simulator chat state
   const [testMessages, setTestMessages] = useState<{ role: "user" | "bot"; text: string; time: string }[]>([
     {
       role: "bot",
-      text: "Halo! Saya SuperBot Simulator. Anda dapat menguji coba instruksi dan knowledge base yang baru saja Anda latih di sini sebelum disimpan.",
+      text: "Halo! Saya SuperBot Simulator. Anda dapat menguji coba instruksi, knowledge base, dan data ready stock sparepart yang baru saja Anda latih di sini sebelum disimpan.",
       time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
     },
   ]);
@@ -123,6 +307,9 @@ export default function AiTraining() {
           knowledge_base: data.data.knowledge_base || "",
           system_prompt: data.data.system_prompt || "",
           qa_examples: Array.isArray(data.data.qa_examples) ? data.data.qa_examples : [],
+          ready_stock: Array.isArray(data.data.ready_stock) && data.data.ready_stock.length > 0
+            ? data.data.ready_stock
+            : DEFAULT_READY_STOCK,
           temperature: typeof data.data.temperature === "number" ? data.data.temperature : 0.1,
           stale_unassigned_hours: data.data.stale_unassigned_hours || 24,
           stale_inprogress_hours: data.data.stale_inprogress_hours || 48,
@@ -154,7 +341,7 @@ export default function AiTraining() {
       });
 
       if (error) throw error;
-      toast.success(data?.message || "Pelatihan AI berhasil disimpan dan aktif seketika!");
+      toast.success(data?.message || "Pelatihan AI & Ready Stock berhasil disimpan dan aktif seketika!");
       setConfig((prev) => ({ ...prev, updated_at: new Date().toISOString() }));
     } catch (err: any) {
       console.error("Gagal menyimpan pengaturan AI:", err);
@@ -166,7 +353,7 @@ export default function AiTraining() {
 
   // Reset to Default
   const handleResetDefault = async () => {
-    if (!confirm("Apakah Anda yakin ingin mengembalikan seluruh pelatihan AI ke pengaturan standar bawaan sistem?")) {
+    if (!confirm("Apakah Anda yakin ingin mengembalikan seluruh pelatihan AI dan katalog Ready Stock ke standar bawaan sistem?")) {
       return;
     }
     setSaving(true);
@@ -222,6 +409,163 @@ export default function AiTraining() {
     }));
   };
 
+  // Ready Stock Handlers
+  const handleOpenAddStockModal = () => {
+    setEditingStockItem(null);
+    setStockFormData({
+      category: "Baterai Laptop",
+      name: "",
+      brand: "Dell",
+      compatibility: "",
+      status: "ready",
+      stock_qty: 1,
+      price_range: "",
+      warranty: "6 Bulan Garansi Toko",
+      notes: "",
+    });
+    setStockModalOpen(true);
+  };
+
+  const handleOpenEditStockModal = (item: ReadyStockItem) => {
+    setEditingStockItem(item);
+    setStockFormData({
+      category: item.category,
+      name: item.name,
+      brand: item.brand,
+      compatibility: item.compatibility,
+      status: item.status,
+      stock_qty: item.stock_qty,
+      price_range: item.price_range,
+      warranty: item.warranty,
+      notes: item.notes || "",
+    });
+    setStockModalOpen(true);
+  };
+
+  const handleSaveStockItem = () => {
+    if (!stockFormData.name.trim()) {
+      toast.error("Nama sparepart wajib diisi.");
+      return;
+    }
+
+    if (editingStockItem) {
+      // Update existing
+      setConfig((prev) => ({
+        ...prev,
+        ready_stock: prev.ready_stock.map((s) =>
+          s.id === editingStockItem.id ? { ...stockFormData, id: editingStockItem.id } : s
+        ),
+      }));
+      toast.success(`Sparepart "${stockFormData.name}" berhasil diperbarui.`);
+    } else {
+      // Add new
+      const newItem: ReadyStockItem = {
+        id: `sp-${Date.now()}`,
+        ...stockFormData,
+      };
+      setConfig((prev) => ({
+        ...prev,
+        ready_stock: [newItem, ...prev.ready_stock],
+      }));
+      toast.success(`Sparepart "${stockFormData.name}" berhasil ditambahkan.`);
+    }
+
+    setStockModalOpen(false);
+  };
+
+  const handleDeleteStockItem = (id: string, name: string) => {
+    if (!confirm(`Hapus "${name}" dari katalog ready stock?`)) return;
+    setConfig((prev) => ({
+      ...prev,
+      ready_stock: prev.ready_stock.filter((s) => s.id !== id),
+    }));
+    toast.success("Sparepart berhasil dihapus.");
+  };
+
+  const handleQuickToggleStockStatus = (id: string, newStatus: "ready" | "po" | "kosong") => {
+    setConfig((prev) => ({
+      ...prev,
+      ready_stock: prev.ready_stock.map((s) => (s.id === id ? { ...s, status: newStatus } : s)),
+    }));
+    toast.success(`Status stok diubah.`);
+  };
+
+  const handleLoadDefaultStockPreset = () => {
+    if (!confirm("Muat daftar template sparepart lengkap? Ini akan menggabungkan contoh sparepart populer.")) {
+      return;
+    }
+    setConfig((prev) => {
+      const existingIds = new Set(prev.ready_stock.map((s) => s.id));
+      const newItems = DEFAULT_READY_STOCK.filter((s) => !existingIds.has(s.id));
+      return {
+        ...prev,
+        ready_stock: [...newItems, ...prev.ready_stock],
+      };
+    });
+    toast.success("Template sparepart populer berhasil dimuat ke katalog.");
+  };
+
+  // Export / Import JSON
+  const handleExportStockJson = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config.ready_stock, null, 2));
+    const downloadAnchor = document.createElement("a");
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `superkomputer_ready_stock_${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    toast.success("Katalog Ready Stock berhasil diexport ke JSON.");
+  };
+
+  const handleImportStockJson = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileReader = new FileReader();
+    if (e.target.files && e.target.files[0]) {
+      fileReader.readAsText(e.target.files[0], "UTF-8");
+      fileReader.onload = (event) => {
+        try {
+          const parsed = JSON.parse(event.target?.result as string);
+          if (Array.isArray(parsed)) {
+            setConfig((prev) => ({
+              ...prev,
+              ready_stock: parsed,
+            }));
+            toast.success(`Berhasil mengimpor ${parsed.length} sparepart.`);
+          } else {
+            toast.error("Format file JSON tidak valid.");
+          }
+        } catch (err) {
+          toast.error("Gagal membaca file JSON.");
+        }
+      };
+    }
+  };
+
+  // Filtered Stock Items
+  const filteredStock = useMemo(() => {
+    return config.ready_stock.filter((item) => {
+      const matchSearch =
+        !stockSearch.trim() ||
+        item.name.toLowerCase().includes(stockSearch.toLowerCase()) ||
+        item.brand.toLowerCase().includes(stockSearch.toLowerCase()) ||
+        item.compatibility.toLowerCase().includes(stockSearch.toLowerCase()) ||
+        item.category.toLowerCase().includes(stockSearch.toLowerCase());
+
+      const matchCategory = stockCategoryFilter === "all" || item.category === stockCategoryFilter;
+      const matchStatus = stockStatusFilter === "all" || item.status === stockStatusFilter;
+
+      return matchSearch && matchCategory && matchStatus;
+    });
+  }, [config.ready_stock, stockSearch, stockCategoryFilter, stockStatusFilter]);
+
+  // Stock Stats
+  const stockStats = useMemo(() => {
+    const total = config.ready_stock.length;
+    const ready = config.ready_stock.filter((s) => s.status === "ready").length;
+    const po = config.ready_stock.filter((s) => s.status === "po").length;
+    const kosong = config.ready_stock.filter((s) => s.status === "kosong").length;
+    return { total, ready, po, kosong };
+  }, [config.ready_stock]);
+
   // Simulator Test Message
   const handleSendTestMessage = async (customText?: string) => {
     const textToSend = customText || inputTest.trim();
@@ -245,27 +589,26 @@ export default function AiTraining() {
           knowledge_base: config.knowledge_base,
           system_prompt: config.system_prompt,
           qa_examples: config.qa_examples,
+          ready_stock: config.ready_stock,
           temperature: config.temperature,
         },
       });
 
       if (error) throw error;
 
-      const botReply = data?.reply || "Gagal mendapatkan respon dari AI.";
-      setTestMessages((prev) => [
-        ...prev,
-        {
-          role: "bot",
-          text: botReply,
-          time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
-        },
-      ]);
+      const botReply = {
+        role: "bot" as const,
+        text: data?.reply || "SuperBot tidak menghasilkan respon.",
+        time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+      };
+      setTestMessages((prev) => [...prev, botReply]);
     } catch (err: any) {
+      console.error("Gagal menguji AI:", err);
       setTestMessages((prev) => [
         ...prev,
         {
           role: "bot",
-          text: `⚠️ Terjadi kesalahan pengujian: ${err?.message || "Model tidak merespon"}`,
+          text: `⚠️ Gagal menghubungi AI: ${err?.message || "Terjadi kesalahan"}`,
           time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
         },
       ]);
@@ -277,9 +620,9 @@ export default function AiTraining() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
+        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Memuat Studio Pelatihan AI...</p>
+          <p className="text-sm text-muted-foreground">Memuat studio pelatihan AI & katalog ready stock...</p>
         </div>
       </DashboardLayout>
     );
@@ -301,7 +644,7 @@ export default function AiTraining() {
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground">
-              Latih otak AI SuperBot dengan informasi toko terbaru, kebijakan garansi, SOP pengerjaan, dan contoh jawaban ideal tanpa perlu coding.
+              Latih otak AI SuperBot dengan katalog ready stock sparepart, knowledge base toko, kebijakan garansi, dan SOP tanpa perlu coding.
             </p>
           </div>
 
@@ -330,7 +673,14 @@ export default function AiTraining() {
 
         {/* Tab Selection */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-2 md:grid-cols-4 p-1 bg-muted/60 rounded-xl h-auto gap-1">
+          <TabsList className="grid grid-cols-2 md:grid-cols-5 p-1 bg-muted/60 rounded-xl h-auto gap-1">
+            <TabsTrigger value="stock" className="gap-2 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              <Package className="h-4 w-4 text-emerald-500" />
+              <span>Ready Stock</span>
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-emerald-500/10 text-emerald-600 font-bold">
+                {stockStats.ready}
+              </Badge>
+            </TabsTrigger>
             <TabsTrigger value="knowledge" className="gap-2 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm">
               <BookOpen className="h-4 w-4 text-primary" />
               <span>Knowledge Base</span>
@@ -351,6 +701,267 @@ export default function AiTraining() {
               <span>Uji Coba AI Live</span>
             </TabsTrigger>
           </TabsList>
+
+          {/* ════ TAB 0: READY STOCK SPAREPART ════ */}
+          <TabsContent value="stock" className="space-y-4 focus-visible:outline-none">
+            {/* Stats Summary */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <Card className="p-3 border border-border/70 bg-card">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-muted-foreground font-medium">Total Produk</div>
+                  <Boxes className="h-4 w-4 text-primary" />
+                </div>
+                <div className="text-xl font-bold mt-1">{stockStats.total}</div>
+                <div className="text-[10px] text-muted-foreground">Katalog sparepart & lisensi</div>
+              </Card>
+
+              <Card className="p-3 border border-emerald-500/30 bg-emerald-500/5">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold">Ready di Toko</div>
+                  <CheckCircle className="h-4 w-4 text-emerald-600" />
+                </div>
+                <div className="text-xl font-bold mt-1 text-emerald-600">{stockStats.ready}</div>
+                <div className="text-[10px] text-emerald-600/80">AI jawab langsung "Ready"</div>
+              </Card>
+
+              <Card className="p-3 border border-amber-500/30 bg-amber-500/5">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-amber-700 dark:text-amber-400 font-semibold">Pre-Order / Indent</div>
+                  <Clock className="h-4 w-4 text-amber-600" />
+                </div>
+                <div className="text-xl font-bold mt-1 text-amber-600">{stockStats.po}</div>
+                <div className="text-[10px] text-amber-600/80">Estimasi 1-3 hari kerja</div>
+              </Card>
+
+              <Card className="p-3 border border-rose-500/30 bg-rose-500/5">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-rose-700 dark:text-rose-400 font-semibold">Habis / Kosong</div>
+                  <AlertTriangle className="h-4 w-4 text-rose-600" />
+                </div>
+                <div className="text-xl font-bold mt-1 text-rose-600">{stockStats.kosong}</div>
+                <div className="text-[10px] text-rose-600/80">Arahkan ke WA Admin</div>
+              </Card>
+            </div>
+
+            {/* Action Bar & Filters */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Package className="h-5 w-5 text-emerald-500" />
+                      Katalog Ready Stock Sparepart & Aksesoris
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      AI SuperBot akan menjawab pertanyaan stok fisik pelanggan secara akurat (contoh: "baterai dell latitude 7420", "lcd asus tuf", "ssd 512gb").
+                    </CardDescription>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleLoadDefaultStockPreset}
+                      className="text-xs h-8 gap-1.5 bg-background"
+                      title="Muat contoh preset populer"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                      Muat Preset Populer
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleExportStockJson}
+                      className="text-xs h-8 gap-1 bg-background"
+                      title="Export ke JSON"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Export
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="text-xs h-8 gap-1 bg-background"
+                      title="Import dari JSON"
+                    >
+                      <Upload className="h-3.5 w-3.5" />
+                      Import
+                    </Button>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleImportStockJson}
+                      accept=".json"
+                      className="hidden"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleOpenAddStockModal}
+                      className="text-xs h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Tambah Sparepart
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Search & Filter row */}
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={stockSearch}
+                      onChange={(e) => setStockSearch(e.target.value)}
+                      placeholder="Cari sparepart, tipe laptop (Dell 7420, ASUS FX506), merek, atau part no..."
+                      className="pl-8 text-xs h-9 bg-background"
+                    />
+                  </div>
+
+                  <Select value={stockCategoryFilter} onValueChange={setStockCategoryFilter}>
+                    <SelectTrigger className="w-full sm:w-[170px] text-xs h-9 bg-background">
+                      <SelectValue placeholder="Semua Kategori" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all" className="text-xs">Semua Kategori</SelectItem>
+                      {STOCK_CATEGORIES.map((cat) => (
+                        <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={stockStatusFilter} onValueChange={setStockStatusFilter}>
+                    <SelectTrigger className="w-full sm:w-[150px] text-xs h-9 bg-background">
+                      <SelectValue placeholder="Semua Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all" className="text-xs">Semua Status</SelectItem>
+                      <SelectItem value="ready" className="text-xs">✅ Ready di Toko</SelectItem>
+                      <SelectItem value="po" className="text-xs">📦 Pre-Order (PO)</SelectItem>
+                      <SelectItem value="kosong" className="text-xs">❌ Habis / Kosong</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Stock List Grid */}
+                {filteredStock.length === 0 ? (
+                  <div className="p-8 text-center border border-dashed rounded-xl border-border space-y-2">
+                    <Package className="h-8 w-8 mx-auto text-muted-foreground" />
+                    <p className="text-sm font-medium">Tidak ada sparepart yang sesuai filter.</p>
+                    <p className="text-xs text-muted-foreground">
+                      Coba ubah kata kunci pencarian atau klik tombol "Tambah Sparepart" untuk menambahkan item baru.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {filteredStock.map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-3.5 rounded-xl border border-border/80 bg-card hover:border-primary/40 transition-all space-y-2.5 shadow-sm"
+                      >
+                        {/* Header: Category & Status */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Badge variant="outline" className="text-[10px] font-semibold bg-muted/60">
+                              {item.category}
+                            </Badge>
+                            <Badge variant="secondary" className="text-[10px] font-semibold">
+                              {item.brand}
+                            </Badge>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            {/* 1-Click Status Switcher */}
+                            <Select
+                              value={item.status}
+                              onValueChange={(val) => handleQuickToggleStockStatus(item.id, val as any)}
+                            >
+                              <SelectTrigger
+                                className={`h-6 px-2 text-[10px] font-bold rounded-full border-none ${
+                                  item.status === "ready"
+                                    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/25"
+                                    : item.status === "po"
+                                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 hover:bg-amber-500/25"
+                                    : "bg-rose-500/15 text-rose-700 dark:text-rose-400 hover:bg-rose-500/25"
+                                }`}
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="ready" className="text-xs">✅ Ready di Toko</SelectItem>
+                                <SelectItem value="po" className="text-xs">📦 Pre-Order</SelectItem>
+                                <SelectItem value="kosong" className="text-xs">❌ Habis</SelectItem>
+                              </SelectContent>
+                            </Select>
+
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleOpenEditStockModal(item)}
+                              className="h-7 w-7 text-muted-foreground hover:text-primary"
+                              title="Edit Sparepart"
+                            >
+                              <Edit className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteStockItem(item.id, item.name)}
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                              title="Hapus Sparepart"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Title */}
+                        <div className="font-semibold text-xs text-foreground leading-snug">
+                          {item.name}
+                        </div>
+
+                        {/* Compatibility info */}
+                        {item.compatibility && (
+                          <div className="flex items-start gap-1.5 text-[11px] text-muted-foreground bg-muted/30 p-1.5 rounded-lg">
+                            <Laptop className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                            <span className="line-clamp-2">{item.compatibility}</span>
+                          </div>
+                        )}
+
+                        {/* Details Footer: Price, Warranty, Qty */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/50 text-[11px]">
+                          <div className="flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
+                            <Tag className="h-3 w-3" />
+                            <span>{item.price_range || "Konfirmasi Admin"}</span>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-muted-foreground text-[10px]">
+                            {item.warranty && (
+                              <span className="flex items-center gap-1" title="Garansi">
+                                <ShieldCheck className="h-3 w-3 text-blue-500" />
+                                {item.warranty}
+                              </span>
+                            )}
+                            <span className="bg-muted px-1.5 py-0.5 rounded font-mono font-medium">
+                              Qty: {item.stock_qty}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Notes if available */}
+                        {item.notes && (
+                          <div className="text-[10px] text-muted-foreground italic bg-muted/20 px-2 py-1 rounded">
+                            💡 {item.notes}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* ════ TAB 1: KNOWLEDGE BASE ════ */}
           <TabsContent value="knowledge" className="space-y-4 focus-visible:outline-none">
@@ -644,7 +1255,7 @@ export default function AiTraining() {
                     </div>
                     <div>
                       <h3 className="font-bold text-sm">SuperBot Sandbox Simulator</h3>
-                      <p className="text-[10px] text-muted-foreground">Menguji data pelatihan terkini secara langsung</p>
+                      <p className="text-[10px] text-muted-foreground">Menguji data pelatihan & ready stock terkini secara langsung</p>
                     </div>
                   </div>
                   <Button
@@ -703,7 +1314,7 @@ export default function AiTraining() {
                     value={inputTest}
                     onChange={(e) => setInputTest(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendTestMessage()}
-                    placeholder="Ketik pertanyaan untuk mengetes AI (contoh: apakah bisa klaim garansi ASUS?)..."
+                    placeholder="Ketik pertanyaan untuk mengetes AI (contoh: stock battery dell latitude 7420 ready di super?)..."
                     className="text-xs"
                     disabled={testingAi}
                   />
@@ -724,19 +1335,20 @@ export default function AiTraining() {
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm flex items-center gap-1.5">
                       <Lightbulb className="h-4 w-4 text-amber-500" />
-                      Uji Pertanyaan Populer
+                      Uji Pertanyaan Populer & Stok
                     </CardTitle>
                     <CardDescription className="text-xs">
-                      Klik salah satu pertanyaan di bawah untuk langsung mengujinya:
+                      Klik salah satu pertanyaan di bawah untuk langsung menguji respon AI:
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-1.5">
                     {[
-                      "Apakah toko Super Komputer buka hari Minggu?",
-                      "Bagaimana cara klaim garansi laptop ASUS ROG saya?",
-                      "Berapa biaya ganti keyboard laptop Lenovo?",
-                      "Apakah bisa servis printer Epson yang blinking?",
-                      "Dimana alamat lengkap toko dan nomor teleponnya?",
+                      "stock battery dell latitude 7420 ready di super?",
+                      "Apakah ready LCD ASUS TUF Gaming 144Hz?",
+                      "Berapa harga SSD NVMe 512GB dan RAM DDR4 16GB?",
+                      "Apakah ready charger Type-C 65W original?",
+                      "Apakah jual lisensi windows 11 original?",
+                      "Bagaimana cara klaim garansi resmi laptop ASUS?",
                     ].map((prompt, idx) => (
                       <button
                         key={idx}
@@ -755,12 +1367,12 @@ export default function AiTraining() {
                   <CardContent className="p-4 text-xs space-y-2 text-muted-foreground">
                     <p className="font-semibold text-foreground flex items-center gap-1.5">
                       <CheckCircle2 className="h-4 w-4 text-primary" />
-                      Tips Pelatihan AI Efektif:
+                      Keuntungan Pelatihan Ready Stock AI:
                     </p>
                     <ul className="list-disc pl-4 space-y-1">
-                      <li>Gunakan poin-poin bertanda bullet (-) agar AI lebih mudah membaca struktur data.</li>
-                      <li>Sertakan info spesifik seperti nomor telepon, jam operasional, dan merk-merk yang didukung.</li>
-                      <li>Jika ada perubahan kebijakan atau harga baru, cukup ubah teks di tab Knowledge Base lalu klik <strong>Simpan</strong>.</li>
+                      <li>AI otomatis mengenali kecocokan model laptop pelanggan (misal Dell Latitude 7420) dengan sparepart ready stock.</li>
+                      <li>AI memberikan rincian harga, masa garansi toko, dan free jasa pasang secara percaya diri.</li>
+                      <li>AI menyertakan tombol WhatsApp Admin langsung untuk booking / keep barang agar calon pembeli tidak kabur.</li>
                     </ul>
                   </CardContent>
                 </Card>
@@ -768,6 +1380,149 @@ export default function AiTraining() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* ════ MODAL ADD / EDIT STOCK ITEM ════ */}
+        <Dialog open={stockModalOpen} onOpenChange={setStockModalOpen}>
+          <DialogContent className="sm:max-w-[550px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <Package className="h-5 w-5 text-emerald-500" />
+                {editingStockItem ? "Edit Sparepart & Stok" : "Tambah Sparepart Ready Stock Baru"}
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Masukkan detail sparepart atau produk agar AI dapat merekomendasikannya secara tepat kepada pelanggan.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-2 text-xs">
+              {/* Nama Sparepart */}
+              <div className="sm:col-span-2 space-y-1">
+                <Label className="text-xs font-semibold">Nama Sparepart / Produk *</Label>
+                <Input
+                  value={stockFormData.name}
+                  onChange={(e) => setStockFormData((prev) => ({ ...prev, name: e.target.value }))}
+                  placeholder="Contoh: Baterai Dell Latitude 7420 / 7320 Original 63Wh"
+                  className="text-xs"
+                />
+              </div>
+
+              {/* Kategori */}
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Kategori</Label>
+                <Select
+                  value={stockFormData.category}
+                  onValueChange={(val) => setStockFormData((prev) => ({ ...prev, category: val }))}
+                >
+                  <SelectTrigger className="text-xs h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STOCK_CATEGORIES.map((cat) => (
+                      <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Merek / Brand */}
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Merek / Brand Laptop</Label>
+                <Input
+                  value={stockFormData.brand}
+                  onChange={(e) => setStockFormData((prev) => ({ ...prev, brand: e.target.value }))}
+                  placeholder="Contoh: Dell, ASUS, Lenovo, Universal"
+                  className="text-xs"
+                />
+              </div>
+
+              {/* Kompatibilitas Tipe Laptop */}
+              <div className="sm:col-span-2 space-y-1">
+                <Label className="text-xs font-semibold">Kompatibilitas Tipe Laptop / Part Number</Label>
+                <Input
+                  value={stockFormData.compatibility}
+                  onChange={(e) => setStockFormData((prev) => ({ ...prev, compatibility: e.target.value }))}
+                  placeholder="Contoh: Dell Latitude 7420, 7320, 7520, Inspiron 14 7420 (Part No: 1V1XF, 4M15E)"
+                  className="text-xs"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Sertakan tipe laptop yang cocok agar AI mengenali saat pelanggan bertanya model spesifik.
+                </p>
+              </div>
+
+              {/* Status Stok */}
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Status Ketersediaan</Label>
+                <Select
+                  value={stockFormData.status}
+                  onValueChange={(val: any) => setStockFormData((prev) => ({ ...prev, status: val }))}
+                >
+                  <SelectTrigger className="text-xs h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ready" className="text-xs">✅ Ready Stock di Toko</SelectItem>
+                    <SelectItem value="po" className="text-xs">📦 Pre-Order / Indent 1-3 Hari</SelectItem>
+                    <SelectItem value="kosong" className="text-xs">❌ Habis / Kosong</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Jumlah Stok Fisik */}
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Jumlah Stok Fisik (Unit)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={stockFormData.stock_qty}
+                  onChange={(e) => setStockFormData((prev) => ({ ...prev, stock_qty: Number(e.target.value) || 0 }))}
+                  className="text-xs"
+                />
+              </div>
+
+              {/* Estimasi Harga & Jasa Pasang */}
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Estimasi Harga / Biaya Pasang</Label>
+                <Input
+                  value={stockFormData.price_range}
+                  onChange={(e) => setStockFormData((prev) => ({ ...prev, price_range: e.target.value }))}
+                  placeholder="Contoh: Rp 550.000 - Rp 750.000 (Termasuk Pasang)"
+                  className="text-xs"
+                />
+              </div>
+
+              {/* Masa Garansi */}
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Masa Garansi Toko</Label>
+                <Input
+                  value={stockFormData.warranty}
+                  onChange={(e) => setStockFormData((prev) => ({ ...prev, warranty: e.target.value }))}
+                  placeholder="Contoh: 6 Bulan Garansi Ganti Baru"
+                  className="text-xs"
+                />
+              </div>
+
+              {/* Catatan / Keunggulan */}
+              <div className="sm:col-span-2 space-y-1">
+                <Label className="text-xs font-semibold">Catatan / Keunggulan Tambahan</Label>
+                <Textarea
+                  value={stockFormData.notes}
+                  onChange={(e) => setStockFormData((prev) => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Contoh: Unit 100% Baru Original Grade A+. Gratis instalasi, cleaning soket, dan kalibrasi daya di toko."
+                  className="text-xs min-h-[60px]"
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" size="sm" onClick={() => setStockModalOpen(false)} className="text-xs">
+                Batal
+              </Button>
+              <Button size="sm" onClick={handleSaveStockItem} className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
+                {editingStockItem ? "Simpan Perubahan" : "Tambahkan ke Katalog"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

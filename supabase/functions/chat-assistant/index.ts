@@ -117,6 +117,117 @@ function safeEncodeURIComponent(str: string): string {
     .replace(/\*/g, "%2A").replace(/~/g, "%7E");
 }
 
+export const DEFAULT_READY_STOCK = [
+  {
+    id: "sp-dell-7420-bat",
+    category: "Baterai Laptop",
+    name: "Baterai Dell Latitude 7420 / 7320 / 7520 Original (63Wh / 4-Cell)",
+    brand: "Dell",
+    compatibility: "Dell Latitude 7420, 7320, 7520, Inspiron 14 7420 (Part No: 1V1XF, 4M15E, 63Wh / 42Wh)",
+    status: "ready",
+    stock_qty: 4,
+    price_range: "Rp 550.000 - Rp 750.000 (Termasuk Jasa Pasang & Kalibrasi)",
+    warranty: "6 Bulan Garansi Resmi Toko Ganti Baru",
+    notes: "Unit 100% Baru Original Grade A+. Gratis instalasi, cleaning soket, dan kalibrasi daya di toko.",
+  },
+  {
+    id: "sp-asus-tuf-bat",
+    category: "Baterai Laptop",
+    name: "Baterai ASUS TUF Gaming A15 / F15 / FX506 / FA506 Original",
+    brand: "ASUS",
+    compatibility: "ASUS TUF Gaming FX506, FA506, FX505, FA505, TUF Dash F15 (Tipe Baterai B31N1726 / B41N1711)",
+    status: "ready",
+    stock_qty: 6,
+    price_range: "Rp 450.000 - Rp 650.000 (Termasuk Pasang)",
+    warranty: "6 Bulan Garansi Toko Ganti Baru",
+    notes: "Original Resmi ASUS. Tersedia varian 48Wh dan 90Wh.",
+  },
+  {
+    id: "sp-lenovo-ideapad-bat",
+    category: "Baterai Laptop",
+    name: "Baterai Lenovo IdeaPad Slim 3 / Slim 5 / V14 / V15 Original",
+    brand: "Lenovo",
+    compatibility: "Lenovo IdeaPad Slim 3 14/15, Slim 5, V14, V15, Flex 5 (Part No: L19M3PF5, L19C3PF5)",
+    status: "ready",
+    stock_qty: 5,
+    price_range: "Rp 380.000 - Rp 550.000",
+    warranty: "6 Bulan Garansi Toko Ganti Baru",
+    notes: "Ready stok toko. Pemasangan cepat 30-45 menit bisa ditunggu.",
+  },
+  {
+    id: "sp-lcd-14-fhd",
+    category: "LCD / Screen",
+    name: "LCD Panel 14.0 Inch Full HD IPS Slim 30-Pin Frameless",
+    brand: "Universal",
+    compatibility: "ASUS VivoBook / ZenBook, Lenovo IdeaPad, Acer Aspire, HP 14s, Dell Latitude / Inspiron 14 inch",
+    status: "ready",
+    stock_qty: 8,
+    price_range: "Rp 750.000 - Rp 950.000 (Termasuk Pasang)",
+    warranty: "3 Bulan Garansi Toko (No Dead Pixel Guarantee)",
+    notes: "Panel Grade A+ No Dot / No Spot. Pengerjaan 30-60 menit.",
+  },
+  {
+    id: "sp-lcd-156-144hz",
+    category: "LCD / Screen",
+    name: "LCD Panel 15.6 Inch Full HD IPS 144Hz 40-Pin / 30-Pin Gaming",
+    brand: "Universal",
+    compatibility: "ASUS TUF FX505/FX506, ROG Strix, Lenovo Legion 5 / Gaming 3, Acer Nitro 5, HP Pavilion Gaming",
+    status: "ready",
+    stock_qty: 5,
+    price_range: "Rp 1.100.000 - Rp 1.350.000 (Termasuk Pasang)",
+    warranty: "3 Bulan Garansi Toko",
+    notes: "Refresh rate 144Hz 100% sRGB tajam dan responsif.",
+  },
+  {
+    id: "sp-ssd-nvme-512",
+    category: "SSD & Storage",
+    name: "SSD M.2 NVMe PCIe Gen3/Gen4 512GB & 1TB (Kingston / Samsung / Klevv)",
+    brand: "Universal",
+    compatibility: "Semua laptop dan PC dengan slot M.2 NVMe (ASUS, Lenovo, Dell, HP, Acer, MacBook via adapter)",
+    status: "ready",
+    stock_qty: 15,
+    price_range: "512GB: Rp 450.000 - Rp 550.000 | 1TB: Rp 850.000 - Rp 1.100.000",
+    warranty: "3 - 5 Tahun Garansi Resmi Distributor",
+    notes: "Free Jasa Pasang + Free Migrasi/Cloning Windows jika beli di toko.",
+  },
+  {
+    id: "sp-ram-sodimm",
+    category: "RAM Memory",
+    name: "RAM Laptop Sodimm DDR4 (3200MHz) & DDR5 (4800/5600MHz) 8GB / 16GB",
+    brand: "Universal",
+    compatibility: "Kompatibel untuk semua laptop Intel Core Gen 6-14 & AMD Ryzen 3000-8000 Series",
+    status: "ready",
+    stock_qty: 20,
+    price_range: "DDR4 8GB: Rp 280.000, 16GB: Rp 490.000 | DDR5 8GB: Rp 380.000, 16GB: Rp 680.000",
+    warranty: "Lifetime / Seumur Hidup Garansi Resmi",
+    notes: "Gratis pasang dan pengetesan dual-channel di toko.",
+  },
+  {
+    id: "sp-charger-typec",
+    category: "Charger / Adaptor",
+    name: "Adaptor Charger Universal Type-C 65W & 100W GaN Fast Charging",
+    brand: "Universal",
+    compatibility: "Dell Latitude (termasuk 7420 / 7320 / 5420), ASUS ZenBook / ROG Ally, Lenovo ThinkPad / Yoga, MacBook Air / Pro M1/M2/M3, HP Envy / Spectre",
+    status: "ready",
+    stock_qty: 10,
+    price_range: "65W: Rp 250.000 - Rp 350.000 | 100W: Rp 450.000 - Rp 550.000",
+    warranty: "6 Bulan Garansi Toko Ganti Baru",
+    notes: "Sudah dilengkapi smart chip proteksi arus berlebih dan kabel braided kuat.",
+  },
+  {
+    id: "sp-license-win-office",
+    category: "Aksesoris & Lisensi",
+    name: "Lisensi Digital Original Windows 10/11 Pro & Microsoft Office 2021 Professional Plus",
+    brand: "Universal",
+    compatibility: "Semua PC Desktop & Laptop",
+    status: "ready",
+    stock_qty: 99,
+    price_range: "Rp 150.000 / Lisensi",
+    warranty: "Garansi Aktivasi Permanen Seumur Hidup",
+    notes: "Aktivasi online resmi Microsoft, bukan bajakan/KMS. Bisa diupdate selamanya.",
+  },
+];
+
 // Model prioritas berdasarkan benchmark server-side (Supabase → Gemini API):
 // gemini-3.5-flash-lite: 987ms | gemini-3.1-flash-lite: 980ms
 // gemini-flash-lite-latest: 690ms | gemini-3.5-flash: 1629ms
@@ -449,6 +560,8 @@ ${formatGroup("4. Unit Close", unitClose)}
 `;
     }
 
+    const dynamicReadyStock = Array.isArray(cachedConfig?.ready_stock) ? cachedConfig.ready_stock : DEFAULT_READY_STOCK;
+
     // ═══ BUILD SYSTEM INSTRUCTION ═══
     let qaExamplesContext = "";
     if (dynamicQaExamples.length > 0) {
@@ -456,16 +569,55 @@ ${formatGroup("4. Unit Close", unitClose)}
         dynamicQaExamples.map((q: any) => `Tanya: ${q.question}\nJawab: ${q.answer}`).join("\n\n");
     }
 
+    let stockContext = "";
+    if (dynamicReadyStock.length > 0) {
+      stockContext = `\n[KATALOG REAL-TIME READY STOCK SPAREPART & PRODUK SUPER KOMPUTER]:\n` +
+        dynamicReadyStock.map((s: any, idx: number) => {
+          const stStr = s.status === "ready"
+            ? `✅ READY STOCK DI TOKO (Tersedia ${s.stock_qty || 1} unit)`
+            : s.status === "po"
+            ? `📦 PRE-ORDER / INDENT CEPAT (Estimasi 1-3 hari kerja)`
+            : `❌ HABIS / KOSONG`;
+          return `${idx + 1}. **${s.name}** (Merek: ${s.brand || "Universal"})
+   - Kategori: ${s.category}
+   - Kompatibilitas Tipe Laptop: ${s.compatibility || "-"}
+   - Status Ketersediaan: ${stStr}
+   - Estimasi Harga: ${s.price_range || "Konfirmasi Admin Toko"}
+   - Garansi Toko: ${s.warranty || "Garansi Toko Resmi"}
+   - Fasilitas & Catatan: ${s.notes || "-"}`;
+        }).join("\n\n");
+    }
+
     const systemInstruction = `
 ${dynamicSystemPrompt || `Kamu adalah "SuperBot", asisten AI resmi dari Super Komputer Balikpapan (SUMTRA).`}
 
-ATURAN PENTING ANTI-HALUSINASI:
+ATURAN PENTING ANTI-HALUSINASI DATA TIKET:
 - Hanya sampaikan data tiket/nomor HP yang BENAR-BENAR tercantum di bagian "DATA DARI DATABASE SUMTRA" di bawah.
 - Jika tidak ada data tiket/nomor HP di bawah, JANGAN mengarang atau mengklaim sudah mencari. Tanyakan ulang nomor HP/tiket yang benar.
 - Jika pelanggan mengoreksi nomor (misal "typo, depan nya 0851"), akui koreksinya dan sampaikan hasil pencarian yang sesuai dari data di bawah.
 
+ATURAN JAWABAN KETERSEDIAAN STOK SPAREPART, AKSESORIS & BIAYA PASANG:
+- Jika pelanggan menanyakan ketersediaan sparepart, baterai, LCD, keyboard, charger, SSD, RAM, atau lisensi (contoh: "stock battery dell latitude 7420 ready di super?", "apakah ada lcd asus tuf?", "ready ram ddr4 16gb?"):
+  1. Cari kecocokan di daftar "[KATALOG REAL-TIME READY STOCK SPAREPART & PRODUK SUPER KOMPUTER]" di bawah berdasarkan merek laptop, seri model, dan jenis sparepart.
+  2. JIKA COCOK & STATUS "READY STOCK DI TOKO":
+     - Jawab dengan ramah, lugas, dan yakin: "**✅ READY STOCK di Toko Super Komputer Balikpapan!**"
+     - Jelaskan spesifikasi/tipe sparepart, kompatibilitas unit, estimasi harga (termasuk free pemasangan jika ada), dan masa garansi resmi toko (misal 6 bulan ganti baru).
+     - Informasikan bahwa pemasangan bisa ditunggu di toko (Alamat: Jl. Ahmad Yani No.118, Balikpapan Tengah, Buka Senin-Sabtu 09.00 - 20.00 WITA).
+     - Sertakan tombol aksi WhatsApp Admin untuk booking / keep barang:
+       \`[Chat WhatsApp Admin Super Komputer](https://wa.me/${waAdminPhone}?text=${safeEncodeURIComponent("Halo Admin Super Komputer, saya ingin menanyakan / booking sparepart ready stock: ")})\`
+  3. JIKA STATUS "PRE-ORDER / INDENT":
+     - Sampaikan bahwa sparepart tersedia via **Pre-Order / Indent Cepat (1-3 hari kerja)** dengan estimasi harga dan garansi yang tercantum.
+     - Berikan link WhatsApp Admin untuk pemesanan langsung.
+  4. JIKA TIDAK DITEMUKAN DI KATALOG:
+     - Jelaskan bahwa Super Komputer melayani pengadaan & perbaikan sparepart multi-brand (ASUS, Dell, Lenovo, HP, Acer, Apple, MSI, dll.).
+     - Arahkan pelanggan untuk berkonsultasi langsung dengan Admin toko via WhatsApp (bisa kirim foto Serial Number/part number) agar dicekkan stok fisik gudang:
+       \`[Chat WhatsApp Admin Super Komputer](https://wa.me/${waAdminPhone}?text=${safeEncodeURIComponent("Halo Admin Super Komputer, saya ingin menanyakan ketersediaan sparepart laptop saya: ")})\`
+
 DATA DARI DATABASE SUMTRA:
 ${liveDynamicContext || "- Tidak ada data tiket khusus pada percakapan ini."}
+
+KATALOG READY STOCK PRODUK & SPAREPART:
+${stockContext || "- Belum ada katalog ready stock khusus."}
 
 KNOWLEDGE BASE TOKO (DYNAMIC TRAINED):
 ${dynamicKnowledgeBase}${qaExamplesContext}

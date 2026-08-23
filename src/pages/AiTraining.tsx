@@ -130,6 +130,11 @@ export const DEFAULT_QA_EXAMPLES: QaExample[] = [
     question: "stock battery laptop dell ada?",
     answer: "Halo! Kami menyediakan berbagai pilihan baterai laptop Dell baik original maupun compatible. Boleh diinfokan tipe atau seri lengkap laptop Dell yang Anda gunakan? (Contoh: **Dell Latitude 7420, Dell Inspiron 14 3467, Dell Vostro 3400, Dell XPS 13**, dll.)\n\n📌 **Cara mengecek tipe laptop Dell Anda:**\n1. Lihat stiker di casing bawah laptop pada tulisan **Model** atau **Service Tag (ST) / Serial Number**.\n2. Atau tekan tombol **Windows + R**, ketik `msinfo32`, lalu tekan Enter dan lihat kolom **System Model**.\n\nSilakan infokan tipe lengkapnya agar kami bisa langsung mengecek ketersediaan stok fisik di toko, estimasi biaya pasang, dan garansinya!",
   },
+  {
+    id: "qa-7",
+    question: "Dell 5420",
+    answer: "Halo! Untuk laptop Dell dengan nomor seri 5420, terdapat beberapa lini keluarga produk yang memiliki tipe baterai dan komponen yang berbeda:\n- **Dell Inspiron 5420** (Inspiron 14)\n- **Dell Latitude 5420**\n- **Dell Vostro 5420**\n\nBoleh dipastikan laptop Dell Anda masuk ke seri yang mana (Inspiron / Latitude / Vostro)?\n\n📌 **Cara mengecek tipe laptop Dell Anda:**\n1. Cek stiker di bagian bawah casing laptop (ada tulisan Inspiron / Latitude / Vostro serta *Service Tag*).\n2. Atau tekan tombol **Windows + R** di keyboard, ketik `msinfo32`, lalu Enter dan lihat pada kolom **System Model**.\n3. Atau foto stiker bawah laptop Anda dan kirimkan ke [Chat WhatsApp Admin Super Komputer](https://wa.me/628115404999) agar langsung dicekkan oleh teknisi kami!",
+  },
 ];
 
 export const DEFAULT_READY_STOCK: ReadyStockItem[] = [

@@ -259,6 +259,11 @@ export const DEFAULT_QA_EXAMPLES = [
     question: "stock battery laptop dell ada?",
     answer: "Halo! Kami menyediakan berbagai pilihan baterai laptop Dell baik original maupun compatible. Boleh diinfokan tipe atau seri lengkap laptop Dell yang Anda gunakan? (Contoh: **Dell Latitude 7420, Dell Inspiron 14 3467, Dell Vostro 3400, Dell XPS 13**, dll.)\n\n📌 **Cara mengecek tipe laptop Dell Anda:**\n1. Lihat stiker di casing bawah laptop pada tulisan **Model** atau **Service Tag (ST) / Serial Number**.\n2. Atau tekan tombol **Windows + R**, ketik `msinfo32`, lalu tekan Enter dan lihat kolom **System Model**.\n\nSilakan infokan tipe lengkapnya agar kami bisa langsung mengecek ketersediaan stok fisik di toko, estimasi biaya pasang, dan garansinya!",
   },
+  {
+    id: "qa-7",
+    question: "Dell 5420",
+    answer: "Halo! Untuk laptop Dell dengan nomor seri 5420, terdapat beberapa lini keluarga produk yang memiliki tipe baterai dan komponen yang berbeda:\n- **Dell Inspiron 5420** (Inspiron 14)\n- **Dell Latitude 5420**\n- **Dell Vostro 5420**\n\nBoleh dipastikan laptop Dell Anda masuk ke seri yang mana (Inspiron / Latitude / Vostro)?\n\n📌 **Cara mengecek tipe laptop Dell Anda:**\n1. Cek stiker di bagian bawah casing laptop (ada tulisan Inspiron / Latitude / Vostro serta *Service Tag*).\n2. Atau tekan tombol **Windows + R** di keyboard, ketik `msinfo32`, lalu Enter dan lihat pada kolom **System Model**.\n3. Atau foto stiker bawah laptop Anda dan kirimkan ke [Chat WhatsApp Admin Super Komputer](https://wa.me/628115404999) agar langsung dicekkan oleh teknisi kami!",
+  },
 ];
 
 // Model prioritas berdasarkan benchmark server-side (Supabase → Gemini API):
@@ -632,33 +637,48 @@ ATURAN PENTING ANTI-HALUSINASI DATA TIKET:
 - Jika pelanggan mengoreksi nomor (misal "typo, depan nya 0851"), akui koreksinya dan sampaikan hasil pencarian yang sesuai dari data di bawah.
 
 ATURAN JAWABAN KETERSEDIAAN STOK SPAREPART, AKSESORIS & BIAYA PASANG:
-1. **KLARIFIKASI WAJIB JIKA PERTANYAAN PELANGGAN MASIH UMUM / BELUM MENYEBUTKAN SERI SPESIFIK**:
-   - Jika pelanggan bertanya umum seperti: "stock battery laptop dell ada?", "ada baterai laptop asus?", "jual lcd lenovo?", "ada charger hp?", "ready keyboard acer?":
-     * JANGAN PERNAH langsung menjawab "✅ Ready Stock" dengan memilih satu tipe secara sembarangan atau acak!
-     * Tanyakan dengan ramah tipe atau seri lengkap laptop yang digunakan. Contoh: "Untuk laptop Dell tipe/seri apa yang ingin dicari baterainya ya Kak? (Misalnya: Dell Latitude 7420, Dell Inspiron 14 3467, Dell Vostro 3400, dll.)"
-     * Berikan panduan mudah cara mengecek tipe laptop:
-       📌 **Cara cek tipe laptop Anda:**
-       1) Lihat stiker di bagian bawah casing laptop (cari tulisan *Model* atau *Service Tag / Serial Number*).
-       2) Atau tekan tombol **Windows + R** di keyboard, ketik \`msinfo32\` lalu Enter, dan lihat pada kolom *System Model*.
-       3) Atau foto stiker bawah laptop / baterai lama dan kirimkan ke [Chat WhatsApp Admin Super Komputer](https://wa.me/${waAdminPhone}) agar langsung dibantu cekkan oleh tim teknisi kami.
+1. **KLARIFIKASI MEREK DENGAN BANYAK LINI KELUARGA (FAMILY / SUB-BRAND)** (SANGAT KRUSIAL!):
+   - Merek laptop seperti Dell, Asus, Lenovo, Acer, HP memiliki banyak lini keluarga produk dengan nomor seri serupa tapi suku cadang/baterai/layar SAMA SEKALI BERBEDA.
+   - **DELL** (Inspiron, Latitude, Vostro, XPS, G-Series, Precision):
+     * JIKA USER MENYEBUT "Dell 5420", "Dell 3400", "Dell 7420", "Dell 3467" ATAU HANYA NOMOR TANPA MENYEBUTKAN KELUARGA/SUB-BRAND:
+     * DILARANG MENEBAK atau mengasumsikan seri tertentu (DILARANG langsung tebak Latitude atau Inspiron)!
+     * WAJIB MENANYAKAN: "Untuk laptop Dell 5420, apakah yang Anda gunakan adalah seri **Dell Inspiron 5420**, **Dell Latitude 5420**, atau **Dell Vostro 5420**? Karena masing-masing seri memiliki tipe baterai dan komponen yang berbeda."
+     * Berikan panduan cek tipe laptop:
+       📌 **Cara cek tipe laptop Dell:**
+       1) Lihat stiker di casing bawah laptop (ada tulisan Inspiron / Latitude / Vostro serta *Service Tag*).
+       2) Atau tekan **Windows + R**, ketik \`msinfo32\`, lalu Enter dan lihat pada kolom *System Model*.
+       3) Atau foto stiker bawah laptop dan kirimkan ke [Chat WhatsApp Admin Super Komputer](https://wa.me/${waAdminPhone}) agar langsung dicekkan teknisi.
+   - **ASUS** (VivoBook, ZenBook, ROG, TUF Gaming, ExpertBook, seri X/A):
+     * Contoh "Asus X441": Minta 2 huruf belakang (**Asus X441UV, X441UA, X441NA, X441SA, X441NC, X441BA**, dll.).
+     * Contoh "Asus 14": Tanyakan VivoBook 14, ZenBook 14, atau ExpertBook 14.
+   - **LENOVO** (IdeaPad, ThinkPad, Legion, LOQ, Yoga, V-Series):
+     * Contoh "Lenovo 320": Tanyakan IdeaPad 320 atau V320.
+     * Contoh "Lenovo 14": Tanyakan IdeaPad Slim, ThinkPad, atau Yoga.
+   - **ACER** (Aspire, Swift, Nitro, Predator, Spin):
+     * Contoh "Acer 3" atau "Acer 5": Tanyakan Aspire 3 / Aspire 5 atau Swift 3 / Swift 5 atau Nitro 5.
+   - **HP** (Pavilion, Envy, Spectre, Omen, Victus, ProBook, seri 14s/15s).
 
-2. **KLARIFIKASI WAJIB JIKA PELANGGAN MENYEBUTKAN SERI DASAR YANG MEMILIKI BANYAK SUB-VARIAN**:
-   - Contoh kasus: "ada battery asus X441?", "baterai lenovo ideapad 3 ada?", "lcd acer aspire 3 ready?":
-     * Tanyakan sub-tipe / huruf di belakangnya secara detail: "Untuk laptop Asus X441, tipenya ada beberapa varian. Boleh diinfokan tipe lengkap Asus X441 apa yang Anda gunakan? (Misalnya 2 huruf di belakangnya seperti: **Asus X441UV, X441UA, X441NA, X441SA, X441NC, X441BA**, dll.)"
-     * Jelaskan cara mengecek: "Tipe lengkap dapat dilihat pada stiker di bagian bawah laptop atau di dekat touchpad keyboard."
-     * Tawarkan opsi kirim foto stiker via WhatsApp Admin.
+2. **KLARIFIKASI WAJIB JIKA PERTANYAAN TERLALU UMUM (TANPA NOMOR MODEL)**:
+   - Jika pertanyaan tanpa nomor model sama sekali (contoh: "stock battery laptop dell ada?", "ada baterai laptop asus?", "jual lcd lenovo?"):
+     * JANGAN PERNAH langsung menjawab "✅ Ready Stock" dengan memilih satu model secara acak!
+     * Tanyakan dengan ramah tipe dan nomor seri lengkap laptop yang digunakan serta berikan panduan 3 cara cek tipe laptop.
 
-3. **JAWAB "✅ READY STOCK DI TOKO" HANYA JIKA TIPE SUDAH SPESIFIK & COCOK DENGAN KATALOG**:
-   - Jika model spesifik cocok dengan "[KATALOG REAL-TIME READY STOCK SPAREPART & PRODUK SUPER KOMPUTER]" di bawah (contoh: "stock battery dell latitude 7420 ready di super?", "baterai asus tuf fx506", "lcd 15.6 144hz gaming", "ssd nvme 512gb", "charger type-c 65w"):
-     * Jawab dengan tegas dan ramah: "**✅ READY STOCK di Toko Super Komputer Balikpapan!**"
+3. **ATURAN KETAT PENCOCOKAN KATALOG READY STOCK (STRICT EXACT MATCH - NO GUESSING / NO FUZZY NUMBER)**:
+   - JAWAB "✅ READY STOCK DI TOKO" HANYA JIKA:
+     1) Pelanggan telah menyebutkan MEREK + KELUARGA + NOMOR SERI LENGKAP secara spesifik (Contoh: "Dell Latitude 7420", "ASUS TUF FX506", "Lenovo IdeaPad Slim 3").
+     2) Tipe tersebut EKSPLISIT tercantum dalam kolom Kompatibilitas Tipe Laptop di KATALOG REAL-TIME READY STOCK SPAREPART & PRODUK SUPER KOMPUTER.
+   - DILARANG MENGANGGAP COCOK JIKA NOMOR ATAU KELUARGANYA BERBEDA (misal "Dell Inspiron 5420" BUKAN "Dell Latitude 7420").
+   - Jika cocok di katalog:
+     * Jawab dengan tegas: "**✅ READY STOCK DI TOKO Super Komputer Balikpapan!**"
      * Tampilkan spesifikasi: Nama sparepart, kompatibilitas, rincian estimasi harga (termasuk gratis jasa pasang & kalibrasi di toko jika ada), dan masa garansi resmi toko (misal 6 bulan ganti baru).
      * Informasikan alamat toko (Jl. Ahmad Yani No.118 Balikpapan Tengah) & jam operasional (Senin-Sabtu 09.00 - 20.00 WITA).
      * Berikan tombol / link direct WhatsApp Admin untuk booking:
-       \`[Chat WhatsApp Admin Super Komputer](https://wa.me/${waAdminPhone}?text=${safeEncodeURIComponent("Halo Admin Super Komputer, saya ingin menanyakan / booking sparepart ready stock: ")})\`
+       [Chat WhatsApp Admin Super Komputer](https://wa.me/${waAdminPhone}?text=${safeEncodeURIComponent("Halo Admin Super Komputer, saya ingin menanyakan / booking sparepart ready stock: ")})
 
-4. **JIKA STATUS PRE-ORDER / INDENT ATAU TIDAK ADA DI KATALOG**:
-   - Jika status PRE-ORDER: Jelaskan estimasi 1-3 hari kerja, estimasi harga, garansi, dan link WhatsApp.
-   - Jika tidak ada di katalog: Jelaskan Super Komputer melayani sparepart multi-brand profesional, minta foto part / Serial Number ke WhatsApp Admin untuk dicekkan stok fisik gudang.
+4. **JIKA TIDAK ADA DI KATALOG READY STOCK (CONTOH: DELL INSPIRON 5420)**:
+   - Sampaikan dengan jujur dan ramah: "Untuk [Tipe Lengkap], saat ini stok fisik belum tersedia secara ready stock di etalase toko."
+   - Tawarkan solusi: "Namun kami bisa bantu sediakan via **Pre-Order / Indent Resmi (1-3 hari kerja)** atau teknisi kami bisa bantu cekkan ketersediaan stok fisik gudang/distributor."
+   - Berikan link direct WhatsApp Admin: [Chat WhatsApp Admin Super Komputer](https://wa.me/${waAdminPhone}?text=${safeEncodeURIComponent("Halo Admin Super Komputer, saya ingin menanyakan ketersediaan sparepart untuk: ")})
 
 DATA DARI DATABASE SUMTRA:
 ${liveDynamicContext || "- Tidak ada data tiket khusus pada percakapan ini."}

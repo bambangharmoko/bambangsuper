@@ -18,6 +18,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -318,6 +328,12 @@ export default function AiTraining() {
     notes: "",
   });
 
+  // Modern AlertDialog States (replaces native browser confirm popups)
+  const [deleteStockTarget, setDeleteStockTarget] = useState<ReadyStockItem | null>(null);
+  const [deleteQaTarget, setDeleteQaTarget] = useState<QaExample | null>(null);
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
+  const [confirmPresetOpen, setConfirmPresetOpen] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Simulator chat state
@@ -391,11 +407,9 @@ export default function AiTraining() {
     }
   };
 
-  // Reset to Default
-  const handleResetDefault = async () => {
-    if (!confirm("Apakah Anda yakin ingin mengembalikan seluruh pelatihan AI dan katalog Ready Stock ke standar bawaan sistem?")) {
-      return;
-    }
+  // Reset to Default Confirmation
+  const handleResetDefaultConfirm = async () => {
+    setConfirmResetOpen(false);
     setSaving(true);
     try {
       const { data, error } = await supabase.functions.invoke("manage-ai-settings", {
@@ -442,11 +456,14 @@ export default function AiTraining() {
     }));
   };
 
-  const removeQaExample = (id: string) => {
+  const handleDeleteQaConfirm = () => {
+    if (!deleteQaTarget) return;
     setConfig((prev) => ({
       ...prev,
-      qa_examples: prev.qa_examples.filter((item) => item.id !== id),
+      qa_examples: prev.qa_examples.filter((item) => item.id !== deleteQaTarget.id),
     }));
+    toast.success("Contoh tanya-jawab berhasil dihapus.");
+    setDeleteQaTarget(null);
   };
 
   // Ready Stock Handlers
@@ -511,13 +528,15 @@ export default function AiTraining() {
     setStockModalOpen(false);
   };
 
-  const handleDeleteStockItem = (id: string, name: string) => {
-    if (!confirm(`Hapus "${name}" dari katalog ready stock?`)) return;
+  const handleDeleteStockConfirm = () => {
+    if (!deleteStockTarget) return;
+    const { id, name } = deleteStockTarget;
     setConfig((prev) => ({
       ...prev,
       ready_stock: prev.ready_stock.filter((s) => s.id !== id),
     }));
-    toast.success("Sparepart berhasil dihapus.");
+    toast.success(`Sparepart "${name}" berhasil dihapus.`);
+    setDeleteStockTarget(null);
   };
 
   const handleQuickToggleStockStatus = (id: string, newStatus: "ready" | "po" | "kosong") => {
@@ -528,10 +547,8 @@ export default function AiTraining() {
     toast.success(`Status stok diubah.`);
   };
 
-  const handleLoadDefaultStockPreset = () => {
-    if (!confirm("Muat daftar template sparepart lengkap? Ini akan menggabungkan contoh sparepart populer.")) {
-      return;
-    }
+  const handleLoadDefaultStockPresetConfirm = () => {
+    setConfirmPresetOpen(false);
     setConfig((prev) => {
       const existingIds = new Set(prev.ready_stock.map((s) => s.id));
       const newItems = DEFAULT_READY_STOCK.filter((s) => !existingIds.has(s.id));
@@ -690,7 +707,7 @@ export default function AiTraining() {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleResetDefault}
+              onClick={() => setConfirmResetOpen(true)}
               disabled={saving}
               className="text-xs gap-1.5"
             >
@@ -799,7 +816,7 @@ export default function AiTraining() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={handleLoadDefaultStockPreset}
+                      onClick={() => setConfirmPresetOpen(true)}
                       className="text-xs h-8 gap-1.5 bg-background"
                       title="Muat contoh preset populer"
                     >
@@ -945,7 +962,7 @@ export default function AiTraining() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDeleteStockItem(item.id, item.name)}
+                              onClick={() => setDeleteStockTarget(item)}
                               className="h-7 w-7 text-muted-foreground hover:text-destructive"
                               title="Hapus Sparepart"
                             >
@@ -1242,7 +1259,7 @@ export default function AiTraining() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => removeQaExample(item.id)}
+                            onClick={() => setDeleteQaTarget(item)}
                             className="h-7 w-7 text-muted-foreground hover:text-destructive"
                             title="Hapus Contoh"
                           >
@@ -1561,6 +1578,112 @@ export default function AiTraining() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* ════ ALERT DIALOG: HAPUS STOCK ITEM ════ */}
+        <AlertDialog
+          open={!!deleteStockTarget}
+          onOpenChange={(open) => !open && setDeleteStockTarget(null)}
+        >
+          <AlertDialogContent className="sm:max-w-[450px]">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2 text-destructive text-base">
+                <Trash2 className="h-5 w-5" />
+                Hapus Sparepart dari Katalog?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-xs leading-relaxed text-muted-foreground pt-1">
+                Apakah Anda yakin ingin menghapus{" "}
+                <strong className="text-foreground font-semibold">
+                  "{deleteStockTarget?.name}"
+                </strong>{" "}
+                dari katalog ready stock? AI SuperBot tidak akan lagi merekomendasikan stok barang ini di toko.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2 sm:gap-0 mt-2">
+              <AlertDialogCancel className="text-xs">Batal</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteStockConfirm}
+                className="text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Hapus Sparepart
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* ════ ALERT DIALOG: RESET KE DEFAULT ════ */}
+        <AlertDialog open={confirmResetOpen} onOpenChange={setConfirmResetOpen}>
+          <AlertDialogContent className="sm:max-w-[450px]">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2 text-destructive text-base">
+                <RotateCcw className="h-5 w-5" />
+                Kembalikan ke Standar Awal?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-xs leading-relaxed text-muted-foreground pt-1">
+                Tindakan ini akan mengembalikan seluruh pelatihan AI, Knowledge Base, aturan persona, Q&A, dan katalog Ready Stock ke standar awal bawaan sistem.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2 sm:gap-0 mt-2">
+              <AlertDialogCancel className="text-xs">Batal</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleResetDefaultConfirm}
+                className="text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Reset ke Standar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* ════ ALERT DIALOG: MUAT PRESET POPULER ════ */}
+        <AlertDialog open={confirmPresetOpen} onOpenChange={setConfirmPresetOpen}>
+          <AlertDialogContent className="sm:max-w-[450px]">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2 text-primary text-base">
+                <Sparkles className="h-5 w-5 text-amber-500" />
+                Muat Preset Sparepart Populer?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-xs leading-relaxed text-muted-foreground pt-1">
+                Ini akan menambahkan daftar contoh sparepart populer (Baterai Dell 7420, ASUS TUF, LCD 144Hz, SSD NVMe, RAM, Charger Type-C) ke dalam katalog Anda tanpa menghapus item yang sudah ada.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2 sm:gap-0 mt-2">
+              <AlertDialogCancel className="text-xs">Batal</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleLoadDefaultStockPresetConfirm}
+                className="text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                Muat Preset
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* ════ ALERT DIALOG: HAPUS CONTOH Q&A ════ */}
+        <AlertDialog
+          open={!!deleteQaTarget}
+          onOpenChange={(open) => !open && setDeleteQaTarget(null)}
+        >
+          <AlertDialogContent className="sm:max-w-[450px]">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2 text-destructive text-base">
+                <Trash2 className="h-5 w-5" />
+                Hapus Contoh Tanya-Jawab?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-xs leading-relaxed text-muted-foreground pt-1">
+                Apakah Anda yakin ingin menghapus contoh latihan tanya-jawab ini dari data few-shot AI?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2 sm:gap-0 mt-2">
+              <AlertDialogCancel className="text-xs">Batal</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteQaConfirm}
+                className="text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Hapus Contoh
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );

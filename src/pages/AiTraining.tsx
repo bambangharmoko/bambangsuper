@@ -155,30 +155,8 @@ export const DEFAULT_READY_STOCK: ReadyStockItem[] = [
     compatibility: "Dell Latitude 7420, 7320, 7520, Inspiron 14 7420 (Part No: 1V1XF, 4M15E, 63Wh / 42Wh)",
     status: "ready",
     price_range: "Rp 550.000 - Rp 750.000 (Termasuk Jasa Pasang & Kalibrasi)",
-    warranty: "6 Bulan Garansi Resmi Toko Ganti Baru",
+    warranty: "1 Bulan Garansi Resmi Toko Ganti Baru",
     notes: "Unit 100% Baru Original Grade A+. Gratis instalasi, cleaning soket, dan kalibrasi daya di toko.",
-  },
-  {
-    id: "sp-asus-tuf-bat",
-    category: "Baterai Laptop",
-    name: "Baterai ASUS TUF Gaming A15 / F15 / FX506 / FA506 Original",
-    brand: "ASUS",
-    compatibility: "ASUS TUF Gaming FX506, FA506, FX505, FA505, TUF Dash F15 (Tipe Baterai B31N1726 / B41N1711)",
-    status: "ready",
-    price_range: "Rp 450.000 - Rp 650.000 (Termasuk Pasang)",
-    warranty: "6 Bulan Garansi Toko Ganti Baru",
-    notes: "Original Resmi ASUS. Tersedia varian 48Wh dan 90Wh.",
-  },
-  {
-    id: "sp-lenovo-ideapad-bat",
-    category: "Baterai Laptop",
-    name: "Baterai Lenovo IdeaPad Slim 3 / Slim 5 / V14 / V15 Original",
-    brand: "Lenovo",
-    compatibility: "Lenovo IdeaPad Slim 3 14/15, Slim 5, V14, V15, Flex 5 (Part No: L19M3PF5, L19C3PF5)",
-    status: "ready",
-    price_range: "Rp 380.000 - Rp 550.000",
-    warranty: "6 Bulan Garansi Toko Ganti Baru",
-    notes: "Ready stok toko. Pemasangan cepat 30-45 menit bisa ditunggu.",
   },
   {
     id: "sp-lcd-14-fhd",
@@ -188,19 +166,8 @@ export const DEFAULT_READY_STOCK: ReadyStockItem[] = [
     compatibility: "ASUS VivoBook / ZenBook, Lenovo IdeaPad, Acer Aspire, HP 14s, Dell Latitude / Inspiron 14 inch",
     status: "ready",
     price_range: "Rp 750.000 - Rp 950.000 (Termasuk Pasang)",
-    warranty: "3 Bulan Garansi Toko (No Dead Pixel Guarantee)",
+    warranty: "1 Bulan Garansi Toko (No Dead Pixel Guarantee)",
     notes: "Panel Grade A+ No Dot / No Spot. Pengerjaan 30-60 menit.",
-  },
-  {
-    id: "sp-lcd-156-144hz",
-    category: "LCD / Screen",
-    name: "LCD Panel 15.6 Inch Full HD IPS 144Hz 40-Pin / 30-Pin Gaming",
-    brand: "Universal",
-    compatibility: "ASUS TUF FX505/FX506, ROG Strix, Lenovo Legion 5 / Gaming 3, Acer Nitro 5, HP Pavilion Gaming",
-    status: "ready",
-    price_range: "Rp 1.100.000 - Rp 1.350.000 (Termasuk Pasang)",
-    warranty: "3 Bulan Garansi Toko",
-    notes: "Refresh rate 144Hz 100% sRGB tajam dan responsif.",
   },
   {
     id: "sp-ssd-nvme-512",
@@ -210,7 +177,7 @@ export const DEFAULT_READY_STOCK: ReadyStockItem[] = [
     compatibility: "Semua laptop dan PC dengan slot M.2 NVMe (ASUS, Lenovo, Dell, HP, Acer, MacBook via adapter)",
     status: "ready",
     price_range: "512GB: Rp 450.000 - Rp 550.000 | 1TB: Rp 850.000 - Rp 1.100.000",
-    warranty: "3 - 5 Tahun Garansi Resmi Distributor",
+    warranty: "1 Tahun Garansi Toko",
     notes: "Free Jasa Pasang + Free Migrasi/Cloning Windows jika beli di toko.",
   },
   {
@@ -223,17 +190,6 @@ export const DEFAULT_READY_STOCK: ReadyStockItem[] = [
     price_range: "DDR4 8GB: Rp 280.000, 16GB: Rp 490.000 | DDR5 8GB: Rp 380.000, 16GB: Rp 680.000",
     warranty: "Lifetime / Seumur Hidup Garansi Resmi",
     notes: "Gratis pasang dan pengetesan dual-channel di toko.",
-  },
-  {
-    id: "sp-charger-typec",
-    category: "Charger / Adaptor",
-    name: "Adaptor Charger Universal Type-C 65W & 100W GaN Fast Charging",
-    brand: "Universal",
-    compatibility: "Dell Latitude (termasuk 7420 / 7320 / 5420), ASUS ZenBook / ROG Ally, Lenovo ThinkPad / Yoga, MacBook Air / Pro M1/M2/M3, HP Envy / Spectre",
-    status: "ready",
-    price_range: "65W: Rp 250.000 - Rp 350.000 | 100W: Rp 450.000 - Rp 550.000",
-    warranty: "6 Bulan Garansi Toko Ganti Baru",
-    notes: "Sudah dilengkapi smart chip proteksi arus berlebih dan kabel braided kuat.",
   },
   {
     id: "sp-license-win-office",
@@ -320,7 +276,6 @@ export default function AiTraining() {
   // Modern AlertDialog States (replaces native browser confirm popups)
   const [deleteStockTarget, setDeleteStockTarget] = useState<ReadyStockItem | null>(null);
   const [deleteQaTarget, setDeleteQaTarget] = useState<QaExample | null>(null);
-  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const [confirmPresetOpen, setConfirmPresetOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -347,12 +302,12 @@ export default function AiTraining() {
       if (error) throw error;
       if (data?.data) {
         setConfig({
-          knowledge_base: data.data.knowledge_base || "",
-          system_prompt: data.data.system_prompt || "",
-          qa_examples: Array.isArray(data.data.qa_examples) && data.data.qa_examples.length > 0
+          knowledge_base: typeof data.data.knowledge_base === "string" ? data.data.knowledge_base : "",
+          system_prompt: typeof data.data.system_prompt === "string" ? data.data.system_prompt : "",
+          qa_examples: Array.isArray(data.data.qa_examples)
             ? data.data.qa_examples
             : DEFAULT_QA_EXAMPLES,
-          ready_stock: Array.isArray(data.data.ready_stock) && data.data.ready_stock.length > 0
+          ready_stock: Array.isArray(data.data.ready_stock)
             ? data.data.ready_stock
             : DEFAULT_READY_STOCK,
           temperature: typeof data.data.temperature === "number" ? data.data.temperature : 0.1,
@@ -391,26 +346,6 @@ export default function AiTraining() {
     } catch (err: any) {
       console.error("Gagal menyimpan pengaturan AI:", err);
       toast.error(err?.message || "Gagal menyimpan pelatihan AI");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Reset to Default Confirmation
-  const handleResetDefaultConfirm = async () => {
-    setConfirmResetOpen(false);
-    setSaving(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("manage-ai-settings", {
-        body: { action: "reset_default" },
-      });
-      if (error) throw error;
-      toast.success("Pengaturan AI berhasil dikembalikan ke standar awal.");
-      if (data?.data) {
-        setConfig(data.data);
-      }
-    } catch (err: any) {
-      toast.error(err?.message || "Gagal reset pengaturan AI");
     } finally {
       setSaving(false);
     }
@@ -691,16 +626,6 @@ export default function AiTraining() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setConfirmResetOpen(true)}
-              disabled={saving}
-              className="text-xs gap-1.5"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              Reset Standar
-            </Button>
             <Button
               size="sm"
               onClick={handleSave}
@@ -1577,30 +1502,6 @@ export default function AiTraining() {
                 className="text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
                 Hapus Sparepart
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        {/* ════ ALERT DIALOG: RESET KE DEFAULT ════ */}
-        <AlertDialog open={confirmResetOpen} onOpenChange={setConfirmResetOpen}>
-          <AlertDialogContent className="sm:max-w-[450px]">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center gap-2 text-destructive text-base">
-                <RotateCcw className="h-5 w-5" />
-                Kembalikan ke Standar Awal?
-              </AlertDialogTitle>
-              <AlertDialogDescription className="text-xs leading-relaxed text-muted-foreground pt-1">
-                Tindakan ini akan mengembalikan seluruh pelatihan AI, Knowledge Base, aturan persona, Q&A, dan katalog Ready Stock ke standar awal bawaan sistem.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="gap-2 sm:gap-0 mt-2">
-              <AlertDialogCancel className="text-xs">Batal</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleResetDefaultConfirm}
-                className="text-xs bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                Reset ke Standar
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

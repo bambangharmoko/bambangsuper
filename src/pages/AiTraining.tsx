@@ -99,6 +99,39 @@ export const STOCK_CATEGORIES = [
   "Lainnya",
 ];
 
+export const DEFAULT_QA_EXAMPLES: QaExample[] = [
+  {
+    id: "qa-1",
+    question: "Apakah Super Komputer adalah service center resmi ASUS di Balikpapan?",
+    answer: "Ya, benar sekali! Super Komputer adalah Authorized Service Center Resmi ASUS di Balikpapan. Kami melayani perbaikan resmi dan klaim garansi produk ASUS (ROG, TUF Gaming, ZenBook, VivoBook, ExpertBook, All-in-One PC) dengan jaminan 100% sparepart original ASUS.",
+  },
+  {
+    id: "qa-2",
+    question: "Apakah bisa servis laptop selain merek ASUS?",
+    answer: "Tentu saja bisa! Kami melayani perbaikan multi-brand profesional non-garansi untuk semua merek laptop seperti Lenovo, Acer, HP, Dell, MSI, Axioo, hingga Apple MacBook dengan garansi servis toko resmi 1 hingga 3 bulan.",
+  },
+  {
+    id: "qa-3",
+    question: "Apakah bisa mengecek status tiket servis menggunakan nomor WhatsApp?",
+    answer: "Tentu saja bisa! Anda cukup mengetikkan nomor HP/WhatsApp yang didaftarkan saat menyerahkan unit servis, maka SuperBot akan menampilkan seluruh daftar tiket servis Anda yang terbagi dalam 4 kategori status.",
+  },
+  {
+    id: "qa-4",
+    question: "Dimana lokasi toko dan jam operasionalnya?",
+    answer: "Toko kami beralamat di Jl. Ahmad Yani No.118, Gunung Sari Ilir, Balikpapan Tengah (Google Maps: https://maps.app.goo.gl/37n98csWeGpB4siH8). Kami buka setiap hari Senin - Sabtu pukul 09.00 s/d 20.00 WITA (Minggu & Hari Libur Nasional Tutup).",
+  },
+  {
+    id: "qa-5",
+    question: "ada battery asus X441?",
+    answer: "Halo! Untuk laptop Asus seri X441 terdapat beberapa varian tipe. Boleh diinfokan tipe lengkap Asus X441 apa yang Anda gunakan? (Contohnya: **Asus X441UV, X441UA, X441NA, X441SA, X441NC, X441BA**, dll.)\n\n📌 **Cara mengecek tipe lengkapnya:**\n1. Cek stiker putih/hitam di bagian bawah casing laptop pada tulisan **Model: X441...**\n2. Atau lihat stiker spesifikasi di dekat keyboard / touchpad.\n3. Atau tekan tombol **Windows + R** di keyboard, ketik `msinfo32`, lalu tekan Enter dan lihat pada kolom **System Model**.\n\nSilakan sebutkan tipe lengkapnya di sini atau kirimkan foto stiker bawah laptop Anda ke [Chat WhatsApp Admin Super Komputer](https://wa.me/628115404999) agar kami bisa bantu cekkan ketersediaan stok baterai yang 100% cocok!",
+  },
+  {
+    id: "qa-6",
+    question: "stock battery laptop dell ada?",
+    answer: "Halo! Kami menyediakan berbagai pilihan baterai laptop Dell baik original maupun compatible. Boleh diinfokan tipe atau seri lengkap laptop Dell yang Anda gunakan? (Contoh: **Dell Latitude 7420, Dell Inspiron 14 3467, Dell Vostro 3400, Dell XPS 13**, dll.)\n\n📌 **Cara mengecek tipe laptop Dell Anda:**\n1. Lihat stiker di casing bawah laptop pada tulisan **Model** atau **Service Tag (ST) / Serial Number**.\n2. Atau tekan tombol **Windows + R**, ketik `msinfo32`, lalu tekan Enter dan lihat kolom **System Model**.\n\nSilakan infokan tipe lengkapnya agar kami bisa langsung mengecek ketersediaan stok fisik di toko, estimasi biaya pasang, dan garansinya!",
+  },
+];
+
 export const DEFAULT_READY_STOCK: ReadyStockItem[] = [
   {
     id: "sp-dell-7420-bat",
@@ -248,7 +281,7 @@ export default function AiTraining() {
   const [config, setConfig] = useState<AiConfigData>({
     knowledge_base: "",
     system_prompt: "",
-    qa_examples: [],
+    qa_examples: DEFAULT_QA_EXAMPLES,
     ready_stock: DEFAULT_READY_STOCK,
     temperature: 0.1,
     stale_unassigned_hours: 24,
@@ -306,7 +339,9 @@ export default function AiTraining() {
         setConfig({
           knowledge_base: data.data.knowledge_base || "",
           system_prompt: data.data.system_prompt || "",
-          qa_examples: Array.isArray(data.data.qa_examples) ? data.data.qa_examples : [],
+          qa_examples: Array.isArray(data.data.qa_examples) && data.data.qa_examples.length > 0
+            ? data.data.qa_examples
+            : DEFAULT_QA_EXAMPLES,
           ready_stock: Array.isArray(data.data.ready_stock) && data.data.ready_stock.length > 0
             ? data.data.ready_stock
             : DEFAULT_READY_STOCK,
@@ -449,7 +484,6 @@ export default function AiTraining() {
     }
 
     if (editingStockItem) {
-      // Update existing
       setConfig((prev) => ({
         ...prev,
         ready_stock: prev.ready_stock.map((s) =>
@@ -458,7 +492,6 @@ export default function AiTraining() {
       }));
       toast.success(`Sparepart "${stockFormData.name}" berhasil diperbarui.`);
     } else {
-      // Add new
       const newItem: ReadyStockItem = {
         id: `sp-${Date.now()}`,
         ...stockFormData,
@@ -644,7 +677,7 @@ export default function AiTraining() {
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground">
-              Latih otak AI SuperBot dengan katalog ready stock sparepart, knowledge base toko, kebijakan garansi, dan SOP tanpa perlu coding.
+              Latih otak AI SuperBot dengan katalog ready stock sparepart, knowledge base toko, aturan klarifikasi, dan SOP tanpa perlu coding.
             </p>
           </div>
 
@@ -753,7 +786,7 @@ export default function AiTraining() {
                       Katalog Ready Stock Sparepart & Aksesoris
                     </CardTitle>
                     <CardDescription className="text-xs">
-                      AI SuperBot akan menjawab pertanyaan stok fisik pelanggan secara akurat (contoh: "baterai dell latitude 7420", "lcd asus tuf", "ssd 512gb").
+                      AI SuperBot akan menjawab ketersediaan stok fisik secara presisi jika tipe laptop spesifik, dan membantu klarifikasi jika pertanyaan pelanggan masih umum.
                     </CardDescription>
                   </div>
 
@@ -1053,7 +1086,7 @@ export default function AiTraining() {
                     Instruksi Kepribadian & Gaya Bahasa AI
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    Perintah sistem untuk mengatur kepribadian, batasan privasi, format tautan, dan nada komunikasi SuperBot.
+                    Perintah sistem untuk mengatur kepribadian, batasan privasi, aturan klarifikasi tipe laptop, dan nada komunikasi SuperBot.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1172,7 +1205,7 @@ export default function AiTraining() {
                       Pelatihan Contoh Tanya-Jawab (Few-Shot Q&A)
                     </CardTitle>
                     <CardDescription className="text-xs">
-                      AI akan meniru pola, intonasi, dan jawaban spesifik yang Anda contohkan di bawah ini.
+                      AI akan meniru pola, intonasi keramahan, dan cara klarifikasi detail spesifik sesuai contoh di bawah.
                     </CardDescription>
                   </div>
                   <Button size="sm" onClick={addQaExample} className="gap-1.5 text-xs">
@@ -1219,7 +1252,7 @@ export default function AiTraining() {
                           <Input
                             value={item.question}
                             onChange={(e) => updateQaExample(item.id, "question", e.target.value)}
-                            placeholder="Contoh: Berapa lama waktu servis laptop mati total?"
+                            placeholder="Contoh: ada battery asus X441?"
                             className="text-xs bg-background"
                           />
                         </div>
@@ -1231,8 +1264,8 @@ export default function AiTraining() {
                           <Textarea
                             value={item.answer}
                             onChange={(e) => updateQaExample(item.id, "answer", e.target.value)}
-                            placeholder="Tuliskan jawaban yang ramah, jelas, dan akurat..."
-                            className="text-xs min-h-[70px] bg-background"
+                            placeholder="Tuliskan jawaban yang ramah, membantu klarifikasi tipe laptop, dan jelas..."
+                            className="text-xs min-h-[90px] bg-background font-sans"
                           />
                         </div>
                       </div>
@@ -1255,7 +1288,7 @@ export default function AiTraining() {
                     </div>
                     <div>
                       <h3 className="font-bold text-sm">SuperBot Sandbox Simulator</h3>
-                      <p className="text-[10px] text-muted-foreground">Menguji data pelatihan & ready stock terkini secara langsung</p>
+                      <p className="text-[10px] text-muted-foreground">Menguji data pelatihan & aturan klarifikasi stok secara langsung</p>
                     </div>
                   </div>
                   <Button
@@ -1314,7 +1347,7 @@ export default function AiTraining() {
                     value={inputTest}
                     onChange={(e) => setInputTest(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendTestMessage()}
-                    placeholder="Ketik pertanyaan untuk mengetes AI (contoh: stock battery dell latitude 7420 ready di super?)..."
+                    placeholder="Ketik pertanyaan untuk mengetes AI (contoh: ada battery asus X441?)..."
                     className="text-xs"
                     disabled={testingAi}
                   />
@@ -1335,20 +1368,20 @@ export default function AiTraining() {
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm flex items-center gap-1.5">
                       <Lightbulb className="h-4 w-4 text-amber-500" />
-                      Uji Pertanyaan Populer & Stok
+                      Uji Pertanyaan Populer & Klarifikasi
                     </CardTitle>
                     <CardDescription className="text-xs">
-                      Klik salah satu pertanyaan di bawah untuk langsung menguji respon AI:
+                      Klik salah satu pertanyaan di bawah untuk menguji respon AI:
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-1.5">
                     {[
+                      "ada battery asus X441?",
+                      "stock battery laptop dell ada?",
                       "stock battery dell latitude 7420 ready di super?",
                       "Apakah ready LCD ASUS TUF Gaming 144Hz?",
                       "Berapa harga SSD NVMe 512GB dan RAM DDR4 16GB?",
-                      "Apakah ready charger Type-C 65W original?",
                       "Apakah jual lisensi windows 11 original?",
-                      "Bagaimana cara klaim garansi resmi laptop ASUS?",
                     ].map((prompt, idx) => (
                       <button
                         key={idx}
@@ -1367,12 +1400,12 @@ export default function AiTraining() {
                   <CardContent className="p-4 text-xs space-y-2 text-muted-foreground">
                     <p className="font-semibold text-foreground flex items-center gap-1.5">
                       <CheckCircle2 className="h-4 w-4 text-primary" />
-                      Keuntungan Pelatihan Ready Stock AI:
+                      Aturan Klarifikasi Cerdas AI:
                     </p>
                     <ul className="list-disc pl-4 space-y-1">
-                      <li>AI otomatis mengenali kecocokan model laptop pelanggan (misal Dell Latitude 7420) dengan sparepart ready stock.</li>
-                      <li>AI memberikan rincian harga, masa garansi toko, dan free jasa pasang secara percaya diri.</li>
-                      <li>AI menyertakan tombol WhatsApp Admin langsung untuk booking / keep barang agar calon pembeli tidak kabur.</li>
+                      <li><strong>Jika pertanyaan umum</strong> (misal: "ada baterai dell?"): AI bertanya seri/tipe lengkap dan memberi panduan cara cek tipe laptop.</li>
+                      <li><strong>Jika seri memiliki banyak sub-varian</strong> (misal: "Asus X441"): AI meminta 2 huruf di belakangnya (X441UV, X441UA, X441NC, dll.).</li>
+                      <li><strong>Jika tipe sudah spesifik & cocok</strong> (misal: "Dell Latitude 7420"): AI langsung menjawab "Ready Stock" lengkap dengan harga, garansi, dan link booking WhatsApp.</li>
                     </ul>
                   </CardContent>
                 </Card>

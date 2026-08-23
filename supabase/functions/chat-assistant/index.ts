@@ -228,6 +228,39 @@ export const DEFAULT_READY_STOCK = [
   },
 ];
 
+export const DEFAULT_QA_EXAMPLES = [
+  {
+    id: "qa-1",
+    question: "Apakah Super Komputer adalah service center resmi ASUS di Balikpapan?",
+    answer: "Ya, benar sekali! Super Komputer adalah Authorized Service Center Resmi ASUS di Balikpapan. Kami melayani perbaikan resmi dan klaim garansi produk ASUS (ROG, TUF Gaming, ZenBook, VivoBook, ExpertBook, All-in-One PC) dengan jaminan 100% sparepart original ASUS.",
+  },
+  {
+    id: "qa-2",
+    question: "Apakah bisa servis laptop selain merek ASUS?",
+    answer: "Tentu saja bisa! Kami melayani perbaikan multi-brand profesional non-garansi untuk semua merek laptop seperti Lenovo, Acer, HP, Dell, MSI, Axioo, hingga Apple MacBook dengan garansi servis toko resmi 1 hingga 3 bulan.",
+  },
+  {
+    id: "qa-3",
+    question: "Apakah bisa mengecek status tiket servis menggunakan nomor WhatsApp?",
+    answer: "Tentu saja bisa! Anda cukup mengetikkan nomor HP/WhatsApp yang didaftarkan saat menyerahkan unit servis, maka SuperBot akan menampilkan seluruh daftar tiket servis Anda yang terbagi dalam 4 kategori status.",
+  },
+  {
+    id: "qa-4",
+    question: "Dimana lokasi toko dan jam operasionalnya?",
+    answer: "Toko kami beralamat di Jl. Ahmad Yani No.118, Gunung Sari Ilir, Balikpapan Tengah (Google Maps: https://maps.app.goo.gl/37n98csWeGpB4siH8). Kami buka setiap hari Senin - Sabtu pukul 09.00 s/d 20.00 WITA (Minggu & Hari Libur Nasional Tutup).",
+  },
+  {
+    id: "qa-5",
+    question: "ada battery asus X441?",
+    answer: "Halo! Untuk laptop Asus seri X441 terdapat beberapa varian tipe. Boleh diinfokan tipe lengkap Asus X441 apa yang Anda gunakan? (Contohnya: **Asus X441UV, X441UA, X441NA, X441SA, X441NC, X441BA**, dll.)\n\n📌 **Cara mengecek tipe lengkapnya:**\n1. Cek stiker putih/hitam di bagian bawah casing laptop pada tulisan **Model: X441...**\n2. Atau lihat stiker spesifikasi di dekat keyboard / touchpad.\n3. Atau tekan tombol **Windows + R** di keyboard, ketik `msinfo32`, lalu tekan Enter dan lihat pada kolom **System Model**.\n\nSilakan sebutkan tipe lengkapnya di sini atau kirimkan foto stiker bawah laptop Anda ke [Chat WhatsApp Admin Super Komputer](https://wa.me/628115404999) agar kami bisa bantu cekkan ketersediaan stok baterai yang 100% cocok!",
+  },
+  {
+    id: "qa-6",
+    question: "stock battery laptop dell ada?",
+    answer: "Halo! Kami menyediakan berbagai pilihan baterai laptop Dell baik original maupun compatible. Boleh diinfokan tipe atau seri lengkap laptop Dell yang Anda gunakan? (Contoh: **Dell Latitude 7420, Dell Inspiron 14 3467, Dell Vostro 3400, Dell XPS 13**, dll.)\n\n📌 **Cara mengecek tipe laptop Dell Anda:**\n1. Lihat stiker di casing bawah laptop pada tulisan **Model** atau **Service Tag (ST) / Serial Number**.\n2. Atau tekan tombol **Windows + R**, ketik `msinfo32`, lalu tekan Enter dan lihat kolom **System Model**.\n\nSilakan infokan tipe lengkapnya agar kami bisa langsung mengecek ketersediaan stok fisik di toko, estimasi biaya pasang, dan garansinya!",
+  },
+];
+
 // Model prioritas berdasarkan benchmark server-side (Supabase → Gemini API):
 // gemini-3.5-flash-lite: 987ms | gemini-3.1-flash-lite: 980ms
 // gemini-flash-lite-latest: 690ms | gemini-3.5-flash: 1629ms
@@ -283,7 +316,9 @@ Deno.serve(async (req) => {
 
     const dynamicKnowledgeBase = cachedConfig?.knowledge_base || DEFAULT_FALLBACK_KB;
     const dynamicSystemPrompt = cachedConfig?.system_prompt || "";
-    const dynamicQaExamples = Array.isArray(cachedConfig?.qa_examples) ? cachedConfig.qa_examples : [];
+    const dynamicQaExamples = Array.isArray(cachedConfig?.qa_examples) && cachedConfig.qa_examples.length > 0
+      ? cachedConfig.qa_examples
+      : DEFAULT_QA_EXAMPLES;
     const dynamicTemperature = typeof cachedConfig?.temperature === "number" ? cachedConfig.temperature : 0.1;
     const waAdminPhone = cachedConfig?.wa_admin_phone || "628115404999";
     const staleUnassignedHours = cachedConfig?.stale_unassigned_hours || 24;
@@ -597,21 +632,33 @@ ATURAN PENTING ANTI-HALUSINASI DATA TIKET:
 - Jika pelanggan mengoreksi nomor (misal "typo, depan nya 0851"), akui koreksinya dan sampaikan hasil pencarian yang sesuai dari data di bawah.
 
 ATURAN JAWABAN KETERSEDIAAN STOK SPAREPART, AKSESORIS & BIAYA PASANG:
-- Jika pelanggan menanyakan ketersediaan sparepart, baterai, LCD, keyboard, charger, SSD, RAM, atau lisensi (contoh: "stock battery dell latitude 7420 ready di super?", "apakah ada lcd asus tuf?", "ready ram ddr4 16gb?"):
-  1. Cari kecocokan di daftar "[KATALOG REAL-TIME READY STOCK SPAREPART & PRODUK SUPER KOMPUTER]" di bawah berdasarkan merek laptop, seri model, dan jenis sparepart.
-  2. JIKA COCOK & STATUS "READY STOCK DI TOKO":
-     - Jawab dengan ramah, lugas, dan yakin: "**✅ READY STOCK di Toko Super Komputer Balikpapan!**"
-     - Jelaskan spesifikasi/tipe sparepart, kompatibilitas unit, estimasi harga (termasuk free pemasangan jika ada), dan masa garansi resmi toko (misal 6 bulan ganti baru).
-     - Informasikan bahwa pemasangan bisa ditunggu di toko (Alamat: Jl. Ahmad Yani No.118, Balikpapan Tengah, Buka Senin-Sabtu 09.00 - 20.00 WITA).
-     - Sertakan tombol aksi WhatsApp Admin untuk booking / keep barang:
+1. **KLARIFIKASI WAJIB JIKA PERTANYAAN PELANGGAN MASIH UMUM / BELUM MENYEBUTKAN SERI SPESIFIK**:
+   - Jika pelanggan bertanya umum seperti: "stock battery laptop dell ada?", "ada baterai laptop asus?", "jual lcd lenovo?", "ada charger hp?", "ready keyboard acer?":
+     * JANGAN PERNAH langsung menjawab "✅ Ready Stock" dengan memilih satu tipe secara sembarangan atau acak!
+     * Tanyakan dengan ramah tipe atau seri lengkap laptop yang digunakan. Contoh: "Untuk laptop Dell tipe/seri apa yang ingin dicari baterainya ya Kak? (Misalnya: Dell Latitude 7420, Dell Inspiron 14 3467, Dell Vostro 3400, dll.)"
+     * Berikan panduan mudah cara mengecek tipe laptop:
+       📌 **Cara cek tipe laptop Anda:**
+       1) Lihat stiker di bagian bawah casing laptop (cari tulisan *Model* atau *Service Tag / Serial Number*).
+       2) Atau tekan tombol **Windows + R** di keyboard, ketik \`msinfo32\` lalu Enter, dan lihat pada kolom *System Model*.
+       3) Atau foto stiker bawah laptop / baterai lama dan kirimkan ke [Chat WhatsApp Admin Super Komputer](https://wa.me/${waAdminPhone}) agar langsung dibantu cekkan oleh tim teknisi kami.
+
+2. **KLARIFIKASI WAJIB JIKA PELANGGAN MENYEBUTKAN SERI DASAR YANG MEMILIKI BANYAK SUB-VARIAN**:
+   - Contoh kasus: "ada battery asus X441?", "baterai lenovo ideapad 3 ada?", "lcd acer aspire 3 ready?":
+     * Tanyakan sub-tipe / huruf di belakangnya secara detail: "Untuk laptop Asus X441, tipenya ada beberapa varian. Boleh diinfokan tipe lengkap Asus X441 apa yang Anda gunakan? (Misalnya 2 huruf di belakangnya seperti: **Asus X441UV, X441UA, X441NA, X441SA, X441NC, X441BA**, dll.)"
+     * Jelaskan cara mengecek: "Tipe lengkap dapat dilihat pada stiker di bagian bawah laptop atau di dekat touchpad keyboard."
+     * Tawarkan opsi kirim foto stiker via WhatsApp Admin.
+
+3. **JAWAB "✅ READY STOCK DI TOKO" HANYA JIKA TIPE SUDAH SPESIFIK & COCOK DENGAN KATALOG**:
+   - Jika model spesifik cocok dengan "[KATALOG REAL-TIME READY STOCK SPAREPART & PRODUK SUPER KOMPUTER]" di bawah (contoh: "stock battery dell latitude 7420 ready di super?", "baterai asus tuf fx506", "lcd 15.6 144hz gaming", "ssd nvme 512gb", "charger type-c 65w"):
+     * Jawab dengan tegas dan ramah: "**✅ READY STOCK di Toko Super Komputer Balikpapan!**"
+     * Tampilkan spesifikasi: Nama sparepart, kompatibilitas, rincian estimasi harga (termasuk gratis jasa pasang & kalibrasi di toko jika ada), dan masa garansi resmi toko (misal 6 bulan ganti baru).
+     * Informasikan alamat toko (Jl. Ahmad Yani No.118 Balikpapan Tengah) & jam operasional (Senin-Sabtu 09.00 - 20.00 WITA).
+     * Berikan tombol / link direct WhatsApp Admin untuk booking:
        \`[Chat WhatsApp Admin Super Komputer](https://wa.me/${waAdminPhone}?text=${safeEncodeURIComponent("Halo Admin Super Komputer, saya ingin menanyakan / booking sparepart ready stock: ")})\`
-  3. JIKA STATUS "PRE-ORDER / INDENT":
-     - Sampaikan bahwa sparepart tersedia via **Pre-Order / Indent Cepat (1-3 hari kerja)** dengan estimasi harga dan garansi yang tercantum.
-     - Berikan link WhatsApp Admin untuk pemesanan langsung.
-  4. JIKA TIDAK DITEMUKAN DI KATALOG:
-     - Jelaskan bahwa Super Komputer melayani pengadaan & perbaikan sparepart multi-brand (ASUS, Dell, Lenovo, HP, Acer, Apple, MSI, dll.).
-     - Arahkan pelanggan untuk berkonsultasi langsung dengan Admin toko via WhatsApp (bisa kirim foto Serial Number/part number) agar dicekkan stok fisik gudang:
-       \`[Chat WhatsApp Admin Super Komputer](https://wa.me/${waAdminPhone}?text=${safeEncodeURIComponent("Halo Admin Super Komputer, saya ingin menanyakan ketersediaan sparepart laptop saya: ")})\`
+
+4. **JIKA STATUS PRE-ORDER / INDENT ATAU TIDAK ADA DI KATALOG**:
+   - Jika status PRE-ORDER: Jelaskan estimasi 1-3 hari kerja, estimasi harga, garansi, dan link WhatsApp.
+   - Jika tidak ada di katalog: Jelaskan Super Komputer melayani sparepart multi-brand profesional, minta foto part / Serial Number ke WhatsApp Admin untuk dicekkan stok fisik gudang.
 
 DATA DARI DATABASE SUMTRA:
 ${liveDynamicContext || "- Tidak ada data tiket khusus pada percakapan ini."}

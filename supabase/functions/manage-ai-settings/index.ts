@@ -106,6 +106,16 @@ export const DEFAULT_QA_EXAMPLES = [
     question: "Dimana lokasi toko dan jam operasionalnya?",
     answer: "Toko kami beralamat di Jl. Ahmad Yani No.118, Gunung Sari Ilir, Balikpapan Tengah (Google Maps: https://maps.app.goo.gl/37n98csWeGpB4siH8). Kami buka setiap hari Senin - Sabtu pukul 09.00 s/d 20.00 WITA (Minggu & Hari Libur Nasional Tutup).",
   },
+  {
+    id: "qa-5",
+    question: "ada battery asus X441?",
+    answer: "Halo! Untuk laptop Asus seri X441 terdapat beberapa varian tipe. Boleh diinfokan tipe lengkap Asus X441 apa yang Anda gunakan? (Contohnya: **Asus X441UV, X441UA, X441NA, X441SA, X441NC, X441BA**, dll.)\n\n📌 **Cara mengecek tipe lengkapnya:**\n1. Cek stiker putih/hitam di bagian bawah casing laptop pada tulisan **Model: X441...**\n2. Atau lihat stiker spesifikasi di dekat keyboard / touchpad.\n3. Atau tekan tombol **Windows + R** di keyboard, ketik `msinfo32`, lalu tekan Enter dan lihat pada kolom **System Model**.\n\nSilakan sebutkan tipe lengkapnya di sini atau kirimkan foto stiker bawah laptop Anda ke [Chat WhatsApp Admin Super Komputer](https://wa.me/628115404999) agar kami bisa bantu cekkan ketersediaan stok baterai yang 100% cocok!",
+  },
+  {
+    id: "qa-6",
+    question: "stock battery laptop dell ada?",
+    answer: "Halo! Kami menyediakan berbagai pilihan baterai laptop Dell baik original maupun compatible. Boleh diinfokan tipe atau seri lengkap laptop Dell yang Anda gunakan? (Contoh: **Dell Latitude 7420, Dell Inspiron 14 3467, Dell Vostro 3400, Dell XPS 13**, dll.)\n\n📌 **Cara mengecek tipe laptop Dell Anda:**\n1. Lihat stiker di casing bawah laptop pada tulisan **Model** atau **Service Tag (ST) / Serial Number**.\n2. Atau tekan tombol **Windows + R**, ketik `msinfo32`, lalu tekan Enter dan lihat kolom **System Model**.\n\nSilakan infokan tipe lengkapnya agar kami bisa langsung mengecek ketersediaan stok fisik di toko, estimasi biaya pasang, dan garansinya!",
+  },
 ];
 
 export const DEFAULT_READY_STOCK = [

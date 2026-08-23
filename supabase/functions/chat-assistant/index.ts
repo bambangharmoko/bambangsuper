@@ -125,7 +125,6 @@ export const DEFAULT_READY_STOCK = [
     brand: "Dell",
     compatibility: "Dell Latitude 7420, 7320, 7520, Inspiron 14 7420 (Part No: 1V1XF, 4M15E, 63Wh / 42Wh)",
     status: "ready",
-    stock_qty: 4,
     price_range: "Rp 550.000 - Rp 750.000 (Termasuk Jasa Pasang & Kalibrasi)",
     warranty: "6 Bulan Garansi Resmi Toko Ganti Baru",
     notes: "Unit 100% Baru Original Grade A+. Gratis instalasi, cleaning soket, dan kalibrasi daya di toko.",
@@ -137,7 +136,6 @@ export const DEFAULT_READY_STOCK = [
     brand: "ASUS",
     compatibility: "ASUS TUF Gaming FX506, FA506, FX505, FA505, TUF Dash F15 (Tipe Baterai B31N1726 / B41N1711)",
     status: "ready",
-    stock_qty: 6,
     price_range: "Rp 450.000 - Rp 650.000 (Termasuk Pasang)",
     warranty: "6 Bulan Garansi Toko Ganti Baru",
     notes: "Original Resmi ASUS. Tersedia varian 48Wh dan 90Wh.",
@@ -149,7 +147,6 @@ export const DEFAULT_READY_STOCK = [
     brand: "Lenovo",
     compatibility: "Lenovo IdeaPad Slim 3 14/15, Slim 5, V14, V15, Flex 5 (Part No: L19M3PF5, L19C3PF5)",
     status: "ready",
-    stock_qty: 5,
     price_range: "Rp 380.000 - Rp 550.000",
     warranty: "6 Bulan Garansi Toko Ganti Baru",
     notes: "Ready stok toko. Pemasangan cepat 30-45 menit bisa ditunggu.",
@@ -161,7 +158,6 @@ export const DEFAULT_READY_STOCK = [
     brand: "Universal",
     compatibility: "ASUS VivoBook / ZenBook, Lenovo IdeaPad, Acer Aspire, HP 14s, Dell Latitude / Inspiron 14 inch",
     status: "ready",
-    stock_qty: 8,
     price_range: "Rp 750.000 - Rp 950.000 (Termasuk Pasang)",
     warranty: "3 Bulan Garansi Toko (No Dead Pixel Guarantee)",
     notes: "Panel Grade A+ No Dot / No Spot. Pengerjaan 30-60 menit.",
@@ -173,7 +169,6 @@ export const DEFAULT_READY_STOCK = [
     brand: "Universal",
     compatibility: "ASUS TUF FX505/FX506, ROG Strix, Lenovo Legion 5 / Gaming 3, Acer Nitro 5, HP Pavilion Gaming",
     status: "ready",
-    stock_qty: 5,
     price_range: "Rp 1.100.000 - Rp 1.350.000 (Termasuk Pasang)",
     warranty: "3 Bulan Garansi Toko",
     notes: "Refresh rate 144Hz 100% sRGB tajam dan responsif.",
@@ -185,7 +180,6 @@ export const DEFAULT_READY_STOCK = [
     brand: "Universal",
     compatibility: "Semua laptop dan PC dengan slot M.2 NVMe (ASUS, Lenovo, Dell, HP, Acer, MacBook via adapter)",
     status: "ready",
-    stock_qty: 15,
     price_range: "512GB: Rp 450.000 - Rp 550.000 | 1TB: Rp 850.000 - Rp 1.100.000",
     warranty: "3 - 5 Tahun Garansi Resmi Distributor",
     notes: "Free Jasa Pasang + Free Migrasi/Cloning Windows jika beli di toko.",
@@ -197,7 +191,6 @@ export const DEFAULT_READY_STOCK = [
     brand: "Universal",
     compatibility: "Kompatibel untuk semua laptop Intel Core Gen 6-14 & AMD Ryzen 3000-8000 Series",
     status: "ready",
-    stock_qty: 20,
     price_range: "DDR4 8GB: Rp 280.000, 16GB: Rp 490.000 | DDR5 8GB: Rp 380.000, 16GB: Rp 680.000",
     warranty: "Lifetime / Seumur Hidup Garansi Resmi",
     notes: "Gratis pasang dan pengetesan dual-channel di toko.",
@@ -209,7 +202,6 @@ export const DEFAULT_READY_STOCK = [
     brand: "Universal",
     compatibility: "Dell Latitude (termasuk 7420 / 7320 / 5420), ASUS ZenBook / ROG Ally, Lenovo ThinkPad / Yoga, MacBook Air / Pro M1/M2/M3, HP Envy / Spectre",
     status: "ready",
-    stock_qty: 10,
     price_range: "65W: Rp 250.000 - Rp 350.000 | 100W: Rp 450.000 - Rp 550.000",
     warranty: "6 Bulan Garansi Toko Ganti Baru",
     notes: "Sudah dilengkapi smart chip proteksi arus berlebih dan kabel braided kuat.",
@@ -221,7 +213,6 @@ export const DEFAULT_READY_STOCK = [
     brand: "Universal",
     compatibility: "Semua PC Desktop & Laptop",
     status: "ready",
-    stock_qty: 99,
     price_range: "Rp 150.000 / Lisensi",
     warranty: "Garansi Aktivasi Permanen Seumur Hidup",
     notes: "Aktivasi online resmi Microsoft, bukan bajakan/KMS. Bisa diupdate selamanya.",
@@ -614,7 +605,7 @@ ${formatGroup("4. Unit Close", unitClose)}
       stockContext = `\n[KATALOG REAL-TIME READY STOCK SPAREPART & PRODUK SUPER KOMPUTER]:\n` +
         dynamicReadyStock.map((s: any, idx: number) => {
           const stStr = s.status === "ready"
-            ? `✅ READY STOCK DI TOKO (Tersedia ${s.stock_qty || 1} unit)`
+            ? `✅ READY STOCK DI TOKO`
             : s.status === "po"
             ? `📦 PRE-ORDER / INDENT CEPAT (Estimasi 1-3 hari kerja)`
             : `❌ HABIS / KOSONG`;

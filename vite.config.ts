@@ -46,8 +46,8 @@ export default defineConfig(({ mode: _mode }) => ({
       // SW akan di-output ke dist/sw.js
       outDir: "dist",
 
-      // Jangan konflik dengan SW Firebase yang sudah ada
-      registerType: "autoUpdate",
+      // Menggunakan "prompt" agar Service Worker tidak melakukan window.location.reload() otomatis yang mengganggu user
+      registerType: "prompt",
     }),
   ],
   build: {

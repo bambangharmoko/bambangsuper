@@ -1,101 +1,76 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { shouldShowOpenInAppBanner, openInPWA, dismissRedirectBanner } from "@/utils/pwa-redirect";
 import { AppLogo } from "./AppLogo";
+import { X, ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 /**
- * PWA Auto Redirect & Banner
+ * PWA Banner (Non-intrusive)
  * ─────────────────────────
- * Otomatis redirect ke PWA (jika sudah terinstall) saat user 
- * membuka web via browser.
+ * Menampilkan banner kecil yang tidak mengganggu jika user membuka web di browser 
+ * padahal PWA sudah terinstall di perangkatnya.
+ * TIDAK melakukan auto-redirect atau reload paksa.
  */
 export function OpenInAppBanner() {
   const [show, setShow] = useState(false);
-  const [autoRedirecting, setAutoRedirecting] = useState(false);
-  const hasAttemptedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     shouldShowOpenInAppBanner().then((shouldShow) => {
       if (cancelled || !shouldShow) return;
-      
       setShow(true);
-
-      // Jika ini pertama kali mount, coba lakukan auto-redirect langsung (mirip OLX)
-      if (!hasAttemptedRef.current) {
-        hasAttemptedRef.current = true;
-        setAutoRedirecting(true);
-        
-        const tryRedirect = () => {
-          openInPWA();
-          // Hapus event listener jika berhasil dipanggil via gesture
-          window.removeEventListener('touchstart', tryRedirect);
-          window.removeEventListener('click', tryRedirect);
-        };
-        
-        // 1. Coba panggil otomatis (terkadang berhasil di beberapa versi OS/Browser)
-        setTimeout(() => {
-          tryRedirect();
-          
-          // 2. Jika redirect otomatis gagal (karena browser butuh User Gesture):
-          // Kita pasang penjebak (interceptor). Saat user pertama kali 
-          // menyentuh layar (misal niatnya scroll), kita langsung trigger PWA-nya!
-          window.addEventListener('touchstart', tryRedirect, { once: true, capture: true });
-          window.addEventListener('click', tryRedirect, { once: true, capture: true });
-          
-          // 3. Jika setelah 3.5 detik user sama sekali tidak menyentuh layar,
-          // barulah kita tampilkan tombol fallback secara manual.
-          setTimeout(() => {
-            if (!cancelled) setAutoRedirecting(false);
-          }, 3500);
-        }, 300);
-      }
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (!show) return null;
 
-  // Jika sedang proses redirect otomatis, tampilkan layar interstitial
-  if (autoRedirecting) {
-    return (
-      <div className="fixed inset-0 z-[99999] bg-background/95 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
-        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-        <h2 className="text-xl font-bold text-foreground">Membuka Aplikasi...</h2>
-        <p className="text-sm text-muted-foreground mt-2 text-center max-w-[250px]">
-          Anda sedang dialihkan ke SUMTRA.
-        </p>
-      </div>
-    );
-  }
-
-  // Fallback: Jika auto-redirect gagal (dilarang browser dsb), tampilkan tombol
   return (
-    <div className="fixed inset-0 z-[99999] bg-background/95 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
-      <AppLogo className="w-20 h-20 rounded-2xl mb-6 shadow-xl bg-white p-2" />
-      <div className="space-y-2 mb-8">
-        <h2 className="text-xl font-bold text-foreground">Buka di Aplikasi</h2>
-        <p className="text-sm text-muted-foreground max-w-[280px] mx-auto">
-          Lanjutkan di aplikasi SUMTRA untuk pengalaman yang lebih cepat dan nyaman.
-        </p>
+    <aside
+      aria-label="Buka di Aplikasi"
+      className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-50 animate-in slide-in-from-bottom duration-300 pointer-events-auto"
+    >
+      <div className="bg-card/95 backdrop-blur-md border border-primary/20 shadow-2xl rounded-2xl p-3.5 flex items-center justify-between gap-3 text-card-foreground">
+        <div className="flex items-center gap-3 min-w-0">
+          <AppLogo className="w-10 h-10 rounded-xl shadow-md shrink-0 bg-primary/10 p-1" />
+          <div className="min-w-0">
+            <h4 className="text-xs font-bold text-foreground truncate">
+              Buka di Aplikasi SUMTRA
+            </h4>
+            <p className="text-[11px] text-muted-foreground truncate">
+              Akses lebih cepat, stabil, dan notifikasi real-time
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Button
+            size="sm"
+            onClick={() => {
+              openInPWA();
+            }}
+            className="h-8 px-3 text-xs gap-1.5 bg-primary text-primary-foreground font-semibold shadow-sm"
+          >
+            <ExternalLink className="h-3 w-3" />
+            <span>Buka</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              dismissRedirectBanner();
+              setShow(false);
+            }}
+            className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-lg"
+            title="Tutup banner"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
-      
-      <div className="flex flex-col gap-3 w-full max-w-[280px]">
-        <button
-          onClick={openInPWA}
-          className="w-full h-12 rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg active:scale-95 transition-transform"
-        >
-          Buka Sekarang
-        </button>
-        <button
-          onClick={() => {
-            dismissRedirectBanner();
-            setShow(false);
-          }}
-          className="w-full h-12 rounded-xl bg-secondary text-secondary-foreground font-semibold active:scale-95 transition-transform"
-        >
-          Lanjutkan di Browser
-        </button>
-      </div>
-    </div>
+    </aside>
   );
 }
+

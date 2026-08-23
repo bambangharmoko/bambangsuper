@@ -237,9 +237,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const persistedSession = getPersistedSession();
         
-        // Optimistic UI Release (Offline First)
-        if (!initializedRef.current) {
-          if (persistedSession?.user && hasRecentSessionHint()) {
+        // Optimistic UI Release (Offline First & Instant Load)
+        if (persistedSession?.user) {
+          extendSessionHint();
+          if (!initializedRef.current) {
             const cachedProfile = getCachedProfile();
             const cachedRoles = getCachedRoles();
             if (cachedProfile) {
@@ -249,11 +250,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               setRoles(cachedRoles);
               setLoading(false);
               initializedRef.current = true;
-            } else {
-              setLoading(true);
             }
-          } else {
-            setLoading(true);
           }
         }
 
@@ -263,7 +260,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (shouldRefreshSession(sessionRef.current || persistedSession)) {
-          await withTimeout(supabase.auth.refreshSession(), SESSION_CHECK_TIMEOUT_MS);
+          await withTimeout(supabase.auth.refreshSession(), SESSION_CHECK_TIMEOUT_MS).catch(() => null);
         }
 
         const { data: { session }, error } = await withTimeout(supabase.auth.getSession(), SESSION_CHECK_TIMEOUT_MS);
@@ -278,7 +275,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!profileRef.current || !initializedRef.current) {
             await fetchUserData(session.user.id);
           }
-        } else if (persistedSession?.user && hasRecentSessionHint()) {
+        } else if (persistedSession?.user) {
+          extendSessionHint();
           if (sessionRef.current?.access_token !== persistedSession.access_token) {
             setSession(persistedSession);
             setUser(persistedSession.user);
@@ -298,16 +296,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
           setProfile(null);
           setRoles([]);
-          if (!hasRecentSessionHint()) {
-            clearSessionHint();
-            clearCachedProfileAndRoles();
-            redirectToLogin();
-          }
+          clearSessionHint();
+          clearCachedProfileAndRoles();
+          redirectToLogin();
         }
       } catch (error) {
-        console.error("Session validation failed", error);
+        console.error("Session validation check:", error);
         const fallbackSession = sessionRef.current || getPersistedSession();
-        if (mounted && fallbackSession?.user && hasRecentSessionHint()) {
+        if (mounted && fallbackSession?.user) {
+          extendSessionHint();
           if (sessionRef.current?.access_token !== fallbackSession.access_token) {
             setSession(fallbackSession);
             setUser(fallbackSession.user);
@@ -322,7 +319,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!profileRef.current) {
             void fetchUserData(fallbackSession.user.id);
           }
-        } else if (mounted && !hasRecentSessionHint()) {
+        } else if (mounted) {
           clearSessionHint();
           clearCachedProfileAndRoles();
           redirectToLogin();

@@ -887,15 +887,15 @@ export default function CreateOrderPage() {
     setWarrantySearchLoading(true);
     try {
       const q = query.trim();
-      // Search by ticket_number (case-insensitive) OR customer_phone
+      // Search by ticket_number, customer_phone, OR customer_name with status = 'Close'
       const { data, error } = await supabase
         .from("service_orders")
         .select("id, ticket_number, customer_name, customer_phone, customer_email, device_type, device_brand, device_model, device_password, service_type, status, created_at, unit_condition, damage_description, unit_accessories, serial_number, assigned_technician")
-        .or(`ticket_number.ilike.%${q}%,customer_phone.ilike.%${q}%`)
+        .or(`ticket_number.ilike.%${q}%,customer_phone.ilike.%${q}%,customer_name.ilike.%${q}%`)
         .is("deleted_at", null)
-        .neq("status", "Cancelled")
+        .eq("status", "Close" as any)
         .order("created_at", { ascending: false })
-        .limit(10);
+        .limit(15);
 
       if (error) throw error;
 
@@ -941,12 +941,13 @@ export default function CreateOrderPage() {
     update("deviceBrand", ticket.device_brand || "");
     update("deviceModel", ticket.device_model || "");
     update("devicePassword", ticket.device_password || "");
-    // Close dialog and skip to Step 3 (device already filled)
+    update("serialNumber", ticket.serial_number || "");
+    // Close dialog and skip directly to Step 4 (Kondisi Unit)
     setWarrantySearchOpen(false);
     setWarrantySearchQuery("");
     setWarrantySearchResults([]);
-    setStep(3);
-    toast.success(`Data dari tiket ${ticket.ticket_number} berhasil dimuat.`);
+    setStep(4);
+    toast.success(`Data dari tiket ${ticket.ticket_number} berhasil dimuat. Melanjutkan ke Step 4 (Kondisi Unit).`);
   };
 
   const skipWarrantySearch = () => {
@@ -2222,7 +2223,7 @@ export default function CreateOrderPage() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Ketik nomor tiket atau nomor HP..."
+                  placeholder="Ketik nomor tiket, nama, atau no HP..."
                   value={warrantySearchQuery}
                   onChange={(e) => {
                     setWarrantySearchQuery(e.target.value);
@@ -2253,7 +2254,7 @@ export default function CreateOrderPage() {
               {warrantySearchLoading ? (
                 <div className="flex items-center justify-center py-8 text-muted-foreground text-sm gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Mencari tiket servis...
+                  Mencari tiket servis selesai (Close)...
                 </div>
               ) : warrantySearchResults.length > 0 ? (
                 warrantySearchResults.map((t) => (
@@ -2285,12 +2286,13 @@ export default function CreateOrderPage() {
                 ))
               ) : warrantySearchQuery.trim() ? (
                 <div className="text-center py-8 text-muted-foreground text-xs space-y-1">
-                  <p className="font-medium">Tidak ada tiket yang cocok</p>
-                  <p>Pastikan nomor tiket atau nomor HP sudah benar.</p>
+                  <p className="font-medium">Tidak ada tiket selesai (Close) yang cocok</p>
+                  <p>Pastikan nomor tiket, nama pelanggan, atau nomor HP sudah benar.</p>
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground text-xs space-y-1">
-                  <p>Ketik nomor tiket (contoh: <strong>A26001</strong>) atau nomor HP.</p>
+                  <p>Ketik nomor tiket (contoh: <strong>A26001</strong>), nama customer, atau nomor HP.</p>
+                  <p className="text-[11px] text-muted-foreground/80">Hanya menampilkan tiket yang sudah berstatus <strong>Close</strong>.</p>
                 </div>
               )}
             </div>

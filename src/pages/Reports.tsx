@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,6 +46,7 @@ interface ReportOrder {
 
 export default function Reports() {
   const { hasRole } = useAuth();
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<ReportOrder[]>([]);
   const [filtered, setFiltered] = useState<ReportOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,34 +56,49 @@ export default function Reports() {
   const itemsPerPage = 10;
 
   const [techProfiles, setTechProfiles] = useState<Record<string, string>>({});
-  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
-  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
-  const [statusFilter, setStatusFilter] = useSessionStorageState<string>("reports_status", "all");
+
+  // Input states (temporary filter form state, changing this does NOT auto-fetch)
+  const [inputDateFrom, setInputDateFrom] = useState<Date | undefined>(undefined);
+  const [inputDateTo, setInputDateTo] = useState<Date | undefined>(undefined);
+  const [inputStatusFilter, setInputStatusFilter] = useState<string>("all");
+
+  // Applied states (actual filters in effect, updated only when clicking "Cari" or "Reset")
+  const [appliedDateFrom, setAppliedDateFrom] = useState<Date | undefined>(undefined);
+  const [appliedDateTo, setAppliedDateTo] = useState<Date | undefined>(undefined);
+  const [appliedStatusFilter, setAppliedStatusFilter] = useState<string>("all");
 
   const [closeTimestamps, setCloseTimestamps] = useState<Record<string, string>>({});
 
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (customFilters?: {
+    dateFrom?: Date;
+    dateTo?: Date;
+    statusFilter?: string;
+  }) => {
     setLoading(true);
     try {
+      const activeDateFrom = customFilters ? customFilters.dateFrom : appliedDateFrom;
+      const activeDateTo = customFilters ? customFilters.dateTo : appliedDateTo;
+      const activeStatus = customFilters ? customFilters.statusFilter : appliedStatusFilter;
+
       let query = supabase
         .from("service_orders")
         .select("id, ticket_number, customer_name, customer_phone, device_type, device_brand, device_model, service_type, status, assigned_technician, estimated_cost, final_cost, created_at, updated_at, unit_condition, damage_description, warranty_duration, warranty_unit, warranty_notes, warranty_expiry")
         .is("deleted_at", null)
         .order("created_at", { ascending: false });
 
-      if (dateFrom) {
-        query = query.gte("created_at", format(dateFrom, "yyyy-MM-dd"));
+      if (activeDateFrom) {
+        query = query.gte("created_at", format(activeDateFrom, "yyyy-MM-dd"));
       }
-      if (dateTo) {
-        const nextDay = new Date(dateTo);
+      if (activeDateTo) {
+        const nextDay = new Date(activeDateTo);
         nextDay.setDate(nextDay.getDate() + 1);
         query = query.lt("created_at", format(nextDay, "yyyy-MM-dd"));
       }
-      if (statusFilter && statusFilter !== "all") {
-        if (statusFilter === "under_warranty") {
+      if (activeStatus && activeStatus !== "all") {
+        if (activeStatus === "under_warranty") {
           query = query.eq("status", "Close" as any).gte("warranty_expiry", new Date().toISOString());
         } else {
-          query = query.eq("status", statusFilter as any);
+          query = query.eq("status", activeStatus as any);
         }
       }
 
@@ -124,11 +141,12 @@ export default function Reports() {
     } finally {
       setLoading(false);
     }
-  }, [dateFrom, dateTo, statusFilter]);
+  }, [appliedDateFrom, appliedDateTo, appliedStatusFilter]);
 
+  // Initial fetch on mount
   useEffect(() => {
     fetchOrders();
-  }, [fetchOrders]);
+  }, []);
 
   // ─── Realtime: auto-refresh when orders change ────────────────────────────
   const buildReportsChannel = useCallback(
@@ -141,14 +159,30 @@ export default function Reports() {
   useReconnectableChannel(true, buildReportsChannel, fetchOrders);
 
   const applyFilters = () => {
-    fetchOrders();
+    setAppliedDateFrom(inputDateFrom);
+    setAppliedDateTo(inputDateTo);
+    setAppliedStatusFilter(inputStatusFilter);
+    setPage(1);
+    fetchOrders({
+      dateFrom: inputDateFrom,
+      dateTo: inputDateTo,
+      statusFilter: inputStatusFilter,
+    });
   };
 
   const resetFilters = () => {
-    setDateFrom(undefined);
-    setDateTo(undefined);
-    setStatusFilter("all");
-    setTimeout(fetchOrders, 0);
+    setInputDateFrom(undefined);
+    setInputDateTo(undefined);
+    setInputStatusFilter("all");
+    setAppliedDateFrom(undefined);
+    setAppliedDateTo(undefined);
+    setAppliedStatusFilter("all");
+    setPage(1);
+    fetchOrders({
+      dateFrom: undefined,
+      dateTo: undefined,
+      statusFilter: "all",
+    });
   };
 
   const statusGroups = {
@@ -275,13 +309,13 @@ export default function Reports() {
                 <label className="text-xs text-muted-foreground">Dari Tanggal</label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className={cn("w-[160px] justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}>
+                    <Button variant="outline" size="sm" className={cn("w-[160px] justify-start text-left font-normal", !inputDateFrom && "text-muted-foreground")}>
                       <CalendarIcon className="mr-2 h-3 w-3" />
-                      {dateFrom ? format(dateFrom, "dd MMM yyyy", { locale: idLocale }) : "Pilih tanggal"}
+                      {inputDateFrom ? format(inputDateFrom, "dd MMM yyyy", { locale: idLocale }) : "Pilih tanggal"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} className="p-3 pointer-events-auto" />
+                    <Calendar mode="single" selected={inputDateFrom} onSelect={setInputDateFrom} className="p-3 pointer-events-auto" />
                   </PopoverContent>
                 </Popover>
               </div>
@@ -291,13 +325,13 @@ export default function Reports() {
                 <label className="text-xs text-muted-foreground">Sampai Tanggal</label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className={cn("w-[160px] justify-start text-left font-normal", !dateTo && "text-muted-foreground")}>
+                    <Button variant="outline" size="sm" className={cn("w-[160px] justify-start text-left font-normal", !inputDateTo && "text-muted-foreground")}>
                       <CalendarIcon className="mr-2 h-3 w-3" />
-                      {dateTo ? format(dateTo, "dd MMM yyyy", { locale: idLocale }) : "Pilih tanggal"}
+                      {inputDateTo ? format(inputDateTo, "dd MMM yyyy", { locale: idLocale }) : "Pilih tanggal"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={dateTo} onSelect={setDateTo} className="p-3 pointer-events-auto" />
+                    <Calendar mode="single" selected={inputDateTo} onSelect={setInputDateTo} className="p-3 pointer-events-auto" />
                   </PopoverContent>
                 </Popover>
               </div>
@@ -305,7 +339,7 @@ export default function Reports() {
               {/* Status */}
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Status</label>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <Select value={inputStatusFilter} onValueChange={setInputStatusFilter}>
                   <SelectTrigger className="w-[180px] h-9 text-sm">
                     <SelectValue placeholder="Semua Status" />
                   </SelectTrigger>
@@ -321,7 +355,7 @@ export default function Reports() {
                 </Select>
               </div>
 
-              <Button size="sm" onClick={applyFilters}>
+              <Button size="sm" onClick={applyFilters} className="gradient-primary">
                 <Search className="h-3 w-3 mr-1" /> Cari
               </Button>
               <Button size="sm" variant="ghost" onClick={resetFilters}>
@@ -379,7 +413,12 @@ export default function Reports() {
                   <tbody>
                     {paginatedData.map((o) => (
                       <tr key={o.id} className="border-b border-border hover:bg-muted/30">
-                        <td className="p-3 font-mono text-xs">{o.ticket_number}</td>
+                        <td
+                          className="p-3 font-mono text-xs font-semibold cursor-pointer text-primary hover:underline"
+                          onClick={() => navigate(`/dashboard/orders/${o.ticket_number}`)}
+                        >
+                          {o.ticket_number}
+                        </td>
                         <td className="p-3">
                           <p className="font-medium">{o.customer_name}</p>
                           <p className="text-xs text-muted-foreground">{o.customer_phone}</p>

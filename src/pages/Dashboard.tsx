@@ -293,7 +293,19 @@ export default function DashboardHome() {
                   <div key={o.id} className="rounded-lg border border-destructive/20 bg-background p-3 space-y-2">
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <p className="text-sm font-semibold">{o.ticket_number} · {o.customer_name}</p>
+                        <p className="text-sm font-semibold">
+                          <span
+                            className="cursor-pointer text-primary hover:underline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/dashboard/orders/${o.ticket_number}`);
+                            }}
+                          >
+                            {o.ticket_number}
+                          </span>
+                          {" · "}
+                          {o.customer_name}
+                        </p>
                         <p className="text-xs text-destructive">Belum di-update selama {daysLate} hari</p>
                       </div>
                       <StatusBadge status={o.status} />
@@ -363,7 +375,15 @@ export default function DashboardHome() {
                       onClick={() => navigate(`/dashboard/orders/${o.ticket_number}`)}
                     >
                       <div>
-                        <p className="font-medium text-sm">{o.ticket_number}</p>
+                        <p
+                          className="font-semibold text-sm text-primary hover:underline transition-colors cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/dashboard/orders/${o.ticket_number}`);
+                          }}
+                        >
+                          {o.ticket_number}
+                        </p>
                         <p className="text-xs text-muted-foreground">{o.customer_name}</p>
                       </div>
                       <div className="flex items-center gap-2">

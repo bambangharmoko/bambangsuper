@@ -163,7 +163,15 @@ export function StaleTicketsAlert() {
                 <div key={order.id} className="p-3 rounded-lg border border-destructive/20 bg-destructive/5 space-y-2">
                   <div className="flex justify-between items-start">
                     <div>
-                      <p className="font-semibold text-sm">{order.ticket_number}</p>
+                      <p
+                        className="font-semibold text-sm cursor-pointer text-primary hover:underline"
+                        onClick={() => {
+                          setOpen(false);
+                          navigate(`/dashboard/orders/${order.ticket_number}`);
+                        }}
+                      >
+                        {order.ticket_number}
+                      </p>
                       <p className="text-xs text-muted-foreground">{order.customer_name}</p>
                     </div>
                     <StatusBadge status={order.status} />

@@ -108,8 +108,28 @@ Deno.serve(async (req) => {
       saved_customer_id: typeof body.saved_customer_id === "string" && body.saved_customer_id.trim() ? body.saved_customer_id.trim() : null,
       // warranty_linked_ticket_id: links a "Garansi Toko" ticket to its original service ticket
       warranty_linked_ticket_id: typeof body.warranty_linked_ticket_id === "string" && body.warranty_linked_ticket_id.trim() ? body.warranty_linked_ticket_id.trim() : null,
+      // assigned_technician: default to previous technician if warranty ticket, or explicitly provided
+      assigned_technician: null as string | null,
       created_by: userId,
     };
+
+    let assignedTech: string | null =
+      typeof body.assigned_technician === "string" && body.assigned_technician.trim()
+        ? body.assigned_technician.trim()
+        : null;
+
+    if (!assignedTech && orderPayload.warranty_linked_ticket_id) {
+      const { data: origTicket } = await admin
+        .from("service_orders")
+        .select("assigned_technician")
+        .eq("id", orderPayload.warranty_linked_ticket_id)
+        .maybeSingle();
+      if (origTicket?.assigned_technician) {
+        assignedTech = origTicket.assigned_technician;
+      }
+    }
+
+    orderPayload.assigned_technician = assignedTech;
 
     console.log("Inserting order:", orderId, "for user:", userId);
 

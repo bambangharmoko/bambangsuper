@@ -890,7 +890,7 @@ export default function CreateOrderPage() {
       // Search by ticket_number (case-insensitive) OR customer_phone
       const { data, error } = await supabase
         .from("service_orders")
-        .select("id, ticket_number, customer_name, customer_phone, customer_email, device_type, device_brand, device_model, device_password, service_type, status, created_at, unit_condition, damage_description, unit_accessories, serial_number")
+        .select("id, ticket_number, customer_name, customer_phone, customer_email, device_type, device_brand, device_model, device_password, service_type, status, created_at, unit_condition, damage_description, unit_accessories, serial_number, assigned_technician")
         .or(`ticket_number.ilike.%${q}%,customer_phone.ilike.%${q}%`)
         .is("deleted_at", null)
         .neq("status", "Cancelled")
@@ -898,7 +898,25 @@ export default function CreateOrderPage() {
         .limit(10);
 
       if (error) throw error;
-      setWarrantySearchResults(data || []);
+
+      const rawResults = data || [];
+      const techIds = [...new Set(rawResults.map((r: any) => r.assigned_technician).filter(Boolean))];
+      let techMap: Record<string, string> = {};
+      if (techIds.length > 0) {
+        const { data: staffData } = await supabase.rpc("get_staff_identities", { _user_ids: techIds });
+        if (staffData) {
+          staffData.forEach((s: any) => {
+            techMap[s.user_id] = s.full_name + (s.username ? ` (@${s.username})` : "");
+          });
+        }
+      }
+
+      const enrichedResults = rawResults.map((r: any) => ({
+        ...r,
+        _technician_name: r.assigned_technician ? techMap[r.assigned_technician] || "Teknisi" : null,
+      }));
+
+      setWarrantySearchResults(enrichedResults);
     } catch (err) {
       console.error("Warranty ticket search error:", err);
       toast.error("Gagal mencari tiket. Periksa koneksi internet.");
@@ -1158,6 +1176,7 @@ export default function CreateOrderPage() {
       notes: unit.notes || null,
       serial_number: form.serviceType === "Garansi Partner" ? unit.serialNumber || null : null,
       warranty_linked_ticket_id: form.serviceType === "Garansi Toko" && linkedPreviousTicket ? linkedPreviousTicket.id : null,
+      assigned_technician: form.serviceType === "Garansi Toko" && linkedPreviousTicket?.assigned_technician ? linkedPreviousTicket.assigned_technician : null,
     };
   };
 
@@ -1393,6 +1412,7 @@ export default function CreateOrderPage() {
                       </div>
                       <p className="text-muted-foreground"><span className="text-foreground font-medium">{linkedPreviousTicket.customer_name}</span> ({linkedPreviousTicket.customer_phone})</p>
                       <p className="text-muted-foreground">💻 {[linkedPreviousTicket.device_brand, linkedPreviousTicket.device_model].filter(Boolean).join(" ") || linkedPreviousTicket.device_type || "-"}</p>
+                      <p className="text-primary font-medium">👨‍🔧 Default Teknisi: {linkedPreviousTicket._technician_name || (linkedPreviousTicket.assigned_technician ? "Teknisi Sebelumnya" : "Belum ditugaskan")}</p>
                     </div>
                   ) : (
                     <p className="text-xs text-muted-foreground leading-relaxed">
@@ -2071,12 +2091,20 @@ export default function CreateOrderPage() {
                   </div>
 
                   {form.serviceType === "Garansi Toko" && linkedPreviousTicket && (
-                    <div className="pt-2 border-t border-border flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-1.5 text-primary font-medium">
-                        <Link2 className="h-3.5 w-3.5" />
-                        <span>Tiket Servis Asal:</span>
+                    <div className="pt-2 border-t border-border space-y-1 text-xs">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-primary font-medium">
+                          <Link2 className="h-3.5 w-3.5" />
+                          <span>Tiket Servis Asal:</span>
+                        </div>
+                        <span className="font-bold text-foreground">#{linkedPreviousTicket.ticket_number}</span>
                       </div>
-                      <span className="font-bold text-foreground">#{linkedPreviousTicket.ticket_number}</span>
+                      {linkedPreviousTicket.assigned_technician && (
+                        <div className="flex items-center justify-between text-muted-foreground">
+                          <span>Teknisi Ditugaskan:</span>
+                          <span className="font-medium text-foreground">{linkedPreviousTicket._technician_name || "Teknisi Tiket Sebelumnya"}</span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -2251,7 +2279,7 @@ export default function CreateOrderPage() {
                     </div>
                     <div className="flex items-center justify-between text-muted-foreground pt-1 border-t border-border/50">
                       <span>💻 {[t.device_brand, t.device_model].filter(Boolean).join(" ") || t.device_type || "-"}</span>
-                      <span>{new Date(t.created_at).toLocaleDateString("id-ID")}</span>
+                      <span>👨‍🔧 {t._technician_name || "Belum ditugaskan"}</span>
                     </div>
                   </div>
                 ))

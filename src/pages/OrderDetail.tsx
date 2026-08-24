@@ -501,42 +501,38 @@ export default function OrderDetailPage() {
 
   const fetchTechnicians = async () => {
     try {
-      const { data: rolesData, error: rolesError } = await supabase
+      const { data: techRoles, error: rolesError } = await supabase
         .from("user_roles")
-        .select("user_id, role");
+        .select("user_id, role")
+        .eq("role", "technician");
       if (rolesError) throw rolesError;
-      if (!rolesData || rolesData.length === 0) return;
+      if (!techRoles || techRoles.length === 0) {
+        setTechnicians([]);
+        return;
+      }
 
-      const staffRoles = rolesData.filter((r) => ["technician", "admin", "owner"].includes(r.role));
-      const userIds = [...new Set(staffRoles.map((r) => r.user_id))];
-      if (userIds.length === 0) return;
+      const techIds = [...new Set(techRoles.map((r) => r.user_id))];
+      if (techIds.length === 0) {
+        setTechnicians([]);
+        return;
+      }
 
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select("id, full_name, username, is_approved")
-        .in("id", userIds)
+        .in("id", techIds)
         .eq("is_approved", true);
 
       if (profilesError) throw profilesError;
-
-      const roleMap: Record<string, string> = {};
-      staffRoles.forEach((r) => {
-        roleMap[r.user_id] = r.role;
-      });
 
       const list = (profiles || []).map((p) => ({
         id: p.id,
         full_name: p.full_name,
         username: p.username,
-        role: roleMap[p.id] || "technician",
+        role: "technician",
       }));
 
-      // Sort technicians first, then others alphabetically
-      list.sort((a, b) => {
-        if (a.role === "technician" && b.role !== "technician") return -1;
-        if (a.role !== "technician" && b.role === "technician") return 1;
-        return a.full_name.localeCompare(b.full_name);
-      });
+      list.sort((a, b) => a.full_name.localeCompare(b.full_name));
 
       setTechnicians(list);
     } catch (err) {
@@ -3279,7 +3275,7 @@ export default function OrderDetailPage() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs">Pilih Teknisi Sesuai Role Akun Terdaftar *</Label>
+              <Label className="text-xs">Pilih Teknisi (Role Teknisi) *</Label>
               <Select value={selectedTechId} onValueChange={setSelectedTechId}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Pilih akun teknisi..." />
@@ -3287,7 +3283,7 @@ export default function OrderDetailPage() {
                 <SelectContent className="max-h-60">
                   {technicians.length === 0 ? (
                     <div className="p-3 text-center text-xs text-muted-foreground">
-                      Tidak ada akun teknisi aktif ditemukan.
+                      Tidak ada akun dengan role teknisi yang aktif.
                     </div>
                   ) : (
                     technicians.map((t) => (
@@ -3296,12 +3292,8 @@ export default function OrderDetailPage() {
                           <span>
                             {t.full_name} {t.username ? `(@${t.username})` : ""}
                           </span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                            t.role === "technician" ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" :
-                            t.role === "admin" ? "bg-purple-500/10 text-purple-600 dark:text-purple-400" :
-                            "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                          }`}>
-                            {t.role === "technician" ? "Teknisi" : t.role === "admin" ? "Admin" : "Owner"}
+                          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                            Teknisi
                           </span>
                         </div>
                       </SelectItem>

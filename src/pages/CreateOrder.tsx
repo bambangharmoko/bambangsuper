@@ -34,6 +34,7 @@ import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { cn } from "@/lib/utils";
+import { openDirectWhatsAppFromUrl } from "@/lib/whatsapp";
 
 const SERVICE_TYPES = ["Non Garansi", "Garansi Toko", "Garansi Partner", "Install Software/Hardware"];
 const INSTALL_SERVICE_OPTIONS = ["Install OS", "Install Driver", "Install Software Aplikasi", "Install Hardware"];
@@ -1285,7 +1286,7 @@ export default function CreateOrderPage() {
           duration: 10000,
           action: {
             label: "Kirim WA",
-            onClick: () => window.open(waLink, "_blank"),
+            onClick: () => openDirectWhatsAppFromUrl(waLink),
           },
         });
         navigate(`/dashboard/orders/${only.ticket_number}`, { replace: true });
@@ -1316,7 +1317,7 @@ export default function CreateOrderPage() {
           duration: 10000,
           action: {
             label: "Kirim WA",
-            onClick: () => window.open(waLink, "_blank"),
+            onClick: () => openDirectWhatsAppFromUrl(waLink),
           },
         });
         navigate(`/dashboard/orders`, { replace: true });

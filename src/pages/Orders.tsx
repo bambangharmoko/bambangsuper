@@ -23,6 +23,7 @@ import {
 import { Search, Plus, MessageCircle, Eye, Hand, X, ChevronLeft, ChevronRight, RefreshCw, ClipboardList, PackageCheck, AlertTriangle, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { openDirectWhatsApp } from "@/lib/whatsapp";
 
 interface Order {
   id: string;
@@ -304,9 +305,7 @@ export default function OrdersPage() {
       `👉 ${link}\n\n` +
       `Kami akan segera menginformasikan jika ada update atau pengecekan lebih lanjut. Terima kasih! 🙏`,
     );
-    const cleanPhone = order.customer_phone.replace(/\D/g, "");
-    const waPhone = cleanPhone.startsWith("0") ? "62" + cleanPhone.slice(1) : cleanPhone;
-    window.open(`https://wa.me/${waPhone}?text=${msg}`, "_blank");
+    openDirectWhatsApp(order.customer_phone, msg);
   };
 
   const toggleSelect = (id: string) => {

@@ -54,6 +54,7 @@ import {
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { openDirectWhatsApp } from "@/lib/whatsapp";
 
 const STATUS_FLOW = [
   "Diterima",
@@ -958,8 +959,8 @@ export default function OrderDetailPage() {
     setConfirmationOpen(false);
     fetchData();
 
-    // Open WhatsApp
-    window.open(`https://wa.me/${waPhone}?text=${msg}`, "_blank");
+    // Open WhatsApp directly without intermediate redirect
+    openDirectWhatsApp(order.customer_phone, msg);
   };
 
   const handleDirectCloseNoWarranty = async () => {
@@ -1496,9 +1497,7 @@ export default function OrderDetailPage() {
       `👉 ${link}\n\n` +
       `Kami akan segera menginformasikan jika ada update atau pengecekan lebih lanjut. Terima kasih! 🙏`,
     );
-    const cleanPhone = order.customer_phone.replace(/\D/g, "");
-    const waPhone = cleanPhone.startsWith("0") ? "62" + cleanPhone.slice(1) : cleanPhone;
-    window.open(`https://wa.me/${waPhone}?text=${msg}`, "_blank");
+    openDirectWhatsApp(order.customer_phone, msg);
   };
 
   const openNotepad = () => {

@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { openDirectWhatsApp, openDirectWhatsAppFromUrl } from "@/lib/whatsapp";
 
 interface ChatMessage {
   id: string;
@@ -270,9 +271,11 @@ export function ChatAssistant() {
             <a
               key={`${idx}-link-${match.index}`}
               href={linkUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 my-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-xl border border-emerald-700/30 transition-all shadow-md shadow-emerald-600/20"
+              onClick={(e) => {
+                e.preventDefault();
+                openDirectWhatsAppFromUrl(linkUrl);
+              }}
+              className="inline-flex items-center gap-1.5 my-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-xl border border-emerald-700/30 transition-all shadow-md shadow-emerald-600/20 cursor-pointer"
             >
               <MessageCircle className="w-4 h-4 fill-current text-white shrink-0" />
               <span>{linkText}</span>
@@ -565,9 +568,11 @@ export function ChatAssistant() {
               </span>
               <a
                 href="https://wa.me/628115404999"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline flex items-center gap-1 font-medium"
+                onClick={(e) => {
+                  e.preventDefault();
+                  openDirectWhatsApp("628115404999", "Halo Admin Super Komputer, saya butuh bantuan.");
+                }}
+                className="text-primary hover:underline flex items-center gap-1 font-medium cursor-pointer"
               >
                 <Headphones className="w-3 h-3" /> CS WhatsApp (08115404999)
               </a>

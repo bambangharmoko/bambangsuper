@@ -409,11 +409,10 @@ export function ChatAssistant() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.25 }}
-            className={`fixed z-50 bg-background/95 backdrop-blur-xl border border-border shadow-2xl rounded-2xl flex flex-col overflow-hidden transition-all ${
-              isExpanded
-                ? "inset-4 sm:inset-10"
-                : "bottom-20 right-4 sm:right-6 w-[calc(100vw-32px)] sm:w-[420px] h-[580px] max-h-[calc(100vh-100px)]"
-            }`}
+            className={`fixed z-50 bg-background/95 backdrop-blur-xl border border-border shadow-2xl rounded-2xl flex flex-col overflow-hidden transition-all ${isExpanded
+              ? "inset-4 sm:inset-10"
+              : "bottom-20 right-4 sm:right-6 w-[calc(100vw-32px)] sm:w-[420px] h-[580px] max-h-[calc(100vh-100px)]"
+              }`}
           >
             {/* ═══ Header ═══ */}
             <div className="bg-gradient-to-r from-sidebar via-sidebar to-sidebar/95 text-sidebar-foreground px-4 py-3 border-b border-sidebar-border flex items-center justify-between">
@@ -481,17 +480,15 @@ export function ChatAssistant() {
                       </div>
                     )}
                     <div
-                      className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${
-                        isBot
-                          ? "bg-card border border-border text-card-foreground rounded-tl-none"
-                          : "bg-primary text-primary-foreground rounded-tr-none"
-                      }`}
+                      className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${isBot
+                        ? "bg-card border border-border text-card-foreground rounded-tl-none"
+                        : "bg-primary text-primary-foreground rounded-tr-none"
+                        }`}
                     >
                       {renderMessageContent(msg.text)}
                       <div
-                        className={`text-[10px] mt-1 text-right ${
-                          isBot ? "text-muted-foreground/60" : "text-primary-foreground/70"
-                        }`}
+                        className={`text-[10px] mt-1 text-right ${isBot ? "text-muted-foreground/60" : "text-primary-foreground/70"
+                          }`}
                       >
                         {msg.timestamp}
                       </div>
@@ -539,7 +536,7 @@ export function ChatAssistant() {
             <div className="p-3 bg-card border-t border-border flex items-center gap-2">
               <Input
                 ref={inputRef}
-                placeholder="Tulis pesan atau nomor tiket (contoh: F26001)..."
+                placeholder="Tulis pertanyaan anda...."
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyDown={(e) => {
@@ -564,7 +561,7 @@ export function ChatAssistant() {
             {/* Sub-footer quick WA link */}
             <div className="px-3 py-1.5 bg-muted/40 text-[10px] text-muted-foreground flex items-center justify-between border-t border-border/30">
               <span className="flex items-center gap-1">
-                <Info className="w-3 h-3 text-primary" /> Powered by Gemini & Supabase
+                <Info className="w-3 h-3 text-primary" /> Powered by SUMTRA AI Agent
               </span>
               <a
                 href="https://wa.me/628115404999"

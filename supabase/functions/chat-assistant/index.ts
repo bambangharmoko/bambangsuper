@@ -575,8 +575,59 @@ ${formatGroup("4. Unit Close", unitClose)}
         }).join("\n\n");
     }
 
+    // ═══ REAL-TIME CLOCK CONTEXT (WITA / UTC+8 - BALIKPAPAN) ═══
+    const nowWita = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Makassar" }));
+    const daysIndo = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+    const monthsIndo = [
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    ];
+
+    const currentDayName = daysIndo[nowWita.getDay()];
+    const currentDateNum = nowWita.getDate();
+    const currentMonthName = monthsIndo[nowWita.getMonth()];
+    const currentYear = nowWita.getFullYear();
+    const currentHour = String(nowWita.getHours()).padStart(2, "0");
+    const currentMinute = String(nowWita.getMinutes()).padStart(2, "0");
+    const currentTimeStr = `${currentHour}:${currentMinute} WITA`;
+
+    // Tomorrow calculation
+    const tomorrowWita = new Date(nowWita.getTime() + 24 * 60 * 60 * 1000);
+    const tomorrowDayName = daysIndo[tomorrowWita.getDay()];
+    const tomorrowDateNum = tomorrowWita.getDate();
+    const tomorrowMonthName = monthsIndo[tomorrowWita.getMonth()];
+    const tomorrowYear = tomorrowWita.getFullYear();
+
+    // Store operational status right now
+    const isTodaySunday = nowWita.getDay() === 0;
+    const isTomorrowSunday = tomorrowWita.getDay() === 0;
+    const currentHourNum = nowWita.getHours();
+    const isStoreOpenNow = !isTodaySunday && currentHourNum >= 9 && currentHourNum < 20;
+
+    const storeStatusNow = isTodaySunday
+      ? "TUTUP (Hari ini hari Minggu - Libur operasional)"
+      : isStoreOpenNow
+        ? `BUKA (Sedang buka sekarang s/d pukul 20.00 WITA)`
+        : currentHourNum < 9
+          ? "BELUM BUKA (Akan buka hari ini pukul 09.00 WITA)"
+          : "SUDAH TUTUP (Tutup pukul 20.00 WITA, buka kembali besok pukul 09.00 WITA)";
+
+    const storeStatusTomorrow = isTomorrowSunday
+      ? "TUTUP (Besok adalah hari Minggu - Libur operasional mingguan)"
+      : "BUKA (Pukul 09.00 - 20.00 WITA)";
+
     const systemInstruction = `
 ${dynamicSystemPrompt || `Kamu adalah "SuperBot", asisten AI resmi dari Super Komputer Balikpapan (SUMTRA).`}
+
+[WAKTU REAL-TIME SAAT INI (ZONA WAKTU BALIKPAPAN / WITA / UTC+8)]:
+- Hari & Tanggal Hari Ini: ${currentDayName}, ${currentDateNum} ${currentMonthName} ${currentYear}
+- Jam Saat Ini: ${currentTimeStr}
+- Status Toko Saat Ini: ${storeStatusNow}
+- Hari & Tanggal Besok: ${tomorrowDayName}, ${tomorrowDateNum} ${tomorrowMonthName} ${tomorrowYear}
+- Status Toko Besok (${tomorrowDayName}): ${storeStatusTomorrow}
+- Jadwal Reguler Toko:
+  * Senin s/d Sabtu: BUKA pukul 09.00 - 20.00 WITA
+  * Minggu & Hari Libur Nasional: TUTUP (Libur)
 
 ATURAN PALING UTAMA & KETAT (WAJIB DITAATI):
 1. **HANYA JAWAB APA YANG DITANYAKAN PELANGGAN (ZERO IRRELEVANT PRODUCT PITCHING / DILARANG NGAWUR)**:
@@ -637,6 +688,12 @@ ATURAN PALING UTAMA & KETAT (WAJIB DITAATI):
      * Jika user tanya **Baterai / LCD / RAM / SSD** -> \`?text=Halo%20Admin%20Super%20Komputer%2C%20saya%20ingin%20tanya%20%2F%20booking%20[Nama%20Sparepart]%20untuk%20[Model%20Laptop]\`
      * Jika user tanya **Konsultasi Servis / Kerusakan** -> \`?text=Halo%20Admin%20Super%20Komputer%2C%20saya%20ingin%20konsultasi%20servis%20[Keluhan]\`
    - **DILARANG KERAS menggunakan kata 'sparepart ready stock' jika user sedang menanyakan lisensi Windows/software, servis, atau produk lainnya!**
+
+7. **ATURAN WAKTU & JADWAL OPERASIONAL TOKO (REAL-TIME CONTEXT)**:
+   - Gunakan data waktu real-time di atas setiap kali pelanggan bertanya tentang "hari ini", "besok", "lusa", "sekarang buka/tutup?", "jam berapa buka?", dll.
+   - Hari ini adalah **${currentDayName} (${currentDateNum} ${currentMonthName} ${currentYear}, Jam ${currentTimeStr})**, dan besok adalah **${tomorrowDayName}**.
+   - Jika user bertanya "besok buka kah?" atau "kalau besok?", jawab dengan PASTI dan LENGKAP berdasarkan status hari besok (${tomorrowDayName}: ${storeStatusTomorrow}).
+   - DILARANG MENEBAK atau berasumsi bahwa hari ini adalah hari lain!
 
 DATA DARI DATABASE SUMTRA:
 ${liveDynamicContext || "- Tidak ada data tiket khusus pada percakapan ini."}

@@ -14,7 +14,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
@@ -559,7 +559,10 @@ export default function OrdersPage() {
         </div>
 
         <Dialog open={scannerOpen} onOpenChange={setScannerOpen}>
-          <DialogContent className="p-0 border-none bg-transparent shadow-none max-w-sm">
+          <DialogContent className="p-0 border border-border bg-card shadow-2xl max-w-sm overflow-hidden rounded-xl [&>button.absolute]:hidden">
+            <DialogHeader className="sr-only">
+              <DialogTitle>Scan Barcode / QR Code</DialogTitle>
+            </DialogHeader>
             <BarcodeScanner
               onDetected={(val) => {
                 let finalVal = val.trim();

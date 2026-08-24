@@ -101,34 +101,63 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
   };
 
   return (
-    <div className="relative rounded-lg overflow-hidden border border-border bg-black">
-      <div className="flex items-center justify-between p-2 bg-muted">
-        <span className="text-xs font-medium flex items-center gap-1">
-          <Camera className="h-3 w-3" /> Scan Barcode
+    <div className="relative rounded-lg overflow-hidden border border-border bg-black text-foreground">
+      <div className="flex items-center justify-between px-3 py-2.5 bg-muted/90 backdrop-blur border-b border-border">
+        <span className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
+          <Camera className="h-3.5 w-3.5 text-primary" /> Scan Barcode / QR
         </span>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           <Button
-            variant="ghost"
+            type="button"
+            variant="outline"
             size="sm"
-            className="h-6 text-xs"
+            className="h-7 text-xs px-2.5 bg-background/80"
             onClick={() => fileInputRef.current?.click()}
           >
             <Upload className="h-3 w-3 mr-1" /> Upload
           </Button>
-          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { stopStream(); onClose(); }}>
-            <X className="h-3 w-3" />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
+            onClick={() => {
+              stopStream();
+              onClose();
+            }}
+            title="Tutup Scanner"
+          >
+            <X className="h-4 w-4" />
           </Button>
         </div>
       </div>
       {error ? (
-        <div className="p-4 text-center space-y-2">
-          <p className="text-xs text-destructive">{error}</p>
+        <div className="p-6 text-center space-y-3 bg-card">
+          <p className="text-xs text-destructive leading-relaxed">{error}</p>
           <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-            <Upload className="h-3 w-3 mr-1" /> Upload Gambar Barcode
+            <Upload className="h-3.5 w-3.5 mr-1.5" /> Upload Gambar Barcode
           </Button>
         </div>
       ) : (
-        <video ref={videoRef} className="w-full aspect-video object-cover" playsInline muted />
+        <div className="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden">
+          <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
+          {/* Target Box Overlay */}
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div className="w-3/4 h-3/5 border border-primary/50 rounded-lg relative">
+              <div className="absolute -top-0.5 -left-0.5 w-3 h-3 border-t-2 border-l-2 border-primary rounded-tl" />
+              <div className="absolute -top-0.5 -right-0.5 w-3 h-3 border-t-2 border-r-2 border-primary rounded-tr" />
+              <div className="absolute -bottom-0.5 -left-0.5 w-3 h-3 border-b-2 border-l-2 border-primary rounded-bl" />
+              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 border-b-2 border-r-2 border-primary rounded-br" />
+              {/* Laser Line */}
+              <div className="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent animate-pulse top-1/2 -translate-y-1/2" />
+            </div>
+          </div>
+          <div className="absolute bottom-2 inset-x-0 text-center pointer-events-none">
+            <span className="text-[10px] text-white/90 bg-black/60 px-2.5 py-0.5 rounded-full backdrop-blur-sm">
+              Arahkan kamera ke barcode / QR code
+            </span>
+          </div>
+        </div>
       )}
       <input
         ref={fileInputRef}

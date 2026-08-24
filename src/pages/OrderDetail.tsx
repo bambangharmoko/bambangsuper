@@ -50,6 +50,7 @@ import {
   Bell,
   Link2,
   ExternalLink,
+  UserCheck,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -316,9 +317,10 @@ export default function OrderDetailPage() {
 
 
 
-  // Reassign technician (Owner only)
-  const [reassignDialogOpen, setReassignDialogOpen] = useState(false);
-  const [reassignNewTechId, setReassignNewTechId] = useState("");
+  // Assign / Reassign technician
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [selectedTechId, setSelectedTechId] = useState("");
+  const [assigningTech, setAssigningTech] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const fetchStaffIdentities = async (userIds: string[]) => {
@@ -498,17 +500,48 @@ export default function OrderDetailPage() {
   };
 
   const fetchTechnicians = async () => {
-    const { data: techRoles } = await supabase.from("user_roles").select("user_id, role").eq("role", "technician");
-    if (!techRoles) return;
-    const techIds = techRoles.map((r) => r.user_id);
-    if (techIds.length === 0) return;
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, full_name, username, is_approved")
-      .in("id", techIds)
-      .eq("is_approved", true);
+    try {
+      const { data: rolesData, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id, role");
+      if (rolesError) throw rolesError;
+      if (!rolesData || rolesData.length === 0) return;
 
-    setTechnicians((profiles || []).map((p) => ({ ...p, role: "technician" })));
+      const staffRoles = rolesData.filter((r) => ["technician", "admin", "owner"].includes(r.role));
+      const userIds = [...new Set(staffRoles.map((r) => r.user_id))];
+      if (userIds.length === 0) return;
+
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, full_name, username, is_approved")
+        .in("id", userIds)
+        .eq("is_approved", true);
+
+      if (profilesError) throw profilesError;
+
+      const roleMap: Record<string, string> = {};
+      staffRoles.forEach((r) => {
+        roleMap[r.user_id] = r.role;
+      });
+
+      const list = (profiles || []).map((p) => ({
+        id: p.id,
+        full_name: p.full_name,
+        username: p.username,
+        role: roleMap[p.id] || "technician",
+      }));
+
+      // Sort technicians first, then others alphabetically
+      list.sort((a, b) => {
+        if (a.role === "technician" && b.role !== "technician") return -1;
+        if (a.role !== "technician" && b.role === "technician") return 1;
+        return a.full_name.localeCompare(b.full_name);
+      });
+
+      setTechnicians(list);
+    } catch (err) {
+      console.error("Failed to fetch technicians:", err);
+    }
   };
 
   const markNotesAsRead = async () => {
@@ -596,6 +629,7 @@ export default function OrderDetailPage() {
   useEffect(() => {
     fetchData();
     fetchNotes();
+    fetchTechnicians();
   }, [ticketId]);
 
   // ─── Realtime: auto-refresh when other devices make changes ───────────────
@@ -1368,27 +1402,84 @@ export default function OrderDetailPage() {
   };
 
 
-  const REASSIGN_STATUSES = isInstallOrder
-    ? ["Perbaikan", "Selesai", "Siap diAmbil"]
-    : ["Diagnosa", "Menunggu Persetujuan Pelanggan", "Menunggu Sparepart", "Perbaikan", "Selesai", "Siap diAmbil"];
-  const canReassign = isOwner && REASSIGN_STATUSES.includes(order.status);
+  const canReassign = isAdminOrOwner && !["Close", "Cancelled"].includes(order.status) && Boolean(order.assigned_technician);
+  const canAssign = (isAdminOrOwner || isTechnician) && !["Close", "Cancelled"].includes(order.status) && !order.assigned_technician;
 
-  const confirmReassign = async () => {
-    if (!reassignNewTechId) {
-      toast.error("Pilih teknisi baru!");
+  const handleSelfAssign = async () => {
+    if (!user || !order?.id) return;
+    setAssigningTech(true);
+    try {
+      const { error } = await supabase
+        .from("service_orders")
+        .update({ assigned_technician: user.id })
+        .eq("id", order.id);
+      if (error) throw error;
+
+      await insertServiceUpdate({
+        order_id: order.id,
+        status: order.status as any,
+        description: `[PENUGASAN TEKNISI] Tiket diambil dan dikerjakan oleh ${profile?.full_name || "Teknisi"}`,
+        updated_by: user.id,
+      });
+
+      toast.success("Tiket berhasil diambil dan ditugaskan kepada Anda!");
+      fetchData();
+    } catch (err: any) {
+      console.error("Failed to self-assign ticket", err);
+      toast.error(err?.message || "Gagal mengambil tiket");
+    } finally {
+      setAssigningTech(false);
+    }
+  };
+
+  const confirmAssignOrReassign = async () => {
+    if (!selectedTechId) {
+      toast.error("Pilih teknisi terlebih dahulu!");
       return;
     }
-    await supabase.from("service_orders").update({ assigned_technician: reassignNewTechId }).eq("id", order.id);
-    await insertServiceUpdate({
-      order_id: order.id,
-      status: order.status as any,
-      description: `[REASSIGN oleh Owner] Teknisi diubah`,
-      updated_by: user!.id,
-    });
-    toast.success("Teknisi berhasil diubah");
-    setReassignDialogOpen(false);
-    setReassignNewTechId("");
-    fetchData();
+    if (!user || !order?.id) return;
+
+    setAssigningTech(true);
+    try {
+      const targetTech = technicians.find((t) => t.id === selectedTechId);
+      const targetName = targetTech ? `${targetTech.full_name}${targetTech.username ? ` (@${targetTech.username})` : ""}` : "Teknisi";
+      const isReassignAction = Boolean(order.assigned_technician);
+
+      const { error } = await supabase
+        .from("service_orders")
+        .update({ assigned_technician: selectedTechId })
+        .eq("id", order.id);
+      if (error) throw error;
+
+      await insertServiceUpdate({
+        order_id: order.id,
+        status: order.status as any,
+        description: isReassignAction
+          ? `[REASSIGN TEKNISI] Tiket dialihkan kepada ${targetName} oleh ${profile?.full_name || "Staff"}`
+          : `[PENUGASAN TEKNISI] Tiket ditugaskan kepada ${targetName} oleh ${profile?.full_name || "Staff"}`,
+        updated_by: user.id,
+      });
+
+      // Send push / Telegram / WhatsApp notification to assigned technician if applicable
+      supabase.functions.invoke("notify-staff-update", {
+        body: {
+          order_id: order.id,
+          action: "ticket_assigned",
+          updated_by: user.id,
+          assigned_to: selectedTechId,
+        },
+      }).catch((err) => console.error("Failed to notify assigned technician", err));
+
+      toast.success(`Tiket berhasil ditugaskan kepada ${targetName}!`);
+      setAssignDialogOpen(false);
+      setSelectedTechId("");
+      fetchData();
+    } catch (err: any) {
+      console.error("Failed to assign technician", err);
+      toast.error(err?.message || "Gagal menugaskan teknisi");
+    } finally {
+      setAssigningTech(false);
+    }
   };
 
   const sendWhatsApp = () => {
@@ -1686,25 +1777,68 @@ export default function OrderDetailPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-1">🔧 Teknisi (Assignee)</p>
-                <p className="font-medium">{assigneeName}</p>
-                {canReassign && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-1 h-6 text-[10px]"
-                    onClick={() => {
-                      setReassignNewTechId(order.assigned_technician || "");
-                      setReassignDialogOpen(true);
-                    }}
-                  >
-                    <RefreshCw className="h-2.5 w-2.5 mr-1" /> Reassign
-                  </Button>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {order.assigned_technician ? (
+                    <p className="font-medium">{assigneeName}</p>
+                  ) : (
+                    <Badge variant="outline" className="text-destructive border-destructive/30 bg-destructive/10 text-xs font-normal">
+                      Belum ditugaskan
+                    </Badge>
+                  )}
+                </div>
+
+                {!["Close", "Cancelled"].includes(order.status) && (
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {!order.assigned_technician ? (
+                      isTechnician ? (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="h-6 text-[10px] gradient-primary px-2"
+                          onClick={handleSelfAssign}
+                          disabled={assigningTech}
+                        >
+                          <UserCheck className="h-2.5 w-2.5 mr-1" />
+                          {assigningTech ? "Menugaskan..." : "Ambil Pengerjaan"}
+                        </Button>
+                      ) : isAdminOrOwner ? (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="h-6 text-[10px] gradient-primary px-2"
+                          onClick={() => {
+                            fetchTechnicians();
+                            setSelectedTechId("");
+                            setAssignDialogOpen(true);
+                          }}
+                        >
+                          <UserCheck className="h-2.5 w-2.5 mr-1" /> Tugaskan Teknisi
+                        </Button>
+                      ) : null
+                    ) : (
+                      canReassign && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 text-[10px]"
+                          onClick={() => {
+                            fetchTechnicians();
+                            setSelectedTechId(order.assigned_technician || "");
+                            setAssignDialogOpen(true);
+                          }}
+                        >
+                          <RefreshCw className="h-2.5 w-2.5 mr-1" /> Reassign
+                        </Button>
+                      )
+                    )}
+                  </div>
                 )}
+
                 {isOrderLate && (isOwner || isAdminOrOwner) && order.assigned_technician && (
                   <Button
                     variant="outline"
                     size="sm"
-                    className="mt-1 ml-1.5 h-6 text-[10px] border-destructive/40 text-destructive hover:bg-destructive/10"
+                    className="mt-1.5 h-6 text-[10px] border-destructive/40 text-destructive hover:bg-destructive/10"
                     disabled={sendingTechReminder}
                     onClick={async () => {
                       if (!order?.id || !user?.id) return;
@@ -2133,6 +2267,48 @@ export default function OrderDetailPage() {
                   <span className="text-muted-foreground">Catatan:</span> {(order as any).warranty_notes}
                 </p>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Unassigned Technician Banner */}
+        {!order.assigned_technician && !["Close", "Cancelled"].includes(order.status) && (
+          <Card className="border-primary/40 bg-primary/5 print:hidden shadow-sm">
+            <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <p className="font-semibold text-sm flex items-center gap-1.5 text-foreground">
+                  <UserCheck className="h-4 w-4 text-primary" /> Tiket Belum Ditugaskan ke Teknisi
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {isTechnician
+                    ? "Tiket ini belum memiliki teknisi penanggung jawab. Ambil tiket ini untuk mulai melakukan pengerjaan."
+                    : "Pilih salah satu teknisi yang terdaftar untuk ditugaskan menangani tiket servis ini."}
+                </p>
+              </div>
+              {isTechnician ? (
+                <Button
+                  size="sm"
+                  className="gradient-primary shrink-0 w-full sm:w-auto"
+                  onClick={handleSelfAssign}
+                  disabled={assigningTech}
+                >
+                  <UserCheck className="h-3.5 w-3.5 mr-1.5" />
+                  {assigningTech ? "Menugaskan..." : "Ambil Pengerjaan Tiket"}
+                </Button>
+              ) : isAdminOrOwner ? (
+                <Button
+                  size="sm"
+                  className="gradient-primary shrink-0 w-full sm:w-auto"
+                  onClick={() => {
+                    fetchTechnicians();
+                    setSelectedTechId("");
+                    setAssignDialogOpen(true);
+                  }}
+                >
+                  <UserCheck className="h-3.5 w-3.5 mr-1.5" />
+                  Tugaskan Teknisi
+                </Button>
+              ) : null}
             </CardContent>
           </Card>
         )}
@@ -3068,39 +3244,83 @@ export default function OrderDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Reassign Technician Dialog (Owner only) */}
-      <Dialog open={reassignDialogOpen} onOpenChange={setReassignDialogOpen}>
-        <DialogContent>
+      {/* Assign / Reassign Technician Dialog */}
+      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>🔄 Reassign Teknisi</DialogTitle>
-            <DialogDescription>Pilih teknisi baru untuk menangani tiket ini.</DialogDescription>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <UserCheck className="h-5 w-5 text-primary" />
+              {order?.assigned_technician ? "Reassign Teknisi" : "Tugaskan Teknisi"}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {order?.assigned_technician
+                ? `Alihkan penanganan tiket #${order.ticket_number} ke teknisi lain.`
+                : `Pilih akun teknisi yang terdaftar untuk menangani tiket #${order.ticket_number}.`}
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Pilih teknisi baru untuk menangani tiket <strong>{order.ticket_number}</strong>.
-            </p>
+          <div className="space-y-4 py-2">
+            <div className="p-3 rounded-lg border border-border bg-muted/40 space-y-1.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Nomor Tiket:</span>
+                <span className="font-semibold text-foreground">#{order.ticket_number}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Pelanggan:</span>
+                <span className="font-medium text-foreground">{order.customer_name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Perangkat:</span>
+                <span className="font-medium text-foreground">{[order.device_brand, order.device_model].filter(Boolean).join(" ") || order.device_type || "-"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Teknisi Saat Ini:</span>
+                <span className="font-medium text-foreground">{assigneeName}</span>
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label>Teknisi Baru *</Label>
-              <Select value={reassignNewTechId} onValueChange={setReassignNewTechId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih teknisi..." />
+              <Label className="text-xs">Pilih Teknisi Sesuai Role Akun Terdaftar *</Label>
+              <Select value={selectedTechId} onValueChange={setSelectedTechId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Pilih akun teknisi..." />
                 </SelectTrigger>
-                <SelectContent>
-                  {technicians.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.full_name} {t.username ? `(@${t.username})` : ""}
-                    </SelectItem>
-                  ))}
+                <SelectContent className="max-h-60">
+                  {technicians.length === 0 ? (
+                    <div className="p-3 text-center text-xs text-muted-foreground">
+                      Tidak ada akun teknisi aktif ditemukan.
+                    </div>
+                  ) : (
+                    technicians.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        <div className="flex items-center justify-between gap-3 w-full">
+                          <span>
+                            {t.full_name} {t.username ? `(@${t.username})` : ""}
+                          </span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                            t.role === "technician" ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" :
+                            t.role === "admin" ? "bg-purple-500/10 text-purple-600 dark:text-purple-400" :
+                            "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                          }`}>
+                            {t.role === "technician" ? "Teknisi" : t.role === "admin" ? "Admin" : "Owner"}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReassignDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setAssignDialogOpen(false)} disabled={assigningTech}>
               Batal
             </Button>
-            <Button onClick={confirmReassign} className="gradient-primary">
-              Konfirmasi
+            <Button
+              onClick={confirmAssignOrReassign}
+              className="gradient-primary"
+              disabled={assigningTech || !selectedTechId}
+            >
+              {assigningTech ? "Menugaskan..." : "Konfirmasi Penugasan"}
             </Button>
           </DialogFooter>
         </DialogContent>

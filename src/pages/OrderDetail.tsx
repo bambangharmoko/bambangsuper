@@ -48,6 +48,8 @@ import {
   Printer,
   Trash2,
   Bell,
+  Link2,
+  ExternalLink,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -271,6 +273,11 @@ export default function OrderDetailPage() {
   const [reassignTechId, setReassignTechId] = useState<string>("");
   const [technicians, setTechnicians] = useState<any[]>([]);
 
+  // Linked warranty tickets (Integrasi Garansi Toko)
+  const [linkedOriginalTicket, setLinkedOriginalTicket] = useState<any | null>(null);
+  const [linkedWarrantyTickets, setLinkedWarrantyTickets] = useState<any[]>([]);
+  const [linkedModalTicket, setLinkedModalTicket] = useState<any | null>(null);
+
   // Diagnosis evidence photos
   const [diagnosisPhotos, setDiagnosisPhotos] = useState<File[]>([]);
   const [uploadingDiagPhotos, setUploadingDiagPhotos] = useState(false);
@@ -439,6 +446,28 @@ export default function OrderDetailPage() {
 
       setUpdates(rawUpdates);
       setPhotos(photosRes.data || []);
+
+      // Fetch linked original ticket if this is a warranty ticket
+      if ((orderRes.data as any).warranty_linked_ticket_id) {
+        const { data: origTicket } = await supabase
+          .from("service_orders")
+          .select("id, ticket_number, customer_name, customer_phone, customer_email, device_type, device_brand, device_model, service_type, status, created_at, unit_condition, damage_description, unit_accessories, final_cost")
+          .eq("id", (orderRes.data as any).warranty_linked_ticket_id)
+          .maybeSingle();
+        if (fetchRun === fetchRunRef.current) setLinkedOriginalTicket(origTicket || null);
+      } else {
+        if (fetchRun === fetchRunRef.current) setLinkedOriginalTicket(null);
+      }
+
+      // Fetch child warranty tickets that link to this ticket
+      const { data: childWarranty } = await supabase
+        .from("service_orders")
+        .select("id, ticket_number, customer_name, customer_phone, customer_email, device_type, device_brand, device_model, service_type, status, created_at, unit_condition, damage_description, unit_accessories, final_cost")
+        .eq("warranty_linked_ticket_id", oid)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false });
+      if (fetchRun === fetchRunRef.current) setLinkedWarrantyTickets(childWarranty || []);
+
       setFetchError(null);
     } catch (error) {
       if (fetchRun !== fetchRunRef.current) return;
@@ -1705,6 +1734,108 @@ export default function OrderDetailPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Tiket Servis Asal (Garansi Toko) */}
+        {linkedOriginalTicket && (
+          <Card className="border-primary/40 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 print:hidden">
+            <CardContent className="p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link2 className="h-4 w-4 text-primary shrink-0" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-primary">
+                      Tiket Servis Asal (Klaim Garansi)
+                    </span>
+                    <Badge variant="outline" className="text-[11px] font-bold">
+                      #{linkedOriginalTicket.ticket_number}
+                    </Badge>
+                    <StatusBadge status={linkedOriginalTicket.status} />
+                  </div>
+                  <p className="text-sm font-medium text-foreground">
+                    {[linkedOriginalTicket.device_brand, linkedOriginalTicket.device_model].filter(Boolean).join(" ") || linkedOriginalTicket.device_type || "-"}
+                    <span className="text-muted-foreground font-normal ml-2">— {linkedOriginalTicket.customer_name} ({linkedOriginalTicket.customer_phone})</span>
+                  </p>
+                  {linkedOriginalTicket.damage_description && (
+                    <p className="text-xs text-muted-foreground line-clamp-1">
+                      Kerusakan Asal: {linkedOriginalTicket.damage_description}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs bg-background/80"
+                    onClick={() => setLinkedModalTicket(linkedOriginalTicket)}
+                  >
+                    Ringkasan
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-8 text-xs gradient-primary"
+                    onClick={() => navigate(`/dashboard/orders/${linkedOriginalTicket.ticket_number}`)}
+                  >
+                    <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                    Buka Tiket Asal
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Tiket Klaim Garansi Turunan */}
+        {linkedWarrantyTickets.length > 0 && (
+          <Card className="border-amber-500/40 bg-amber-500/5 print:hidden">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Link2 className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                  Riwayat Tiket Klaim Garansi ({linkedWarrantyTickets.length})
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {linkedWarrantyTickets.map((wt) => (
+                  <div
+                    key={wt.id}
+                    className="p-3 rounded-lg border border-border bg-card/90 space-y-1.5 text-xs flex flex-col justify-between"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-foreground">#{wt.ticket_number}</span>
+                      <StatusBadge status={wt.status} />
+                    </div>
+                    <p className="text-muted-foreground line-clamp-1">
+                      {[wt.device_brand, wt.device_model].filter(Boolean).join(" ") || wt.device_type || "-"}
+                    </p>
+                    <div className="flex items-center justify-between pt-1 border-t border-border/50">
+                      <span className="text-muted-foreground text-[10px]">
+                        {new Date(wt.created_at).toLocaleDateString("id-ID")}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-[11px]"
+                          onClick={() => setLinkedModalTicket(wt)}
+                        >
+                          Detail
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2 text-[11px]"
+                          onClick={() => navigate(`/dashboard/orders/${wt.ticket_number}`)}
+                        >
+                          Buka
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:hidden">
           {/* Info Pelanggan */}
@@ -3011,6 +3142,106 @@ export default function OrderDetailPage() {
           e.target.value = "";
         }}
       />
+      {/* Dialog Ringkasan Tiket Terkait */}
+      <Dialog open={!!linkedModalTicket} onOpenChange={(open) => !open && setLinkedModalTicket(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between text-base">
+              <div className="flex items-center gap-2">
+                <Link2 className="h-5 w-5 text-primary" />
+                <span>Detail Tiket #{linkedModalTicket?.ticket_number}</span>
+              </div>
+              {linkedModalTicket?.status && <StatusBadge status={linkedModalTicket.status} />}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Tipe Servis: <span className="font-semibold text-foreground">{linkedModalTicket?.service_type || "-"}</span>
+            </DialogDescription>
+          </DialogHeader>
+
+          {linkedModalTicket && (
+            <div className="space-y-3 py-2 text-xs">
+              <div className="p-3 rounded-lg border border-border bg-muted/40 space-y-1.5">
+                <p className="font-semibold text-muted-foreground uppercase text-[10px] tracking-wide">Informasi Pelanggan</p>
+                <div className="grid grid-cols-2 gap-1">
+                  <div>
+                    <span className="text-muted-foreground">Nama:</span>
+                    <p className="font-medium text-foreground">{linkedModalTicket.customer_name}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">No HP:</span>
+                    <p className="font-medium text-foreground">{linkedModalTicket.customer_phone}</p>
+                  </div>
+                </div>
+                {linkedModalTicket.customer_email && (
+                  <div>
+                    <span className="text-muted-foreground">Email:</span>
+                    <p className="font-medium text-foreground">{linkedModalTicket.customer_email}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3 rounded-lg border border-border bg-muted/40 space-y-1.5">
+                <p className="font-semibold text-muted-foreground uppercase text-[10px] tracking-wide">Informasi Unit</p>
+                <div className="grid grid-cols-2 gap-1">
+                  <div>
+                    <span className="text-muted-foreground">Perangkat:</span>
+                    <p className="font-medium text-foreground">{[linkedModalTicket.device_brand, linkedModalTicket.device_model].filter(Boolean).join(" ") || linkedModalTicket.device_type || "-"}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Tanggal Masuk:</span>
+                    <p className="font-medium text-foreground">{new Date(linkedModalTicket.created_at).toLocaleDateString("id-ID")}</p>
+                  </div>
+                </div>
+                {linkedModalTicket.unit_condition && (
+                  <div>
+                    <span className="text-muted-foreground">Kondisi:</span>
+                    <p className="font-medium text-foreground">{linkedModalTicket.unit_condition}</p>
+                  </div>
+                )}
+                {linkedModalTicket.damage_description && (
+                  <div>
+                    <span className="text-muted-foreground">Deskripsi Kerusakan:</span>
+                    <p className="font-medium text-foreground whitespace-pre-line">{linkedModalTicket.damage_description}</p>
+                  </div>
+                )}
+                {linkedModalTicket.unit_accessories && (
+                  <div>
+                    <span className="text-muted-foreground">Kelengkapan:</span>
+                    <p className="font-medium text-foreground">{linkedModalTicket.unit_accessories}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex flex-row justify-between sm:justify-between gap-2 border-t pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setLinkedModalTicket(null)}
+              className="text-xs"
+            >
+              Tutup
+            </Button>
+            {linkedModalTicket && (
+              <Button
+                type="button"
+                size="sm"
+                className="text-xs gradient-primary"
+                onClick={() => {
+                  const targetNum = linkedModalTicket.ticket_number;
+                  setLinkedModalTicket(null);
+                  navigate(`/dashboard/orders/${targetNum}`);
+                }}
+              >
+                <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                Buka Halaman Lengkap
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

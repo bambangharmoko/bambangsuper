@@ -323,8 +323,8 @@ Deno.serve(async (req) => {
         const costStr = orderData.final_cost != null
           ? `Rp ${Number(orderData.final_cost).toLocaleString("id-ID")}`
           : orderData.estimated_cost != null
-          ? `Estimasi Rp ${Number(orderData.estimated_cost).toLocaleString("id-ID")}`
-          : "Belum ada rincian final";
+            ? `Estimasi Rp ${Number(orderData.estimated_cost).toLocaleString("id-ID")}`
+            : "Belum ada rincian final";
 
         const updatedAtDate = new Date(orderData.updated_at || orderData.created_at || Date.now());
         const diffMs = Math.max(0, Date.now() - updatedAtDate.getTime());
@@ -563,8 +563,8 @@ ${formatGroup("4. Unit Close", unitClose)}
           const stStr = s.status === "ready"
             ? `✅ READY STOCK DI TOKO`
             : s.status === "po"
-            ? `📦 PRE-ORDER / INDENT CEPAT (Estimasi 1-3 hari kerja)`
-            : `❌ HABIS / KOSONG`;
+              ? `📦 PRE-ORDER / INDENT CEPAT (Estimasi 1-3 hari kerja)`
+              : `❌ HABIS / KOSONG`;
           return `${idx + 1}. **${s.name}** (Merek: ${s.brand || "Universal"})
    - Kategori: ${s.category}
    - Kompatibilitas Tipe Laptop: ${s.compatibility || "-"}
@@ -713,8 +713,8 @@ ${dynamicKnowledgeBase}${qaExamplesContext}
       const cost = ticketOrderFound.final_cost != null
         ? `Rp ${Number(ticketOrderFound.final_cost).toLocaleString("id-ID")}`
         : ticketOrderFound.estimated_cost != null
-        ? `Estimasi Rp ${Number(ticketOrderFound.estimated_cost).toLocaleString("id-ID")}`
-        : "-";
+          ? `Estimasi Rp ${Number(ticketOrderFound.estimated_cost).toLocaleString("id-ID")}`
+          : "-";
       return new Response(
         JSON.stringify({
           reply: `Halo! Berikut data resmi untuk tiket **#${ticketOrderFound.ticket_number}** atas nama **${ticketOrderFound.customer_name}**:\n\n• **Perangkat:** ${getDeviceName(ticketOrderFound)}\n• **Kategori:** ${getCategoryForStatus(ticketOrderFound.status)} (${ticketOrderFound.status})\n• **Keluhan:** ${ticketOrderFound.damage_description || ticketOrderFound.unit_condition || "-"}\n• **Total Biaya:** ${cost}\n\n[Buka Pelacakan Tiket #${ticketOrderFound.ticket_number}](/track/${ticketOrderFound.ticket_number})`,

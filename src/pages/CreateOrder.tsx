@@ -20,9 +20,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, Upload, X, Search, Camera } from "lucide-react";
+import { ArrowLeft, ArrowRight, Upload, X, Search, Camera, Link2, Loader2 } from "lucide-react";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
+import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/StatusBadge";
 import { cn } from "@/lib/utils";
 
 const SERVICE_TYPES = ["Non Garansi", "Garansi Toko", "Garansi Partner", "Install Software/Hardware"];
@@ -543,6 +553,14 @@ export default function CreateOrderPage() {
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [duplicateAlertOpen, setDuplicateAlertOpen] = useState(false);
   const [addUnitAlertOpen, setAddUnitAlertOpen] = useState(false);
+
+  // Warranty ticket linking (Garansi Toko)
+  const [warrantySearchOpen, setWarrantySearchOpen] = useState(false);
+  const [warrantySearchQuery, setWarrantySearchQuery] = useState("");
+  const [warrantySearchResults, setWarrantySearchResults] = useState<any[]>([]);
+  const [warrantySearchLoading, setWarrantySearchLoading] = useState(false);
+  const [linkedPreviousTicket, setLinkedPreviousTicket] = useState<any | null>(null);
+
   const { user } = useAuth();
   const navigate = useNavigate();
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -556,6 +574,7 @@ export default function CreateOrderPage() {
   const LOCAL_STORAGE_KEY_STEP = "super_komputer_create_order_step";
   const LOCAL_STORAGE_KEY_PENDING_UNITS = "super_komputer_create_order_pending_units";
   const LOCAL_STORAGE_KEY_CUSTOMER_ID = "super_komputer_create_order_customer_id";
+  const LOCAL_STORAGE_KEY_LINKED_TICKET = "super_komputer_create_order_linked_ticket";
 
   // Load draft from localStorage on mount
   useEffect(() => {
@@ -563,6 +582,15 @@ export default function CreateOrderPage() {
     const savedStep = localStorage.getItem(LOCAL_STORAGE_KEY_STEP);
     const savedPendingUnits = localStorage.getItem(LOCAL_STORAGE_KEY_PENDING_UNITS);
     const savedCustomerId = localStorage.getItem(LOCAL_STORAGE_KEY_CUSTOMER_ID);
+    const savedLinkedTicket = localStorage.getItem(LOCAL_STORAGE_KEY_LINKED_TICKET);
+
+    if (savedLinkedTicket) {
+      try {
+        setLinkedPreviousTicket(JSON.parse(savedLinkedTicket));
+      } catch (e) {
+        console.error("Failed to parse saved linked ticket", e);
+      }
+    }
 
     if (savedForm) {
       try {
@@ -666,8 +694,13 @@ export default function CreateOrderPage() {
       } else {
         localStorage.removeItem(LOCAL_STORAGE_KEY_CUSTOMER_ID);
       }
+      if (linkedPreviousTicket) {
+        localStorage.setItem(LOCAL_STORAGE_KEY_LINKED_TICKET, JSON.stringify(linkedPreviousTicket));
+      } else {
+        localStorage.removeItem(LOCAL_STORAGE_KEY_LINKED_TICKET);
+      }
     }
-  }, [form, step, pendingUnits, selectedCustomerId]);
+  }, [form, step, pendingUnits, selectedCustomerId, linkedPreviousTicket]);
 
   const pendingUnitsRef = useRef<PendingUnit[]>(pendingUnits);
   useEffect(() => { pendingUnitsRef.current = pendingUnits; }, [pendingUnits]);
@@ -696,8 +729,10 @@ export default function CreateOrderPage() {
     localStorage.removeItem(LOCAL_STORAGE_KEY_STEP);
     localStorage.removeItem(LOCAL_STORAGE_KEY_PENDING_UNITS);
     localStorage.removeItem(LOCAL_STORAGE_KEY_CUSTOMER_ID);
+    localStorage.removeItem(LOCAL_STORAGE_KEY_LINKED_TICKET);
     await clearPhotosFromDB();
     setPhotos([]);
+    setLinkedPreviousTicket(null);
     setForm({
       serviceType: "",
       customerName: "",
@@ -832,11 +867,76 @@ export default function CreateOrderPage() {
   };
 
   const handleNextStep = () => {
+    // Intercept: Garansi Toko at Step 1 → show warranty search dialog
+    if (step === 1 && form.serviceType === "Garansi Toko" && !linkedPreviousTicket) {
+      setWarrantySearchOpen(true);
+      return;
+    }
     if (step === 2 && isDuplicateCustomer()) {
       setDuplicateAlertOpen(true);
       return;
     }
     setStep((s) => s + 1);
+  };
+
+  const searchPreviousTicket = async (query: string) => {
+    if (!query.trim()) {
+      setWarrantySearchResults([]);
+      return;
+    }
+    setWarrantySearchLoading(true);
+    try {
+      const q = query.trim();
+      // Search by ticket_number (case-insensitive) OR customer_phone
+      const { data, error } = await supabase
+        .from("service_orders")
+        .select("id, ticket_number, customer_name, customer_phone, customer_email, device_type, device_brand, device_model, device_password, service_type, status, created_at, unit_condition, damage_description, unit_accessories, serial_number")
+        .or(`ticket_number.ilike.%${q}%,customer_phone.ilike.%${q}%`)
+        .is("deleted_at", null)
+        .neq("status", "Cancelled")
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      setWarrantySearchResults(data || []);
+    } catch (err) {
+      console.error("Warranty ticket search error:", err);
+      toast.error("Gagal mencari tiket. Periksa koneksi internet.");
+    } finally {
+      setWarrantySearchLoading(false);
+    }
+  };
+
+  const selectPreviousTicket = (ticket: any) => {
+    setLinkedPreviousTicket(ticket);
+    // Auto-fill customer data
+    update("customerName", ticket.customer_name);
+    update("customerPhone", ticket.customer_phone);
+    update("customerEmail", ticket.customer_email || "");
+    setCustomerLocked(true);
+    setCustomerSearch(ticket.customer_name);
+    if (ticket.customer_email) setEmailLockedFromDb(true);
+    // Auto-fill device data from original ticket
+    const detectedDeviceType = DEVICE_TYPES.includes(ticket.device_type) ? ticket.device_type : (ticket.device_type ? "Lainnya" : "");
+    update("deviceType", detectedDeviceType);
+    if (detectedDeviceType === "Lainnya") update("deviceTypeOther", ticket.device_type);
+    update("deviceBrand", ticket.device_brand || "");
+    update("deviceModel", ticket.device_model || "");
+    update("devicePassword", ticket.device_password || "");
+    // Close dialog and skip to Step 3 (device already filled)
+    setWarrantySearchOpen(false);
+    setWarrantySearchQuery("");
+    setWarrantySearchResults([]);
+    setStep(3);
+    toast.success(`Data dari tiket ${ticket.ticket_number} berhasil dimuat.`);
+  };
+
+  const skipWarrantySearch = () => {
+    setWarrantySearchOpen(false);
+    setWarrantySearchQuery("");
+    setWarrantySearchResults([]);
+    // Proceed to Step 2 as normal (manual input)
+    setStep(2);
   };
 
   const handlePrevStep = (targetStep?: number) => {
@@ -1057,6 +1157,7 @@ export default function CreateOrderPage() {
       service_type: form.serviceType,
       notes: unit.notes || null,
       serial_number: form.serviceType === "Garansi Partner" ? unit.serialNumber || null : null,
+      warranty_linked_ticket_id: form.serviceType === "Garansi Toko" && linkedPreviousTicket ? linkedPreviousTicket.id : null,
     };
   };
 
@@ -1258,11 +1359,48 @@ export default function CreateOrderPage() {
                     "p-4 rounded-lg border cursor-pointer transition-all",
                     form.serviceType === type ? "border-primary bg-primary/5" : "border-border hover:border-primary/30",
                   )}
-                  onClick={() => update("serviceType", type)}
+                  onClick={() => {
+                    update("serviceType", type);
+                    if (type !== "Garansi Toko") setLinkedPreviousTicket(null);
+                  }}
                 >
                   <p className="font-medium text-sm">{type}</p>
                 </div>
               ))}
+
+              {form.serviceType === "Garansi Toko" && (
+                <div className="mt-4 p-3.5 rounded-lg border border-primary/30 bg-primary/5 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Link2 className="h-4 w-4 text-primary" />
+                      <span className="text-xs font-semibold text-primary">Integrasi Tiket Servis Sebelumnya</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setWarrantySearchOpen(true)}
+                    >
+                      {linkedPreviousTicket ? "Ganti Tiket" : "Cari Tiket"}
+                    </Button>
+                  </div>
+                  {linkedPreviousTicket ? (
+                    <div className="text-xs space-y-1.5 bg-background p-3 rounded-md border border-border">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-foreground text-sm">#{linkedPreviousTicket.ticket_number}</span>
+                        <StatusBadge status={linkedPreviousTicket.status} />
+                      </div>
+                      <p className="text-muted-foreground"><span className="text-foreground font-medium">{linkedPreviousTicket.customer_name}</span> ({linkedPreviousTicket.customer_phone})</p>
+                      <p className="text-muted-foreground">💻 {[linkedPreviousTicket.device_brand, linkedPreviousTicket.device_model].filter(Boolean).join(" ") || linkedPreviousTicket.device_type || "-"}</p>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      💡 Klik tombol <strong>Lanjut</strong> atau <strong>Cari Tiket</strong> untuk mencari nomor tiket/no HP sebelumnya agar data customer & unit terisi otomatis.
+                    </p>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -1931,6 +2069,16 @@ export default function CreateOrderPage() {
                       <p className="font-medium">{form.customerEmail || "-"}</p>
                     </div>
                   </div>
+
+                  {form.serviceType === "Garansi Toko" && linkedPreviousTicket && (
+                    <div className="pt-2 border-t border-border flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5 text-primary font-medium">
+                        <Link2 className="h-3.5 w-3.5" />
+                        <span>Tiket Servis Asal:</span>
+                      </div>
+                      <span className="font-bold text-foreground">#{linkedPreviousTicket.ticket_number}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Step 3 & 4 — list all units */}
@@ -2027,6 +2175,121 @@ export default function CreateOrderPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog Pencarian Tiket Servis Sebelumnya (Garansi Toko) */}
+      <Dialog open={warrantySearchOpen} onOpenChange={setWarrantySearchOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Link2 className="h-5 w-5 text-primary" />
+              Hubungkan Tiket Servis Sebelumnya
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Masukkan Nomor Tiket (contoh: <strong>A26001</strong>) atau Nomor HP pelanggan untuk memuat data customer dan unit secara otomatis.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 flex-1 overflow-hidden flex flex-col">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Ketik nomor tiket atau nomor HP..."
+                  value={warrantySearchQuery}
+                  onChange={(e) => {
+                    setWarrantySearchQuery(e.target.value);
+                    searchPreviousTicket(e.target.value);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      searchPreviousTicket(warrantySearchQuery);
+                    }
+                  }}
+                  className="pl-9 text-sm"
+                  autoFocus
+                />
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => searchPreviousTicket(warrantySearchQuery)}
+                disabled={warrantySearchLoading || !warrantySearchQuery.trim()}
+              >
+                {warrantySearchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Cari"}
+              </Button>
+            </div>
+
+            {/* Search Results List */}
+            <div className="flex-1 overflow-y-auto space-y-2 max-h-[320px] pr-1">
+              {warrantySearchLoading ? (
+                <div className="flex items-center justify-center py-8 text-muted-foreground text-sm gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Mencari tiket servis...
+                </div>
+              ) : warrantySearchResults.length > 0 ? (
+                warrantySearchResults.map((t) => (
+                  <div
+                    key={t.id}
+                    onClick={() => selectPreviousTicket(t)}
+                    className="p-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-all cursor-pointer space-y-1.5 text-xs group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">
+                          #{t.ticket_number}
+                        </span>
+                        <Badge variant="outline" className="text-[10px] py-0">
+                          {t.service_type || "Servis"}
+                        </Badge>
+                      </div>
+                      <StatusBadge status={t.status} />
+                    </div>
+                    <div className="flex items-center justify-between text-muted-foreground">
+                      <span className="font-medium text-foreground">{t.customer_name}</span>
+                      <span>{t.customer_phone}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-muted-foreground pt-1 border-t border-border/50">
+                      <span>💻 {[t.device_brand, t.device_model].filter(Boolean).join(" ") || t.device_type || "-"}</span>
+                      <span>{new Date(t.created_at).toLocaleDateString("id-ID")}</span>
+                    </div>
+                  </div>
+                ))
+              ) : warrantySearchQuery.trim() ? (
+                <div className="text-center py-8 text-muted-foreground text-xs space-y-1">
+                  <p className="font-medium">Tidak ada tiket yang cocok</p>
+                  <p>Pastikan nomor tiket atau nomor HP sudah benar.</p>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground text-xs space-y-1">
+                  <p>Ketik nomor tiket (contoh: <strong>A26001</strong>) atau nomor HP.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-row justify-between sm:justify-between gap-2 border-t pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={skipWarrantySearch}
+              className="text-xs"
+            >
+              Lewati (Input Manual)
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setWarrantySearchOpen(false)}
+              className="text-xs"
+            >
+              Batal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

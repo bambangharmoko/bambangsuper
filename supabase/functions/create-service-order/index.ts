@@ -106,6 +106,8 @@ Deno.serve(async (req) => {
       serial_number: typeof body.serial_number === "string" && body.serial_number.trim() ? body.serial_number.trim() : null,
       // saved_customer_id: links ticket to a saved customer record (null = manual customer)
       saved_customer_id: typeof body.saved_customer_id === "string" && body.saved_customer_id.trim() ? body.saved_customer_id.trim() : null,
+      // warranty_linked_ticket_id: links a "Garansi Toko" ticket to its original service ticket
+      warranty_linked_ticket_id: typeof body.warranty_linked_ticket_id === "string" && body.warranty_linked_ticket_id.trim() ? body.warranty_linked_ticket_id.trim() : null,
       created_by: userId,
     };
 

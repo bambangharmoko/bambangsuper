@@ -249,6 +249,7 @@ export type Database = {
           updated_at: string
           warranty_duration: number | null
           warranty_expiry: string | null
+          warranty_linked_ticket_id: string | null
           warranty_notes: string | null
           warranty_unit: string | null
         }
@@ -284,6 +285,7 @@ export type Database = {
           updated_at?: string
           warranty_duration?: number | null
           warranty_expiry?: string | null
+          warranty_linked_ticket_id?: string | null
           warranty_notes?: string | null
           warranty_unit?: string | null
         }
@@ -319,6 +321,7 @@ export type Database = {
           updated_at?: string
           warranty_duration?: number | null
           warranty_expiry?: string | null
+          warranty_linked_ticket_id?: string | null
           warranty_notes?: string | null
           warranty_unit?: string | null
         }

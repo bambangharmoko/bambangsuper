@@ -288,7 +288,7 @@ export default function Reports() {
                   <p className="text-xs text-muted-foreground">{fetchError}</p>
                 </div>
               </div>
-              <Button size="sm" variant="outline" onClick={fetchOrders}>
+              <Button size="sm" variant="outline" onClick={() => fetchOrders()}>
                 <RefreshCw className="h-3 w-3 mr-1" /> Muat Ulang Data
               </Button>
             </CardContent>

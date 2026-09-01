@@ -1,10 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { LogIn, Eye, EyeOff } from "lucide-react";
 import { AppLogo } from "@/components/AppLogo";
@@ -74,61 +70,101 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center flex flex-col items-center">
-          <AppLogo className="h-12 mb-2" />
-          <CardTitle className="text-xl">Login Staff</CardTitle>
-          <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight mt-1">Super Ultima Management, Tracking & Real-Time Application</p>
-        </CardHeader>
-        <CardContent>
+    <div className="min-h-screen flex items-center justify-center bg-[#090d16] p-4 relative overflow-hidden">
+      {/* Background grid + glow */}
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:48px_48px] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-blue-600/8 rounded-full blur-[100px] pointer-events-none" />
+
+      <div className="relative w-full max-w-sm">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="flex justify-center mb-4">
+            <AppLogo className="h-10" />
+          </div>
+          <h1 className="text-xl font-bold text-white tracking-tight">Login Staff</h1>
+          <p className="text-[10px] sm:text-xs text-slate-500 leading-tight mt-1 tracking-wide uppercase">
+            Super Ultima Management, Tracking & Real-Time Application
+          </p>
+        </div>
+
+        {/* Card */}
+        <div className="rounded-2xl border border-white/8 bg-slate-900/60 backdrop-blur-xl p-6 shadow-2xl">
           <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="identifier">Email atau Username</Label>
-              <Input
+            {/* Identifier */}
+            <div className="space-y-1.5">
+              <label htmlFor="identifier" className="text-xs font-medium text-slate-400 tracking-wide">
+                Email atau Username
+              </label>
+              <input
                 id="identifier"
+                type="text"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="Masukkan Email atau username"
+                placeholder="Masukkan email atau username"
                 required
+                className="w-full h-10 px-3.5 rounded-lg border border-white/10 bg-white/5 text-white placeholder:text-slate-600 text-sm focus:outline-none focus:border-blue-500/60 focus:bg-white/8 transition-all"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+
+            {/* Password */}
+            <div className="space-y-1.5">
+              <label htmlFor="password" className="text-xs font-medium text-slate-400 tracking-wide">
+                Password
+              </label>
               <div className="relative">
-                <Input
+                <input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  className="w-full h-10 px-3.5 pr-10 rounded-lg border border-white/10 bg-white/5 text-white placeholder:text-slate-600 text-sm focus:outline-none focus:border-blue-500/60 focus:bg-white/8 transition-all"
                 />
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
-            <Button type="submit" className="w-full gradient-primary" disabled={loading}>
-              <LogIn className="h-4 w-4 mr-2" />
-              {loading ? "Loading..." : "Login"}
-            </Button>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-10 mt-2 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-sm font-semibold disabled:opacity-50 transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2"
+            >
+              <LogIn className="h-4 w-4" />
+              {loading ? "Memproses..." : "Login"}
+            </button>
           </form>
-          <div className="mt-3 text-center">
+
+          {/* Forgot password */}
+          <div className="mt-4 text-center">
             <ForgotPasswordDialog />
           </div>
-          <div className="mt-4 text-center text-sm">
-            <span className="text-muted-foreground">Belum punya akun? </span>
-            <Link to="/register" className="text-primary hover:underline">Daftar</Link>
+
+          {/* Divider */}
+          <div className="my-4 border-t border-white/6" />
+
+          {/* Links */}
+          <div className="space-y-2 text-center text-xs">
+            <div>
+              <span className="text-slate-500">Belum punya akun? </span>
+              <Link to="/register" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">
+                Daftar
+              </Link>
+            </div>
+            <div>
+              <Link to="/" className="text-slate-600 hover:text-slate-400 transition-colors">
+                ← Kembali ke Beranda
+              </Link>
+            </div>
           </div>
-          <div className="mt-2 text-center">
-            <Link to="/" className="text-xs text-muted-foreground hover:underline">← Kembali ke Beranda</Link>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

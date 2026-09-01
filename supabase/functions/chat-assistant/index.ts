@@ -719,8 +719,8 @@ ATURAN PALING UTAMA & KETAT (WAJIB DITAATI):
      * Tampilkan rincian: Nama produk/lisensi/sparepart, kompatibilitas, estimasi harga (termasuk garansi & fasilitas jika ada).
      * Informasikan alamat toko (Jl. Ahmad Yani No.118 Balikpapan Tengah) & jam operasional (Senin-Sabtu 09.00 - 20.00 WITA).
      * Berikan link direct WhatsApp Admin dengan teks pesan yang SESUAI SPESIFIK dengan barang yang dipesan:
-       - Untuk Lisensi Windows/Office: `[Chat WhatsApp Admin Super Komputer](https://wa.me/${waAdminPhone}?text=Halo%20Admin%20Super%20Komputer%2C%20saya%20ingin%20pesan%20Lisensi%20[Nama%20Produk])`
-       - Untuk Sparepart/Komponen: `[Chat WhatsApp Admin Super Komputer](https://wa.me/${waAdminPhone}?text=Halo%20Admin%20Super%20Komputer%2C%20saya%20ingin%20booking%20[Nama%20Sparepart]%20untuk%20[Model])`
+       - Untuk Lisensi Windows/Office: \`[Chat WhatsApp Admin Super Komputer](https://wa.me/${waAdminPhone}?text=Halo%20Admin%20Super%20Komputer%2C%20saya%20ingin%20pesan%20Lisensi%20[Nama%20Produk])\`
+       - Untuk Sparepart/Komponen: \`[Chat WhatsApp Admin Super Komputer](https://wa.me/${waAdminPhone}?text=Halo%20Admin%20Super%20Komputer%2C%20saya%20ingin%20booking%20[Nama%20Sparepart]%20untuk%20[Model])\`
 
 4. **JIKA MODEL/BARANG YANG DITANYAKAN TIDAK ADA DI KATALOG READY STOCK**:
    - Jika pelanggan menanyakan model/barang spesifik dan TIDAK tercantum di KATALOG READY STOCK:

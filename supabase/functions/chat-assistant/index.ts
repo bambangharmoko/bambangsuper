@@ -274,7 +274,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { messages } = await req.json();
+    const { messages, client_time_iso } = await req.json();
     const apiKey = Deno.env.get("GEMINI_API_KEY");
 
     if (!apiKey) {
@@ -331,7 +331,8 @@ Deno.serve(async (req) => {
     const lastUserText = String(lastUserMsg?.parts?.[0]?.text || lastUserMsg?.text || "");
 
     // ═══ REAL-TIME CLOCK CONTEXT (WITA / UTC+8 - BALIKPAPAN) ═══
-    const nowWita = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Makassar" }));
+    const baseDate = client_time_iso ? new Date(client_time_iso) : new Date();
+    const nowWita = new Date(baseDate.toLocaleString("en-US", { timeZone: "Asia/Makassar" }));
     const daysIndo = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
     const monthsIndo = [
       "Januari", "Februari", "Maret", "April", "Mei", "Juni",

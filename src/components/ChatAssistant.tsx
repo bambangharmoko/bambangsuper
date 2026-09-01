@@ -167,7 +167,10 @@ export function ChatAssistant() {
             "apikey": anonKey,
             "Authorization": `Bearer ${anonKey}`,
           },
-          body: JSON.stringify({ messages: geminiMessages }),
+          body: JSON.stringify({
+            messages: geminiMessages,
+            client_time_iso: new Date().toISOString(),
+          }),
           signal: controller.signal,
         });
 

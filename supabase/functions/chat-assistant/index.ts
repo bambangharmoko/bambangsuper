@@ -234,12 +234,12 @@ export const DEFAULT_QA_EXAMPLES = [
   {
     id: "qa-12",
     question: "saya pernah service laptop di toko super komputer dan sudah selesai dengan garansi 1 bulan. apakah bisa bantu cek masa garansi unit saya? Tiket G26028",
-    answer: "Halo! Berdasarkan data tiket **#G26028** (perangkat: Laptop) atas nama **Bambang Harmoko** yang berstatus **Close (unit sudah diambil)**:\n\n📌 **Status Masa Garansi Servis Anda:**\n• **Garansi Hardware / Sparepart (1 Bulan):** [Status Aktif / Expired sesuai tanggal sistem]\n• **Garansi Software (1 Minggu):** [Status Aktif / Expired sesuai tanggal sistem]\n\n[Buka Pelacakan Tiket #G26028](/track/G26028)\n\nJika unit mengalami kendala dalam masa garansi aktif, perbaikan sepenuhnya ditanggung oleh Super Komputer Balikpapan!",
+    answer: "Halo! Berdasarkan data tiket **#G26028** (perangkat: Laptop) atas nama **Bambang Harmoko** yang berstatus **Close (unit sudah diambil pada [Tanggal Pengambilan])**:\n\n📌 **Rincian Servis & Status Garansi:**\n• **Jenis Pengerjaan:** Perbaikan Hardware (Mainboard & Ganti IC)\n• **Garansi yang Berlaku:** **Garansi Hardware / Komponen (1 Bulan / 30 Hari)**\n• **Batas Akhir Garansi:** [Tanggal Batas Akhir]\n• **Status Saat Ini:** ✅ **MASIH DALAM MASA GARANSI AKTIF** (Sisa X hari lagi s/d [Tanggal Batas Akhir])\n\n[Buka Pelacakan Tiket #G26028](/track/G26028)\n\nJika unit mengalami kendala pada bagian yang diservis selama masa garansi aktif, perbaikan sepenuhnya ditanggung dan digaransi oleh Super Komputer Balikpapan!",
   },
   {
     id: "qa-13",
     question: "anda cukup jawab tiket \"G26028\" apakah masi dalam masa garansi atau tidak?",
-    answer: "Untuk tiket **#G26028** (diambil pada [Tanggal Pengambilan]):\n\n• **Garansi Hardware (1 Bulan):** [MASIH AKTIF (sisa X hari lagi) / SUDAH BERAKHIR pada [Tanggal Berakhir]]\n• **Garansi Software (1 Minggu):** [MASIH AKTIF / SUDAH BERAKHIR pada [Tanggal Berakhir]]\n\nJika ada kendala yang ingin dikonsultasikan atau diklaim, silakan hubungi [Chat WhatsApp Admin Super Komputer](https://wa.me/628115404999).",
+    answer: "Untuk tiket **#G26028** (Perbaikan Hardware Mainboard & IC, diambil pada [Tanggal Pengambilan]):\n\n• **Garansi Hardware (1 Bulan):** [MASIH AKTIF (sisa X hari lagi) / SUDAH BERAKHIR pada [Tanggal Berakhir]]\n\nJika ada kendala yang ingin dikonsultasikan atau diklaim, silakan hubungi [Chat WhatsApp Admin Super Komputer](https://wa.me/628115404999).",
   },
   {
     id: "qa-14",
@@ -442,7 +442,8 @@ Deno.serve(async (req) => {
           damage_description, unit_condition, unit_accessories,
           status, assigned_technician, created_at, updated_at,
           final_cost, estimated_cost, warranty_duration,
-          warranty_unit, warranty_expiry, warranty_notes, is_picked_up
+          warranty_unit, warranty_expiry, warranty_notes, is_picked_up,
+          invoice_items, notes
         `)
         .ilike("ticket_number", extractedTicket)
         .is("deleted_at", null)
@@ -450,6 +451,19 @@ Deno.serve(async (req) => {
 
       if (!orderErr && orderData) {
         ticketOrderFound = orderData;
+
+        // Fetch service_updates history for detailed progress and close timestamp
+        let orderUpdates: any[] = [];
+        try {
+          const { data: updates } = await supabase
+            .from("service_updates")
+            .select("status, description, created_at")
+            .eq("order_id", orderData.id)
+            .order("created_at", { ascending: true });
+          orderUpdates = updates || [];
+        } catch (e) {
+          console.warn("Could not fetch service_updates:", e);
+        }
 
         const formatDateId = (d: Date) => {
           return d.toLocaleDateString("id-ID", {
@@ -482,25 +496,40 @@ Deno.serve(async (req) => {
         let closedAtDate: Date | null = null;
         const isClosedOrDone = orderData.status === "Close" || orderData.status === "Siap diAmbil" || orderData.status === "Selesai";
         if (isClosedOrDone) {
-          try {
-            const { data: closeUpdate } = await supabase
-              .from("service_updates")
-              .select("created_at")
-              .eq("order_id", orderData.id)
-              .in("status", ["Close", "Siap diAmbil", "Selesai"])
-              .order("created_at", { ascending: false })
-              .limit(1)
-              .maybeSingle();
-
-            if (closeUpdate?.created_at) {
-              closedAtDate = new Date(closeUpdate.created_at);
-            } else {
-              closedAtDate = new Date(orderData.updated_at || orderData.created_at);
-            }
-          } catch {
+          const closeUpdate = [...orderUpdates].reverse().find(u => ["Close", "Siap diAmbil", "Selesai"].includes(u.status));
+          if (closeUpdate?.created_at) {
+            closedAtDate = new Date(closeUpdate.created_at);
+          } else {
             closedAtDate = new Date(orderData.updated_at || orderData.created_at);
           }
         }
+
+        // Format invoice items if present
+        let invoiceItemsFormatted = "";
+        if (orderData.invoice_items && Array.isArray(orderData.invoice_items) && orderData.invoice_items.length > 0) {
+          invoiceItemsFormatted = orderData.invoice_items.map((item: any) => {
+            const itemName = item.name || item.item_name || item.description || item.title || "Item Servis";
+            const itemPrice = item.price ? ` (Rp ${Number(item.price).toLocaleString("id-ID")})` : "";
+            return `    - ${itemName}${itemPrice}`;
+          }).join("\n");
+        }
+
+        // Intelligent Service Classification (Hardware vs Software vs Kombinasi)
+        const combinedServiceText = [
+          orderData.service_type || "",
+          orderData.damage_description || "",
+          orderData.unit_condition || "",
+          orderData.notes || "",
+          orderData.warranty_notes || "",
+          invoiceItemsFormatted,
+          ...orderUpdates.map((u) => `${u.status}: ${u.description || ""}`),
+        ].join(" ").toLowerCase();
+
+        const hasSoftwareKeyword = /\b(install\s*ulang|inul|os|windows|office|driver|software|virus|malware|bluescreen|format\s*ulang|aplikasi|aktivasi)\b/i.test(combinedServiceText);
+        const hasHardwareKeyword = /\b(mainboard|motherboard|ic|chipset|mosfet|resistor|kapasitor|jalur|reball|solder|short|mati\s*total|matot|no\s*display|layar|lcd|panel|baterai|battery|keyboard|touchpad|fan|kipas|engsel|casing|port|audio|speaker|charger|adaptor|ssd|hdd|ram|fleksibel|konektor|hardware|ganti\s*part|sparepart|perbaikan)\b/i.test(combinedServiceText);
+
+        const isPureSoftware = hasSoftwareKeyword && !hasHardwareKeyword;
+        const isPureHardware = hasHardwareKeyword && !hasSoftwareKeyword;
 
         let warrantyDetailsText = "";
         const createdAtStr = formatDateId(createdAtDate);
@@ -532,19 +561,41 @@ Deno.serve(async (req) => {
           const hwExpiryStr = formatDateId(hwExpiryDate);
           const swExpiryStr = formatDateId(swExpiryDate);
 
-          warrantyDetailsText = `
-- PERHITUNGAN MASA GARANSI SERVIS RESMI TOKO (DIHITUNG PRESISI DARI DATABASE):
+          if (isPureSoftware) {
+            warrantyDetailsText = `
+- HASIL ANALISIS PENGERJAAN: LAYANAN SOFTWARE & SISTEM OPERASI (Garansi Toko: 1 Minggu / 7 Hari)
   * Tanggal Masuk Servis: ${createdAtStr}
   * Tanggal Unit Selesai / Diambil (Status: ${orderData.status}): ${closedDateStr}
-  * GARANSI HARDWARE & GANTI SPAREPART (${hwDays >= 30 ? "1 Bulan" : hwDays + " Hari"}):
+  * GARANSI YANG BERLAKU UNTUK TIKET INI:
+    - Jenis Garansi: **GARANSI SOFTWARE & SISTEM OPERASI (1 Minggu / 7 Hari)**
+    - Batas Akhir Garansi: ${swExpiryStr}
+    - Status Garansi Saat Ini (${currentDayName}, ${currentDateNum} ${currentMonthName} ${currentYear}): ${isSwActive ? `✅ MASIH DALAM MASA GARANSI AKTIF (Sisa ${swDiffDays} hari lagi s/d ${swExpiryStr})` : `❌ SUDAH HABIS / EXPIRED (Telah berakhir ${Math.abs(swDiffDays)} hari yang lalu pada ${swExpiryStr})`}
+  * ATURAN PENTING UNTUK AI (WAJIB DITAATI):
+    - Tiket #${orderData.ticket_number} adalah pengerjaan SOFTWARE.
+    - HANYA jelaskan status Garansi Software (1 Minggu).
+    - DILARANG mencantumkan garansi hardware (1 bulan) karena tidak ada pengerjaan hardware!`;
+          } else if (isPureHardware || !hasSoftwareKeyword) {
+            warrantyDetailsText = `
+- HASIL ANALISIS PENGERJAAN: PERBAIKAN HARDWARE & PENGGANTIAN KOMPONEN (Garansi Toko: 1 Bulan / ${hwDays} Hari)
+  * Tanggal Masuk Servis: ${createdAtStr}
+  * Tanggal Unit Selesai / Diambil (Status: ${orderData.status}): ${closedDateStr}
+  ${invoiceItemsFormatted ? `* Rincian Komponen / Tindakan Servis:\n${invoiceItemsFormatted}` : ""}
+  * GARANSI YANG BERLAKU UNTUK TIKET INI:
+    - Jenis Garansi: **GARANSI HARDWARE & GANTI SPAREPART/KOMPONEN (1 Bulan / ${hwDays} Hari)**
     - Batas Akhir Garansi Hardware: ${hwExpiryStr}
-    - Status Garansi Hardware Saat Ini (${currentDayName}, ${currentDateNum} ${currentMonthName} ${currentYear}): ${isHwActive ? `✅ MASIH AKTIF / DALAM MASA GARANSI (Sisa ${hwDiffDays} hari lagi s/d ${hwExpiryStr})` : `❌ SUDAH HABIS / EXPIRED (Telah berakhir ${Math.abs(hwDiffDays)} hari yang lalu pada ${hwExpiryStr})`}
-  * GARANSI SOFTWARE & INSTALL ULANG OS (1 Minggu / 7 Hari):
-    - Batas Akhir Garansi Software: ${swExpiryStr}
-    - Status Garansi Software Saat Ini: ${isSwActive ? `✅ MASIH AKTIF (Sisa ${swDiffDays} hari lagi s/d ${swExpiryStr})` : `❌ SUDAH HABIS / EXPIRED (Telah berakhir ${Math.abs(swDiffDays)} hari yang lalu pada ${swExpiryStr})`}
-  * PANDUAN MENJAWAB PERTANYAAN GARANSI:
-    - Jika pelanggan menanyakan apakah unit/tiket #${orderData.ticket_number} masih dalam masa garansi atau tidak, JAWAB LANGSUNG DI AWAL SECARA TEGAS DAN TO-THE-POINT: Sebutkan bahwa status garansinya ${isHwActive ? "MASIH AKTIF" : "SUDAH HABIS / EXPIRED"}, sertakan tanggal selesai/ambil (${closedDateStr}) dan batas akhir garansi (${hwExpiryStr}).
-    - JANGAN PERNAH mengatakan data tanggal tidak ada atau menyuruh pelanggan menebak sendiri.`;
+    - Status Garansi Saat Ini (${currentDayName}, ${currentDateNum} ${currentMonthName} ${currentYear}): ${isHwActive ? `✅ MASIH DALAM MASA GARANSI AKTIF (Sisa ${hwDiffDays} hari lagi s/d ${hwExpiryStr})` : `❌ SUDAH HABIS / EXPIRED (Telah berakhir ${Math.abs(hwDiffDays)} hari yang lalu pada ${hwExpiryStr})`}
+  * ATURAN PENTING UNTUK AI (WAJIB DITAATI):
+    - Tiket #${orderData.ticket_number} adalah pengerjaan HARDWARE (seperti perbaikan mainboard, penggantian IC, sparepart, dll.).
+    - HANYA sebutkan status **Garansi Hardware (1 Bulan / ${hwDays} Hari)**.
+    - DILARANG KERAS mencantumkan garansi software (1 minggu) karena tiket ini murni perbaikan hardware!`;
+          } else {
+            warrantyDetailsText = `
+- HASIL ANALISIS PENGERJAAN: KOMBINASI HARDWARE & SOFTWARE
+  * Tanggal Masuk Servis: ${createdAtStr}
+  * Tanggal Unit Selesai / Diambil: ${closedDateStr}
+  * Garansi Hardware / Ganti Sparepart (${hwDays} Hari): ${isHwActive ? `✅ MASIH AKTIF (Sisa ${hwDiffDays} hari s/d ${hwExpiryStr})` : `❌ SUDAH HABIS (Berakhir ${hwExpiryStr})`}
+  * Garansi Software / Install OS (7 Hari): ${isSwActive ? `✅ MASIH AKTIF (Sisa ${swDiffDays} hari s/d ${swExpiryStr})` : `❌ SUDAH HABIS (Berakhir ${swExpiryStr})`}`;
+          }
         } else {
           warrantyDetailsText = `
 - STATUS MASA GARANSI SERVIS:
@@ -888,11 +939,18 @@ ATURAN PALING UTAMA & KETAT (WAJIB DITAATI):
      * Contoh jika user tanya "hari apa ini?" / "ini hari apa?": Jawab: "Halo! Hari ini adalah **${currentDayName}, ${currentDateNum} ${currentMonthName} ${currentYear}** (pukul **${currentTimeStr}**). Saat ini toko Super Komputer Balikpapan **${storeStatusNow}**."
      * Jika user tanya "besok buka kah?": Jawab dengan status besok (${tomorrowDayName}: ${storeStatusTomorrow}).
 
-8. **ATURAN PENGECEKAN MASA GARANSI TIKET SERVIS (PRESISI & LANGSUNG TO-THE-POINT)**:
-   - Jika pelanggan menanyakan apakah unit/tiket servisnya MASIH DALAM MASA GARANSI ATAU TIDAK (contoh: "apakah masih garansi?", "cek masa garansi tiket saya", "apakah sudah expired?"):
-     * JAWAB LANGSUNG DI AWAL SECARA TEGAS DAN JELAS: Nyatakan apakah unit masih dalam masa garansi atau sudah habis berdasarkan data di bagian "PERHITUNGAN MASA GARANSI SERVIS RESMI TOKO" di bawah.
-     * Sebutkan rincian: Tanggal unit selesai/diambil, batas akhir garansi hardware (1 bulan / 30 hari) dan software (1 minggu / 7 hari).
-     * DILARANG mengelak dengan mengatakan tanggal pengambilan tidak tercantum atau menyuruh pelanggan menebak sendiri, karena data tanggal resmi sudah dihitung presisi oleh sistem di database SUMTRA.
+8. **ATURAN ANALISIS & PENGECEKAN MASA GARANSI SERVIS (CERDAS & SESUAI JENIS PENGERJAAN)**:
+   - Analisa secara cerdas jenis pengerjaan tiket servis dari database (Hardware vs Software):
+     * **Pengerjaan Hardware** (Perbaikan Mainboard, ganti IC, ganti LCD, Baterai, Keyboard, Engsel, Power/Charging, Port, dll.) -> Masa garansi resmi adalah **1 BULAN (30 Hari)**.
+       -> HANYA sebutkan **Garansi Hardware (1 Bulan)**. DILARANG KERAS menyebutkan garansi software jika unit tidak melakukan pekerjaan software!
+     * **Pengerjaan Software** (Install Ulang Windows/OS, install aplikasi/driver, pembersihan virus, aktivasi, dll.) -> Masa garansi resmi adalah **1 MINGGU (7 Hari)**.
+       -> HANYA sebutkan **Garansi Software (1 Minggu)**. DILARANG KERAS menyebutkan garansi hardware jika unit hanya install software!
+     * **Kombinasi** (misal ganti SSD + install Windows) -> Sebutkan kedua garansi sesuai komponennya masing-masing.
+   - Sampaikan secara langsung, lugas, dan to-the-point:
+     1) Sebutkan nomor tiket, nama pelanggan, perangkat, dan tanggal unit selesai diambil.
+     2) Sebutkan jenis pengerjaan & garansi yang berlaku (misal: "Garansi Perbaikan Mainboard & Penggantian IC: 1 Bulan").
+     3) Berikan status kepastiannya (Masih Aktif s/d [Tanggal Akhir], sisa X hari lagi / Sudah Habis sejak [Tanggal Akhir]).
+     4) DILARANG membuat stikma/asumsi sendiri atau memberikan dua jenis garansi jika tiketnya hanya berupa salah satu pengerjaan!
 
 DATA DARI DATABASE SUMTRA:
 ${liveDynamicContext || "- Tidak ada data tiket khusus pada percakapan ini."}

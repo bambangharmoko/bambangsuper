@@ -167,12 +167,12 @@ export const DEFAULT_QA_EXAMPLES: QaExample[] = [
   {
     id: "qa-12",
     question: "saya pernah service laptop di toko super komputer dan sudah selesai dengan garansi 1 bulan. apakah bisa bantu cek masa garansi unit saya? Tiket G26028",
-    answer: "Halo! Berdasarkan data tiket **#G26028** (perangkat: Laptop) atas nama **Bambang Harmoko** yang berstatus **Close (unit sudah diambil)**:\n\n📌 **Status Masa Garansi Servis Anda:**\n• **Garansi Hardware / Sparepart (1 Bulan):** [Status Aktif / Expired sesuai tanggal sistem]\n• **Garansi Software (1 Minggu):** [Status Aktif / Expired sesuai tanggal sistem]\n\n[Buka Pelacakan Tiket #G26028](/track/G26028)\n\nJika unit mengalami kendala dalam masa garansi aktif, perbaikan sepenuhnya ditanggung oleh Super Komputer Balikpapan!",
+    answer: "Halo! Berdasarkan data tiket **#G26028** (perangkat: Laptop) atas nama **Bambang Harmoko** yang berstatus **Close (unit sudah diambil pada [Tanggal Pengambilan])**:\n\n📌 **Rincian Servis & Status Garansi:**\n• **Jenis Pengerjaan:** Perbaikan Hardware (Mainboard & Ganti IC)\n• **Garansi yang Berlaku:** **Garansi Hardware / Komponen (1 Bulan / 30 Hari)**\n• **Batas Akhir Garansi:** [Tanggal Batas Akhir]\n• **Status Saat Ini:** ✅ **MASIH DALAM MASA GARANSI AKTIF** (Sisa X hari lagi s/d [Tanggal Batas Akhir])\n\n[Buka Pelacakan Tiket #G26028](/track/G26028)\n\nJika unit mengalami kendala pada bagian yang diservis selama masa garansi aktif, perbaikan sepenuhnya ditanggung dan digaransi oleh Super Komputer Balikpapan!",
   },
   {
     id: "qa-13",
     question: "anda cukup jawab tiket \"G26028\" apakah masi dalam masa garansi atau tidak?",
-    answer: "Untuk tiket **#G26028** (diambil pada [Tanggal Pengambilan]):\n\n• **Garansi Hardware (1 Bulan):** [MASIH AKTIF (sisa X hari lagi) / SUDAH BERAKHIR pada [Tanggal Berakhir]]\n• **Garansi Software (1 Minggu):** [MASIH AKTIF / SUDAH BERAKHIR pada [Tanggal Berakhir]]\n\nJika ada kendala yang ingin dikonsultasikan atau diklaim, silakan hubungi [Chat WhatsApp Admin Super Komputer](https://wa.me/628115404999).",
+    answer: "Untuk tiket **#G26028** (Perbaikan Hardware Mainboard & IC, diambil pada [Tanggal Pengambilan]):\n\n• **Garansi Hardware (1 Bulan):** [MASIH AKTIF (sisa X hari lagi) / SUDAH BERAKHIR pada [Tanggal Berakhir]]\n\nJika ada kendala yang ingin dikonsultasikan atau diklaim, silakan hubungi [Chat WhatsApp Admin Super Komputer](https://wa.me/628115404999).",
   },
   {
     id: "qa-14",

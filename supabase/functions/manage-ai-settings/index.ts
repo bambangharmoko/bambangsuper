@@ -103,11 +103,13 @@ Jika ada kebutuhan terkait servis perangkat atau produk di Super Komputer Balikp
    - Setiap tiket WAJIB disertai nama perangkatnya: \`- #<NomorTiket> (<Nama Perangkat>)\`.
    - Di akhir pesan, tanyakan: "**Mau di tampilkan nomor tiket yang mana nih?**"
 
-6. **PENGECEKAN MASA GARANSI SERVIS TOKO (PRESISI & LANGSUNG TO-THE-POINT)**:
-   - Jika pelanggan menanyakan apakah tiket/unit servisnya masih dalam masa garansi:
-     * JAWAB LANGSUNG DI AWAL SECARA TEGAS DAN JELAS: Nyatakan apakah unit masih dalam masa garansi aktif atau sudah habis berdasarkan tanggal selesai/pengambilan unit di database.
-     * Sebutkan rincian: Tanggal unit diambil, batas akhir garansi hardware (1 bulan / 30 hari) dan software (1 minggu / 7 hari).
-     * DILARANG mengelak dengan mengatakan tanggal pengambilan tidak tercantum atau menyuruh pelanggan menebak sendiri.`;
+6. **PENGECEKAN MASA GARANSI SERVIS TOKO (PRESISI & SESUAI JENIS PENGERJAAN)**:
+   - Analisa jenis pengerjaan tiket servis dari database (Hardware vs Software):
+     * **Pengerjaan Hardware** (Mainboard, ganti IC, LCD, Baterai, Keyboard, Engsel, dll.) -> Masa garansi: **1 BULAN (30 Hari)**.
+       -> HANYA sebutkan Garansi Hardware (1 Bulan). DILARANG menyebutkan garansi software jika unit tidak melakukan pengerjaan software!
+     * **Pengerjaan Software** (Install Ulang OS/Windows, aplikasi, driver, virus, dll.) -> Masa garansi: **1 MINGGU (7 Hari)**.
+       -> HANYA sebutkan Garansi Software (1 Minggu). DILARANG menyebutkan garansi hardware jika hanya install software!
+   - JAWAB LANGSUNG DI AWAL SECARA TEGAS DAN JELAS: Nyatakan apakah unit masih dalam masa garansi aktif atau sudah habis berdasarkan tanggal selesai/pengambilan unit di database.`;
 
 export const DEFAULT_QA_EXAMPLES = [
   {
@@ -168,12 +170,12 @@ export const DEFAULT_QA_EXAMPLES = [
   {
     id: "qa-12",
     question: "saya pernah service laptop di toko super komputer dan sudah selesai dengan garansi 1 bulan. apakah bisa bantu cek masa garansi unit saya? Tiket G26028",
-    answer: "Halo! Berdasarkan data tiket **#G26028** (perangkat: Laptop) atas nama **Bambang Harmoko** yang berstatus **Close (unit sudah diambil)**:\n\n📌 **Status Masa Garansi Servis Anda:**\n• **Garansi Hardware / Sparepart (1 Bulan):** [Status Aktif / Expired sesuai tanggal sistem]\n• **Garansi Software (1 Minggu):** [Status Aktif / Expired sesuai tanggal sistem]\n\n[Buka Pelacakan Tiket #G26028](/track/G26028)\n\nJika unit mengalami kendala dalam masa garansi aktif, perbaikan sepenuhnya ditanggung oleh Super Komputer Balikpapan!",
+    answer: "Halo! Berdasarkan data tiket **#G26028** (perangkat: Laptop) atas nama **Bambang Harmoko** yang berstatus **Close (unit sudah diambil pada [Tanggal Pengambilan])**:\n\n📌 **Rincian Servis & Status Garansi:**\n• **Jenis Pengerjaan:** Perbaikan Hardware (Mainboard & Ganti IC)\n• **Garansi yang Berlaku:** **Garansi Hardware / Komponen (1 Bulan / 30 Hari)**\n• **Batas Akhir Garansi:** [Tanggal Batas Akhir]\n• **Status Saat Ini:** ✅ **MASIH DALAM MASA GARANSI AKTIF** (Sisa X hari lagi s/d [Tanggal Batas Akhir])\n\n[Buka Pelacakan Tiket #G26028](/track/G26028)\n\nJika unit mengalami kendala pada bagian yang diservis selama masa garansi aktif, perbaikan sepenuhnya ditanggung dan digaransi oleh Super Komputer Balikpapan!",
   },
   {
     id: "qa-13",
     question: "anda cukup jawab tiket \"G26028\" apakah masi dalam masa garansi atau tidak?",
-    answer: "Untuk tiket **#G26028** (diambil pada [Tanggal Pengambilan]):\n\n• **Garansi Hardware (1 Bulan):** [MASIH AKTIF (sisa X hari lagi) / SUDAH BERAKHIR pada [Tanggal Berakhir]]\n• **Garansi Software (1 Minggu):** [MASIH AKTIF / SUDAH BERAKHIR pada [Tanggal Berakhir]]\n\nJika ada kendala yang ingin dikonsultasikan atau diklaim, silakan hubungi [Chat WhatsApp Admin Super Komputer](https://wa.me/628115404999).",
+    answer: "Untuk tiket **#G26028** (Perbaikan Hardware Mainboard & IC, diambil pada [Tanggal Pengambilan]):\n\n• **Garansi Hardware (1 Bulan):** [MASIH AKTIF (sisa X hari lagi) / SUDAH BERAKHIR pada [Tanggal Berakhir]]\n\nJika ada kendala yang ingin dikonsultasikan atau diklaim, silakan hubungi [Chat WhatsApp Admin Super Komputer](https://wa.me/628115404999).",
   },
   {
     id: "qa-14",

@@ -35,12 +35,13 @@ interface ChatMessage {
 const INITIAL_GREETING: ChatMessage = {
   id: "welcome-msg",
   sender: "bot",
-  text: `Halo! 👋 Selamat datang di **Super Komputer Balikpapan** (SUMTRA). Saya **SuperBot**, asisten AI pintar Anda.\n\nSaya bisa membantu Anda:\n- 🔍 **Cek Status Servis Real-time** (sebutkan nomor tiket Anda, contoh: *F26001*, atau nomor HP terdaftar)\n- 💻 **Konsultasi Servis & Troubleshooting** Laptop, PC Desktop, CCTV, & Jaringan\n- 🛡️ **Info Layanan Authorized Service Resmi ASUS & Multi-Brand Non-Garansi**\n- 🔑 **Penjualan Lisensi Resmi Windows & Office Original (Rp 150.000)**\n- ⏱️ **Jam Operasional, Lokasi, & Estimasi Biaya Servis**\n\nAda yang bisa saya bantu hari ini?`,
+  text: `Halo! 👋 Selamat datang di **Super Komputer Balikpapan** (SUMTRA). Saya **SuperBot**, asisten AI pintar Anda.\n\nSaya bisa membantu Anda:\n- 🔍 **Cek Status Servis Real-time** (sebutkan nomor tiket Anda, contoh: *F26001*, atau nomor HP terdaftar)\n- ⏳ **Cek Sisa Masa Garansi Toko** (1 Bulan Hardware / 1 Minggu Software)\n- 💻 **Konsultasi Servis & Troubleshooting** Laptop, PC Desktop, CCTV, & Jaringan\n- 🛡️ **Info Layanan Authorized Service Resmi ASUS & Multi-Brand Non-Garansi**\n- 🔑 **Penjualan Lisensi Resmi Windows & Office Original (Rp 150.000)**\n- ⏱️ **Jam Operasional, Lokasi, & Estimasi Biaya Servis**\n\nAda yang bisa saya bantu hari ini?`,
   timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
 };
 
 const QUICK_PROMPTS = [
   { label: "🔍 Cek Status Servis", prompt: "Saya ingin mengecek status pengerjaan tiket servis saya." },
+  { label: "⏳ Cek Masa Garansi Toko", prompt: "Saya pernah servis di Super Komputer dan sudah selesai. Apakah bisa bantu cek sisa masa garansi unit saya?" },
   { label: "🛡️ Garansi Resmi ASUS", prompt: "Bagaimana prosedur klaim garansi resmi ASUS di Super Komputer?" },
   { label: "💻 Servis Laptop Multi-Brand", prompt: "Apakah melayani servis laptop Lenovo, Acer, HP, Dell yang mati total atau rusak hardware?" },
   { label: "🔑 Lisensi Windows/Office", prompt: "Berapa harga lisensi resmi Windows dan Office original di Super Komputer?" },

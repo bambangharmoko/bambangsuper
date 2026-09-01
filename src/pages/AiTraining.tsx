@@ -174,6 +174,21 @@ export const DEFAULT_QA_EXAMPLES: QaExample[] = [
     question: "anda cukup jawab tiket \"G26028\" apakah masi dalam masa garansi atau tidak?",
     answer: "Untuk tiket **#G26028** (diambil pada [Tanggal Pengambilan]):\n\n• **Garansi Hardware (1 Bulan):** [MASIH AKTIF (sisa X hari lagi) / SUDAH BERAKHIR pada [Tanggal Berakhir]]\n• **Garansi Software (1 Minggu):** [MASIH AKTIF / SUDAH BERAKHIR pada [Tanggal Berakhir]]\n\nJika ada kendala yang ingin dikonsultasikan atau diklaim, silakan hubungi [Chat WhatsApp Admin Super Komputer](https://wa.me/628115404999).",
   },
+  {
+    id: "qa-14",
+    question: "halo, hari apa ini?",
+    answer: "Halo! Hari ini adalah **[Hari, Tanggal Bulan Tahun]** (pukul **[Jam] WITA**).\n\nSaat ini toko Super Komputer Balikpapan sedang **[Status Toko BUKA / TUTUP]** (Jadwal operasional: Senin s/d Sabtu pukul 09.00 - 20.00 WITA, Minggu & Libur Nasional Tutup).\n\nAda yang bisa saya bantu terkait informasi servis, sparepart, atau tiket servis Anda hari ini?",
+  },
+  {
+    id: "qa-15",
+    question: "ini hari apa?",
+    answer: "Hari ini adalah **[Hari, Tanggal Bulan Tahun]** (Zona Waktu Balikpapan / WITA).\n\nStatus toko kami saat ini: **[Status Toko BUKA / TUTUP]**.\n\nAda yang bisa saya bantu terkait layanan servis atau perangkat komputer Anda hari ini?",
+  },
+  {
+    id: "qa-16",
+    question: "sekarang jam berapa?",
+    answer: "Saat ini pukul **[Jam] WITA** (Zona Waktu Balikpapan / UTC+8).\n\nStatus toko Super Komputer: **[Status Buka/Tutup]**.\n\nAda yang bisa saya bantu seputar perangkat komputer atau tiket servis Anda?",
+  },
 ];
 
 export const DEFAULT_READY_STOCK: ReadyStockItem[] = [

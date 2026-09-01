@@ -241,6 +241,21 @@ export const DEFAULT_QA_EXAMPLES = [
     question: "anda cukup jawab tiket \"G26028\" apakah masi dalam masa garansi atau tidak?",
     answer: "Untuk tiket **#G26028** (diambil pada [Tanggal Pengambilan]):\n\n• **Garansi Hardware (1 Bulan):** [MASIH AKTIF (sisa X hari lagi) / SUDAH BERAKHIR pada [Tanggal Berakhir]]\n• **Garansi Software (1 Minggu):** [MASIH AKTIF / SUDAH BERAKHIR pada [Tanggal Berakhir]]\n\nJika ada kendala yang ingin dikonsultasikan atau diklaim, silakan hubungi [Chat WhatsApp Admin Super Komputer](https://wa.me/628115404999).",
   },
+  {
+    id: "qa-14",
+    question: "halo, hari apa ini?",
+    answer: "Halo! Hari ini adalah **[Hari, Tanggal Bulan Tahun]** (pukul **[Jam] WITA**).\n\nSaat ini toko Super Komputer Balikpapan sedang **[Status Toko BUKA / TUTUP]** (Jadwal operasional: Senin s/d Sabtu pukul 09.00 - 20.00 WITA, Minggu & Libur Nasional Tutup).\n\nAda yang bisa saya bantu terkait informasi servis, sparepart, atau tiket servis Anda hari ini?",
+  },
+  {
+    id: "qa-15",
+    question: "ini hari apa?",
+    answer: "Hari ini adalah **[Hari, Tanggal Bulan Tahun]** (Zona Waktu Balikpapan / WITA).\n\nStatus toko kami saat ini: **[Status Toko BUKA / TUTUP]**.\n\nAda yang bisa saya bantu terkait layanan servis atau perangkat komputer Anda hari ini?",
+  },
+  {
+    id: "qa-16",
+    question: "sekarang jam berapa?",
+    answer: "Saat ini pukul **[Jam] WITA** (Zona Waktu Balikpapan / UTC+8).\n\nStatus toko Super Komputer: **[Status Buka/Tutup]**.\n\nAda yang bisa saya bantu seputar perangkat komputer atau tiket servis Anda?",
+  },
 ];
 
 // Model prioritas berdasarkan benchmark server-side (Supabase → Gemini API):
@@ -374,6 +389,27 @@ Deno.serve(async (req) => {
     if (isOutOfScopeQuery) {
       const refusalReply = "Halo! Mohon maaf, sebagai asisten AI resmi dari **Super Komputer Balikpapan (SUMTRA)**, saya khusus bertugas membantu informasi seputar **layanan servis komputer/laptop/printer/CCTV/jaringan, pengecekan status tiket servis, ketersediaan sparepart, serta lisensi resmi Windows & Office** di toko kami.\n\nSaya tidak dapat melayani pertanyaan di luar layanan toko kami (seperti materi teori pemrograman/SDLC, penulisan kode, tugas akademis, atau topik di luar operasional toko).\n\nJika ada kebutuhan terkait servis perangkat atau produk di Super Komputer Balikpapan, silakan sampaikan ya!";
       return new Response(JSON.stringify({ reply: refusalReply }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ═══ DETERMINISTIC INSTANT DATE & TIME RESPONDER ═══
+    const isPureDateTimeQuery = [
+      /^(?:halo\s*,?\s*|hai\s*,?\s*|permisi\s*,?\s*)?(?:ini\s+)?hari\s+(?:apa\s+ini|apa\s+sekarang|apa|ini)\??$/i,
+      /^(?:halo\s*,?\s*|hai\s*,?\s*|permisi\s*,?\s*)?(?:ini\s+)?hari\s+apa\??$/i,
+      /^(?:halo\s*,?\s*|hai\s*,?\s*|permisi\s*,?\s*)?ini\s+hari\s+apa\??$/i,
+      /^(?:halo\s*,?\s*|hai\s*,?\s*|permisi\s*,?\s*)?sekarang\s+hari\s+apa\??$/i,
+      /^(?:halo\s*,?\s*|hai\s*,?\s*|permisi\s*,?\s*)?hari\s+apa\s+ini\??$/i,
+      /^(?:halo\s*,?\s*|hai\s*,?\s*|permisi\s*,?\s*)?hari\s+apa\s+sekarang\??$/i,
+      /^(?:halo\s*,?\s*|hai\s*,?\s*|permisi\s*,?\s*)?(?:sekarang\s+)?tanggal\s+berapa\s*(?:hari\s+ini|sekarang)?\??$/i,
+      /^(?:halo\s*,?\s*|hai\s*,?\s*|permisi\s*,?\s*)?hari\s+ini\s+tanggal\s+berapa\??$/i,
+      /^(?:halo\s*,?\s*|hai\s*,?\s*|permisi\s*,?\s*)?sekarang\s+jam\s+berapa\??$/i,
+      /^(?:halo\s*,?\s*|hai\s*,?\s*|permisi\s*,?\s*)?jam\s+berapa\s+sekarang\??$/i,
+    ].some((r) => r.test(lowerLastUserText));
+
+    if (isPureDateTimeQuery) {
+      const dateTimeReply = `Halo! Hari ini adalah **${currentDayName}, ${currentDateNum} ${currentMonthName} ${currentYear}** (pukul **${currentTimeStr}**).\n\nSaat ini toko Super Komputer Balikpapan **${storeStatusNow}** (Jadwal operasional: Senin s/d Sabtu pukul 09.00 - 20.00 WITA, Minggu & Hari Libur Nasional Libur/Tutup).\n\nAda yang bisa saya bantu terkait informasi layanan servis laptop/komputer, pembelian sparepart, atau pengecekan tiket servis hari ini?`;
+      return new Response(JSON.stringify({ reply: dateTimeReply }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -840,11 +876,16 @@ ATURAN PALING UTAMA & KETAT (WAJIB DITAATI):
      * Jika user tanya **Konsultasi Servis / Kerusakan** -> \`?text=Halo%20Admin%20Super%20Komputer%2C%20saya%20ingin%20konsultasi%20servis%20[Keluhan]\`
    - **DILARANG KERAS menggunakan kata 'sparepart ready stock' jika user sedang menanyakan lisensi Windows/software, servis, atau produk lainnya!**
 
-7. **ATURAN WAKTU & JADWAL OPERASIONAL TOKO (REAL-TIME CONTEXT)**:
-   - Gunakan data waktu real-time di atas setiap kali pelanggan bertanya tentang "hari ini", "besok", "lusa", "sekarang buka/tutup?", "jam berapa buka?", dll.
-   - Hari ini adalah **${currentDayName} (${currentDateNum} ${currentMonthName} ${currentYear}, Jam ${currentTimeStr})**, dan besok adalah **${tomorrowDayName}**.
-   - Jika user bertanya "besok buka kah?" atau "kalau besok?", jawab dengan PASTI dan LENGKAP berdasarkan status hari besok (${tomorrowDayName}: ${storeStatusTomorrow}).
-   - DILARANG MENEBAK atau berasumsi bahwa hari ini adalah hari lain!
+7. **ATURAN WAKTU & KALENDER REAL-TIME TOKO (MUTLAK & DILARANG MENYANGKAL AKSES WAKTU)**:
+   - Kamu MEMILIKI AKSES PENUH ke kalender dan jam sistem real-time toko Super Komputer Balikpapan (WITA / UTC+8).
+   - **DILARANG KERAS MENYANGKAL**: DILARANG mengatakan "Saya tidak memiliki akses ke kalender/jam perangkat", "Sebagai AI saya tidak tahu hari apa", atau meminta user cek sendiri!
+   - Hari ini adalah **${currentDayName}, ${currentDateNum} ${currentMonthName} ${currentYear} (Pukul ${currentTimeStr})**.
+   - Status Toko Saat Ini: **${storeStatusNow}**.
+   - Hari & Tanggal Besok: **${tomorrowDayName}, ${tomorrowDateNum} ${tomorrowMonthName} ${tomorrowYear}** (Status Besok: ${storeStatusTomorrow}).
+   - **JIKA USER BERTANYA TENTANG HARI, TANGGAL, JAM, ATAU JADWAL OPERASIONAL**:
+     * JAWAB LANGSUNG SECARA PASTI DAN TEPAT sesuai data waktu di atas.
+     * Contoh jika user tanya "hari apa ini?" / "ini hari apa?": Jawab: "Halo! Hari ini adalah **${currentDayName}, ${currentDateNum} ${currentMonthName} ${currentYear}** (pukul **${currentTimeStr}**). Saat ini toko Super Komputer Balikpapan **${storeStatusNow}**."
+     * Jika user tanya "besok buka kah?": Jawab dengan status besok (${tomorrowDayName}: ${storeStatusTomorrow}).
 
 8. **ATURAN PENGECEKAN MASA GARANSI TIKET SERVIS (PRESISI & LANGSUNG TO-THE-POINT)**:
    - Jika pelanggan menanyakan apakah unit/tiket servisnya MASIH DALAM MASA GARANSI ATAU TIDAK (contoh: "apakah masih garansi?", "cek masa garansi tiket saya", "apakah sudah expired?"):

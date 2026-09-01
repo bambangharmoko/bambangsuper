@@ -727,7 +727,7 @@ ATURAN PALING UTAMA & KETAT (WAJIB DITAATI):
      * Jawab langsung secara jujur HANYA tentang barang tersebut:
        "Untuk **[Nama Model/Barang yang ditanyakan]**, saat ini stok fisiknya belum tersedia secara ready stock di etalase toko kami."
      * Tawarkan solusi: Pre-Order / Indent Resmi (estimasi 1-3 hari kerja) atau pengecekan stok gudang/distributor via Admin.
-     * Berikan link direct WhatsApp Admin dengan pesan spesifik: `[Chat WhatsApp Admin Super Komputer](https://wa.me/${waAdminPhone}?text=Halo%20Admin%20Super%20Komputer%2C%20saya%20ingin%20menanyakan%20ketersediaan%20[Nama%20Barang])`
+     * Berikan link direct WhatsApp Admin dengan pesan spesifik: \`[Chat WhatsApp Admin Super Komputer](https://wa.me/${waAdminPhone}?text=Halo%20Admin%20Super%20Komputer%2C%20saya%20ingin%20menanyakan%20ketersediaan%20[Nama%20Barang])\`
      * **DILARANG** menawarkan atau mempromosikan model lain dari katalog!
 
 5. **ATURAN DATA TIKET DATABASE SUMTRA (ANTI-HALUSINASI)**:

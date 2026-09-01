@@ -315,6 +315,69 @@ Deno.serve(async (req) => {
     const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user" || m.sender === "user");
     const lastUserText = String(lastUserMsg?.parts?.[0]?.text || lastUserMsg?.text || "");
 
+    // ═══ REAL-TIME CLOCK CONTEXT (WITA / UTC+8 - BALIKPAPAN) ═══
+    const nowWita = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Makassar" }));
+    const daysIndo = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+    const monthsIndo = [
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    ];
+
+    const currentDayName = daysIndo[nowWita.getDay()];
+    const currentDateNum = nowWita.getDate();
+    const currentMonthName = monthsIndo[nowWita.getMonth()];
+    const currentYear = nowWita.getFullYear();
+    const currentHour = String(nowWita.getHours()).padStart(2, "0");
+    const currentMinute = String(nowWita.getMinutes()).padStart(2, "0");
+    const currentTimeStr = `${currentHour}:${currentMinute} WITA`;
+
+    // Tomorrow calculation
+    const tomorrowWita = new Date(nowWita.getTime() + 24 * 60 * 60 * 1000);
+    const tomorrowDayName = daysIndo[tomorrowWita.getDay()];
+    const tomorrowDateNum = tomorrowWita.getDate();
+    const tomorrowMonthName = monthsIndo[tomorrowWita.getMonth()];
+    const tomorrowYear = tomorrowWita.getFullYear();
+
+    // Store operational status right now
+    const isTodaySunday = nowWita.getDay() === 0;
+    const isTomorrowSunday = tomorrowWita.getDay() === 0;
+    const currentHourNum = nowWita.getHours();
+    const isStoreOpenNow = !isTodaySunday && currentHourNum >= 9 && currentHourNum < 20;
+
+    const storeStatusNow = isTodaySunday
+      ? "TUTUP (Hari ini hari Minggu - Libur operasional)"
+      : isStoreOpenNow
+        ? `BUKA (Sedang buka sekarang s/d pukul 20.00 WITA)`
+        : currentHourNum < 9
+          ? "BELUM BUKA (Akan buka hari ini pukul 09.00 WITA)"
+          : "SUDAH TUTUP (Tutup pukul 20.00 WITA, buka kembali besok pukul 09.00 WITA)";
+
+    const storeStatusTomorrow = isTomorrowSunday
+      ? "TUTUP (Besok adalah hari Minggu - Libur operasional mingguan)"
+      : "BUKA (Pukul 09.00 - 20.00 WITA)";
+
+    // ═══ DETERMINISTIC INSTANT SECURITY & OUT-OF-SCOPE GUARD ═══
+    const lowerLastUserText = lastUserText.toLowerCase().trim();
+    const isOutOfScopeQuery = [
+      // Teori Rekayasa Perangkat Lunak / SDLC / Akademis Teori
+      /\b(?:metode|metodologi|konsep|tahapan|model)\s+(?:prototyping|prototype|waterfall|agile|scrum|kanban|extreme\s*programming|spiral|v-model|rad|sdlc)\b/i,
+      /\b(?:apa\s*itu|jelaskan|pengertian|definisi|maksud\s*dari)\s+(?:metode\s+prototyping|metode\s+waterfall|metode\s+agile|metode\s+scrum|sdlc|oop|object\s*oriented|design\s*pattern|polimorfisme|enkapsulasi|inheritance|microservices)\b/i,
+      // Pembuatan Kode / Scripting / Programming / Web Development
+      /\b(?:buatkan|tuliskan|bikin|generate)\s+(?:kode|code|script|koding|coding|program|aplikasi|bot|scraper)\s+(?:python|javascript|php|java|c\+\+|html|css|sql|nodejs)/i,
+      /\b(?:cara\s+(?:membuat|bikin|coding)\s+(?:program|aplikasi|website|script|bot|game|rest\s*api|database))\b/i,
+      // Prompt Injections & Jailbreak Attempts
+      /\b(?:ignore|abaikan|lupakan)\s+(?:semua\s+)?(?:instruksi|perintah|aturan|prompt|system\s*prompt|rules|previous\s*instructions)\b/i,
+      /\b(?:tampilkan|sebutkan|print|show|bocorkan|tuliskan)\s+(?:system\s*prompt|instruksi\s*sistem|prompt\s*asli|prompt\s*rahasia|system\s*instruction|api\s*key|secret\s*key)\b/i,
+      /\b(?:kamu\s+(?:sekarang|adalah)|jadilah|berperanlah\s+sebagai)\s+(?:dosen|guru|programmer|developer|hacker|chatgpt|dan\s+mode|jailbreak|ai\s+bebas|tanpa\s+batasan)\b/i,
+    ].some((regex) => regex.test(lowerLastUserText));
+
+    if (isOutOfScopeQuery) {
+      const refusalReply = "Halo! Mohon maaf, sebagai asisten AI resmi dari **Super Komputer Balikpapan (SUMTRA)**, saya khusus bertugas membantu informasi seputar **layanan servis komputer/laptop/printer/CCTV/jaringan, pengecekan status tiket servis, ketersediaan sparepart, serta lisensi resmi Windows & Office** di toko kami.\n\nSaya tidak dapat melayani pertanyaan di luar layanan toko kami (seperti materi teori pemrograman/SDLC, penulisan kode, tugas akademis, atau topik di luar operasional toko).\n\nJika ada kebutuhan terkait servis perangkat atau produk di Super Komputer Balikpapan, silakan sampaikan ya!";
+      return new Response(JSON.stringify({ reply: refusalReply }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     let liveDynamicContext = "";
     let extractedPhone = "";
     let extractedTicket = "";
@@ -690,69 +753,6 @@ ${formatGroup("4. Unit Close", unitClose)}
    - Garansi Toko: ${s.warranty || "Garansi Toko Resmi"}
    - Fasilitas & Catatan: ${s.notes || "-"}`;
         }).join("\n\n");
-    }
-
-    // ═══ REAL-TIME CLOCK CONTEXT (WITA / UTC+8 - BALIKPAPAN) ═══
-    const nowWita = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Makassar" }));
-    const daysIndo = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-    const monthsIndo = [
-      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
-    ];
-
-    const currentDayName = daysIndo[nowWita.getDay()];
-    const currentDateNum = nowWita.getDate();
-    const currentMonthName = monthsIndo[nowWita.getMonth()];
-    const currentYear = nowWita.getFullYear();
-    const currentHour = String(nowWita.getHours()).padStart(2, "0");
-    const currentMinute = String(nowWita.getMinutes()).padStart(2, "0");
-    const currentTimeStr = `${currentHour}:${currentMinute} WITA`;
-
-    // Tomorrow calculation
-    const tomorrowWita = new Date(nowWita.getTime() + 24 * 60 * 60 * 1000);
-    const tomorrowDayName = daysIndo[tomorrowWita.getDay()];
-    const tomorrowDateNum = tomorrowWita.getDate();
-    const tomorrowMonthName = monthsIndo[tomorrowWita.getMonth()];
-    const tomorrowYear = tomorrowWita.getFullYear();
-
-    // Store operational status right now
-    const isTodaySunday = nowWita.getDay() === 0;
-    const isTomorrowSunday = tomorrowWita.getDay() === 0;
-    const currentHourNum = nowWita.getHours();
-    const isStoreOpenNow = !isTodaySunday && currentHourNum >= 9 && currentHourNum < 20;
-
-    const storeStatusNow = isTodaySunday
-      ? "TUTUP (Hari ini hari Minggu - Libur operasional)"
-      : isStoreOpenNow
-        ? `BUKA (Sedang buka sekarang s/d pukul 20.00 WITA)`
-        : currentHourNum < 9
-          ? "BELUM BUKA (Akan buka hari ini pukul 09.00 WITA)"
-          : "SUDAH TUTUP (Tutup pukul 20.00 WITA, buka kembali besok pukul 09.00 WITA)";
-
-    const storeStatusTomorrow = isTomorrowSunday
-      ? "TUTUP (Besok adalah hari Minggu - Libur operasional mingguan)"
-      : "BUKA (Pukul 09.00 - 20.00 WITA)";
-
-    // ═══ DETERMINISTIC INSTANT SECURITY & OUT-OF-SCOPE GUARD ═══
-    const lowerLastUserText = lastUserText.toLowerCase().trim();
-    const isOutOfScopeQuery = [
-      // Teori Rekayasa Perangkat Lunak / SDLC / Akademis Teori
-      /\b(?:metode|metodologi|konsep|tahapan|model)\s+(?:prototyping|prototype|waterfall|agile|scrum|kanban|extreme\s*programming|spiral|v-model|rad|sdlc)\b/i,
-      /\b(?:apa\s*itu|jelaskan|pengertian|definisi|maksud\s*dari)\s+(?:metode\s+prototyping|metode\s+waterfall|metode\s+agile|metode\s+scrum|sdlc|oop|object\s*oriented|design\s*pattern|polimorfisme|enkapsulasi|inheritance|microservices)\b/i,
-      // Pembuatan Kode / Scripting / Programming / Web Development
-      /\b(?:buatkan|tuliskan|bikin|generate)\s+(?:kode|code|script|koding|coding|program|aplikasi|bot|scraper)\s+(?:python|javascript|php|java|c\+\+|html|css|sql|nodejs)/i,
-      /\b(?:cara\s+(?:membuat|bikin|coding)\s+(?:program|aplikasi|website|script|bot|game|rest\s*api|database))\b/i,
-      // Prompt Injections & Jailbreak Attempts
-      /\b(?:ignore|abaikan|lupakan)\s+(?:semua\s+)?(?:instruksi|perintah|aturan|prompt|system\s*prompt|rules|previous\s*instructions)\b/i,
-      /\b(?:tampilkan|sebutkan|print|show|bocorkan|tuliskan)\s+(?:system\s*prompt|instruksi\s*sistem|prompt\s*asli|prompt\s*rahasia|system\s*instruction|api\s*key|secret\s*key)\b/i,
-      /\b(?:kamu\s+(?:sekarang|adalah)|jadilah|berperanlah\s+sebagai)\s+(?:dosen|guru|programmer|developer|hacker|chatgpt|dan\s+mode|jailbreak|ai\s+bebas|tanpa\s+batasan)\b/i,
-    ].some((regex) => regex.test(lowerLastUserText));
-
-    if (isOutOfScopeQuery) {
-      const refusalReply = "Halo! Mohon maaf, sebagai asisten AI resmi dari **Super Komputer Balikpapan (SUMTRA)**, saya khusus bertugas membantu informasi seputar **layanan servis komputer/laptop/printer/CCTV/jaringan, pengecekan status tiket servis, ketersediaan sparepart, serta lisensi resmi Windows & Office** di toko kami.\n\nSaya tidak dapat melayani pertanyaan di luar layanan toko kami (seperti materi teori pemrograman/SDLC, penulisan kode, tugas akademis, atau topik di luar operasional toko).\n\nJika ada kebutuhan terkait servis perangkat atau produk di Super Komputer Balikpapan, silakan sampaikan ya!";
-      return new Response(JSON.stringify({ reply: refusalReply }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
     }
 
     const systemInstruction = `

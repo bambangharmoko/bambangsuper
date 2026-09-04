@@ -2,12 +2,9 @@ import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  MessageSquare,
   X,
   Send,
   RotateCcw,
-  Sparkles,
-  Bot,
   User,
   Loader2,
   ExternalLink,
@@ -21,7 +18,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { openDirectWhatsApp, openDirectWhatsAppFromUrl } from "@/lib/whatsapp";
 
@@ -35,7 +31,7 @@ interface ChatMessage {
 const INITIAL_GREETING: ChatMessage = {
   id: "welcome-msg",
   sender: "bot",
-  text: `Halo! 👋 Selamat datang di **Super Komputer Balikpapan** (SUMTRA). Saya **SuperBot**, asisten AI pintar Anda.\n\nSaya bisa membantu Anda:\n- 🔍 **Cek Status Servis Real-time** (sebutkan nomor tiket Anda, contoh: *F26001*, atau nomor HP terdaftar)\n- ⏳ **Cek Sisa Masa Garansi Toko** (1 Bulan Hardware / 1 Minggu Software)\n- 💻 **Konsultasi Servis & Troubleshooting** Laptop, PC Desktop, CCTV, & Jaringan\n- 🛡️ **Info Layanan Authorized Service Resmi ASUS & Multi-Brand Non-Garansi**\n- 🔑 **Penjualan Lisensi Resmi Windows & Office Original (Rp 150.000)**\n- ⏱️ **Jam Operasional, Lokasi, & Estimasi Biaya Servis**\n\nAda yang bisa saya bantu hari ini?`,
+  text: `Halo! 👋 Selamat datang di **Super Komputer Balikpapan** (SUMTRA). Saya **SUMTRA AI**, asisten AI pintar Anda.\n\nSaya bisa membantu Anda:\n- 🔍 **Cek Status Servis Real-time** (sebutkan nomor tiket Anda, contoh: *F26001*, atau nomor HP terdaftar)\n- ⏳ **Cek Sisa Masa Garansi Toko** (1 Bulan Hardware / 1 Minggu Software)\n- 💻 **Konsultasi Servis & Troubleshooting** Laptop, PC Desktop, CCTV, & Jaringan\n- 🛡️ **Info Layanan Authorized Service Resmi ASUS & Multi-Brand Non-Garansi**\n- 🔑 **Penjualan Lisensi Resmi Windows & Office Original (Rp 150.000)**\n- ⏱️ **Jam Operasional, Lokasi, & Estimasi Biaya Servis**\n\nAda yang bisa saya bantu hari ini?`,
   timestamp: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
 };
 
@@ -363,8 +359,10 @@ export function ChatAssistant() {
             >
               <div className="flex items-start justify-between gap-2 mb-1">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-primary">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>SuperBot AI</span>
+                  <div className="w-4 h-4 rounded-full bg-white p-0.5 border border-primary/20 flex items-center justify-center overflow-hidden shrink-0">
+                    <img src="/sumtra_v2.gif" alt="SUMTRA AI" className="w-full h-full object-contain" />
+                  </div>
+                  <span>SUMTRA AI</span>
                 </div>
                 <button
                   onClick={(e) => {
@@ -377,7 +375,7 @@ export function ChatAssistant() {
                 </button>
               </div>
               <p className="text-xs text-muted-foreground leading-snug">
-                Halo! Ada yang perlu dicek? Tanya status servis, troubleshooting, atau harga ke SuperBot AI!
+                Halo! Ada yang perlu dicek? Tanya status servis, troubleshooting, atau harga ke SUMTRA AI!
               </p>
             </motion.div>
           )}
@@ -392,16 +390,18 @@ export function ChatAssistant() {
             setIsOpen((prev) => !prev);
           }}
           className="relative flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-blue-600 via-primary to-blue-700 text-white rounded-full shadow-lg shadow-primary/30 hover:shadow-primary/50 transition-all group"
-          aria-label="Buka Chatbot SuperBot AI"
+          aria-label="Buka Chatbot SUMTRA AI"
         >
           <div className="relative">
-            <Bot className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+            <div className="w-6 h-6 rounded-full bg-white p-0.5 flex items-center justify-center overflow-hidden shadow-xs">
+              <img src="/sumtra_v2.gif" alt="SUMTRA AI" className="w-full h-full object-contain group-hover:scale-110 transition-transform" />
+            </div>
             <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
             </span>
           </div>
-          <span className="font-semibold text-sm tracking-wide hidden sm:inline">Tanya SuperBot</span>
+          <span className="font-semibold text-sm tracking-wide hidden sm:inline">Tanya SUMTRA AI</span>
         </motion.button>
       </div>
 
@@ -413,7 +413,7 @@ export function ChatAssistant() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.25 }}
-            className={`fixed z-50 bg-background/95 backdrop-blur-xl border border-border shadow-2xl rounded-2xl flex flex-col overflow-hidden transition-all ${isExpanded
+            className={`fixed z-50 bg-background/95 backdrop-blur-xl border border-border shadow-2xl rounded-2xl flex flex-col overflow-hidden transition-all text-foreground ${isExpanded
               ? "inset-4 sm:inset-10"
               : "bottom-20 right-4 sm:right-6 w-[calc(100vw-32px)] sm:w-[420px] h-[580px] max-h-[calc(100vh-100px)]"
               }`}
@@ -421,20 +421,20 @@ export function ChatAssistant() {
             {/* ═══ Header ═══ */}
             <div className="bg-gradient-to-r from-sidebar via-sidebar to-sidebar/95 text-sidebar-foreground px-4 py-3 border-b border-sidebar-border flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center text-primary relative">
-                  <Bot className="w-5 h-5" />
+                <div className="w-9 h-9 rounded-full bg-white p-1 border border-sidebar-border/40 flex items-center justify-center relative shrink-0 shadow-sm overflow-hidden">
+                  <img src="/sumtra_v2.gif" alt="SUMTRA AI" className="w-full h-full object-contain" />
                   <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-sidebar" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-sm text-sidebar-primary-foreground">SuperBot AI</h3>
-                    <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-primary/30 text-primary">
-                      Hybrid RAG + Tools
-                    </Badge>
+                    <h3 className="font-bold text-sm sm:text-base text-sidebar-primary-foreground tracking-wide">
+                      SUMTRA AI
+                    </h3>
+                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-medium bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Online
+                    </span>
                   </div>
-                  <p className="text-[11px] text-sidebar-foreground/60 leading-tight">
-                    Customer Care & Tech Support Super Komputer
-                  </p>
                 </div>
               </div>
 
@@ -479,8 +479,8 @@ export function ChatAssistant() {
                     className={`flex items-start gap-2.5 ${isBot ? "justify-start" : "justify-end"}`}
                   >
                     {isBot && (
-                      <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0 mt-0.5">
-                        <Bot className="w-4 h-4" />
+                      <div className="w-7 h-7 rounded-full bg-white border border-border shadow-xs flex items-center justify-center shrink-0 mt-0.5 p-0.5 overflow-hidden">
+                        <img src="/sumtra_v2.gif" alt="SUMTRA AI" className="w-full h-full object-contain" />
                       </div>
                     )}
                     <div
@@ -509,12 +509,12 @@ export function ChatAssistant() {
               {/* Loading Thinking Indicator */}
               {loading && (
                 <div className="flex items-start gap-2.5 justify-start">
-                  <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0 mt-0.5">
-                    <Bot className="w-4 h-4" />
+                  <div className="w-7 h-7 rounded-full bg-white border border-border shadow-xs flex items-center justify-center shrink-0 mt-0.5 p-0.5 overflow-hidden">
+                    <img src="/sumtra_v2.gif" alt="SUMTRA AI" className="w-full h-full object-contain" />
                   </div>
                   <div className="bg-card border border-border text-card-foreground rounded-2xl rounded-tl-none px-4 py-3 text-sm shadow-sm flex items-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                    <span className="text-xs text-muted-foreground">SuperBot sedang memeriksa data & menganalisa...</span>
+                    <span className="text-xs text-muted-foreground">SUMTRA AI sedang memeriksa data & menganalisa...</span>
                   </div>
                 </div>
               )}
@@ -523,13 +523,13 @@ export function ChatAssistant() {
             </div>
 
             {/* ═══ Quick Suggestions ═══ */}
-            <div className="px-3 py-2 bg-background border-t border-border/60 overflow-x-auto whitespace-nowrap scrollbar-none flex gap-1.5">
+            <div className="px-3 py-2 bg-background text-foreground border-t border-border/60 overflow-x-auto whitespace-nowrap scrollbar-none flex gap-1.5">
               {QUICK_PROMPTS.map((q) => (
                 <button
                   key={q.label}
                   disabled={loading}
                   onClick={() => handleSendMessage(q.prompt)}
-                  className="px-2.5 py-1 rounded-full text-xs font-medium bg-muted/60 hover:bg-primary/10 hover:text-primary border border-border/80 transition-colors shrink-0 disabled:opacity-50"
+                  className="px-2.5 py-1 rounded-full text-xs font-medium text-slate-800 dark:text-slate-100 bg-muted/90 hover:bg-primary/15 hover:text-primary dark:hover:text-primary border border-border hover:border-primary/40 transition-colors shrink-0 disabled:opacity-50 cursor-pointer shadow-xs"
                 >
                   {q.label}
                 </button>
@@ -550,7 +550,7 @@ export function ChatAssistant() {
                   }
                 }}
                 disabled={loading}
-                className="text-xs sm:text-sm bg-background border-border/80 h-10"
+                className="text-xs sm:text-sm text-slate-900 dark:text-slate-100 bg-background border-border/80 h-10 placeholder:text-muted-foreground focus-visible:text-slate-900 dark:focus-visible:text-slate-100"
               />
               <Button
                 onClick={() => handleSendMessage()}

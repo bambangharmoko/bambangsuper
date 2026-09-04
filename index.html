@@ -6,60 +6,68 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>SUMTRA</title>
 
-  <!-- PWA Manifest -->
+  <!-- ═══ PWA Core: Manifest & Service Worker ═══ -->
   <link rel="manifest" href="/manifest.json" />
 
-  <!-- Favicon -->
+  <!-- ═══ Favicon ═══ -->
   <link rel="icon" type="image/png" href="/favicon.png" />
 
-  <!-- ── Preconnect: mempercepat koneksi ke resource eksternal ─────────── -->
+  <!-- ═══ Preconnect: mempercepat koneksi ke resource eksternal ═══ -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="dns-prefetch" href="https://wytbkueaymkpbwmbvkul.supabase.co" />
 
-  <!-- SEO & Description -->
-  <meta name="description" content="SUMTRA - Super Ultima Management, Tracking & Real-Time Application" />
+  <!-- ═══ SEO & Description ═══ -->
+  <meta name="description" content="SUMTRA - Super Ultima Management, Tracking & Real-Time Application. Lacak status servis komputer & laptop di Super Komputer Balikpapan." />
   <meta name="author" content="Super Komputer Balikpapan" />
-  <meta name="keywords" content="servis laptop, service center, Super Komputer, balikpapan" />
+  <meta name="keywords" content="servis laptop, service center, Super Komputer, balikpapan, SUMTRA, lacak tiket servis" />
 
-  <!-- Theme Color (Android Chrome & PC) -->
+  <!-- ═══ Theme Color ═══ -->
+  <!-- Chrome/Samsung Browser di Android — menentukan warna status bar & address bar -->
   <meta name="theme-color" content="#2563eb" />
+  <!-- Dark mode override untuk browser yang mendukung -->
+  <meta name="theme-color" content="#2563eb" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#2563eb" media="(prefers-color-scheme: light)" />
 
-  <!-- ── iOS / Safari PWA ──────────────────────────────────────────────── -->
-  <!-- Izinkan mode fullscreen di iOS -->
+  <!-- ═══ Android / Chrome — Kunci utama WebAPK ═══ -->
+  <!-- Mengizinkan mode web-app penuh (tanpa address bar Chrome) -->
   <meta name="mobile-web-app-capable" content="yes" />
+
+  <!-- ═══ iOS / Safari PWA ═══ -->
+  <!-- Izinkan mode fullscreen di iOS -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <!-- Nama yang muncul di bawah ikon di Home Screen -->
   <meta name="apple-mobile-web-app-title" content="SUMTRA" />
-  <!-- Style status bar iOS: default = putih, black = hitam, black-translucent = transparan -->
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <!-- Style status bar iOS: black-translucent agar immersive -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <!-- Ikon untuk Home Screen iOS -->
-  <link rel="apple-touch-icon" href="/icon-192.png" />
-  <!-- Splash screen iOS (ukuran paling umum — tambahkan lebih jika perlu) -->
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png" />
+  <!-- Splash screen iOS -->
   <link rel="apple-touch-startup-image"
     media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)"
     href="/icon-512.png" />
 
-  <!-- ── Windows / Microsoft ────────────────────────────────────────────── -->
+  <!-- ═══ Windows / Microsoft ═══ -->
   <meta name="msapplication-TileColor" content="#2563eb" />
   <meta name="msapplication-TileImage" content="/icon-192.png" />
   <meta name="msapplication-config" content="none" />
 
-  <!-- ── Open Graph ──────────────────────────────────────────────────────── -->
+  <!-- ═══ Open Graph ═══ -->
   <meta property="og:type" content="website" />
   <meta property="og:title" content="SUMTRA — Service Center Balikpapan" />
   <meta property="og:description" content="SUMTRA - Super Ultima Management, Tracking & Real-Time Application" />
   <meta property="og:image" content="/icon-512.png" />
+  <meta property="og:url" content="https://superkomputer.sumtra.app/" />
 
-  <!-- ── Twitter Card ─────────────────────────────────────────────────────── -->
+  <!-- ═══ Twitter Card ═══ -->
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="SUMTRA" />
   <meta name="twitter:description" content="SUMTRA - Super Ultima Management, Tracking & Real-Time Application" />
   <meta name="twitter:image" content="/icon-512.png" />
 
-  <!-- ── Inline Splash Screen CSS ─────────────────────────────────────── -->
+  <!-- ═══ Inline Splash Screen CSS ═══ -->
   <!-- Menampilkan loading indicator SEBELUM JavaScript dimuat -->
-  <!-- Mengurangi perceived load time dan membuat install terasa instan -->
   <style>
     #splash-screen {
       position: fixed;
@@ -69,7 +77,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: #020617;
+      background: #070b14;
       transition: opacity 0.3s ease-out;
     }
 

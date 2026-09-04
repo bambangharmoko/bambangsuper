@@ -2,8 +2,8 @@
   "name": "SUMTRA - Super Komputer Balikpapan",
   "short_name": "SUMTRA",
   "description": "SUMTRA - Super Ultima Management, Tracking & Real-Time Application. Layanan servis komputer & laptop Balikpapan.",
-  "id": "/?source=pwa",
-  "start_url": "/?source=pwa",
+  "id": "/",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
@@ -23,7 +23,7 @@
       "name": "Buat Pesanan Baru",
       "short_name": "Pesanan",
       "description": "Buat tiket servis baru",
-      "url": "/dashboard/orders?source=shortcut",
+      "url": "/dashboard/orders",
       "icons": [
         {
           "src": "/icon-192.png",
@@ -36,7 +36,7 @@
       "name": "Lacak Servis",
       "short_name": "Lacak",
       "description": "Cari status tiket servis",
-      "url": "/track?source=shortcut",
+      "url": "/track",
       "icons": [
         {
           "src": "/icon-192.png",
@@ -84,18 +84,11 @@
   ],
   "screenshots": [
     {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
+      "src": "/screenshot-narrow.jpg",
+      "sizes": "780x1688",
+      "type": "image/jpeg",
       "form_factor": "narrow",
       "label": "SUMTRA - Lacak status servis secara real-time"
-    },
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "SUMTRA - Dashboard manajemen servis Super Komputer"
     }
   ]
 }
